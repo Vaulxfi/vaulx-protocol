@@ -1,6 +1,6 @@
 # Vaulx — Build Status
 
-**Last updated:** 2026-04-23 (Task 0.5 completed)
+**Last updated:** 2026-04-23 (Task 0.6 completed)
 **Plan:** [docs/plans/2026-04-23-vaulx-build-plan.md](docs/plans/2026-04-23-vaulx-build-plan.md)
 **Design:** [docs/plans/2026-04-23-vaulx-full-stack-build-design.md](docs/plans/2026-04-23-vaulx-full-stack-build-design.md)
 **Submission deadline:** 2026-05-10 (Day 18 from kickoff)
@@ -18,7 +18,7 @@
 | 0.3 | Shared packages (types, terms, ccb, anchor-client, idls) | completed | LTV math tests green (4/4); TDD red-then-green |
 | 0.4 | Anchor workspace with 4 empty programs | completed | `anchor build` + `anchor test` green; all 4 programs ping on localnet. rustc 1.85.0, anchor-cli 0.30.1, solana-cli 1.18.26. IDL blocker resolved by vendoring anchor-syn 0.30.1 locally (via `[patch.crates-io]`) with the unused `source_file()` cross-file type alias path disabled. |
 | 0.5 | Next.js 14 app + Tailwind + shadcn + wallet adapter | completed | Next.js 14 + App Router, Tailwind with Vaulx palette, shadcn/ui `new-york`, Phantom/Solflare wallet on Devnet |
-| 0.6 | GitHub Actions CI | pending | |
+| 0.6 | GitHub Actions CI | completed | `.github/workflows/ci.yml` with parallel `ts` and `anchor` jobs; concurrency cancels stale runs; Solana + Anchor CLI caches keyed on versions |
 | 0.7 | Supabase project + env wiring | pending | Requires user-provided keys |
 | 0.8 | GitHub repo + push | pending | Requires user sign-off |
 | 0.9 | Phase 0 exit verification | pending | |
