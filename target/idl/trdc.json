@@ -76,6 +76,40 @@
       ]
     },
     {
+      "name": "mint_trdc_cnft",
+      "discriminator": [
+        43,
+        103,
+        42,
+        173,
+        169,
+        175,
+        191,
+        119
+      ],
+      "accounts": [
+        {
+          "name": "trdc_state",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "asset_hint",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "test_transition",
       "discriminator": [
         22,
@@ -201,6 +235,10 @@
           {
             "name": "bump",
             "type": "u8"
+          },
+          {
+            "name": "asset_id",
+            "type": "pubkey"
           },
           {
             "name": "created_at",
