@@ -1,12 +1,12 @@
 # Vaulx — Build Status
 
-**Last updated:** 2026-04-23 (Task 0.6 completed)
+**Last updated:** 2026-04-23 (Task 0.9 completed; Phase 0 closed)
 **Plan:** [docs/plans/2026-04-23-vaulx-build-plan.md](docs/plans/2026-04-23-vaulx-build-plan.md)
 **Design:** [docs/plans/2026-04-23-vaulx-full-stack-build-design.md](docs/plans/2026-04-23-vaulx-full-stack-build-design.md)
 **Submission deadline:** 2026-05-10 (Day 18 from kickoff)
 
 ## Current phase
-**Phase 0 — Bootstrap** (in progress)
+**Phase 0 — Bootstrap (completed — awaiting GitHub remote URL for Task 0.8 and Supabase/Helius keys for Task 0.7 production)**
 
 ## Phase 0 tasks
 
@@ -20,14 +20,14 @@
 | 0.5 | Next.js 14 app + Tailwind + shadcn + wallet adapter | completed | Next.js 14 + App Router, Tailwind with Vaulx palette, shadcn/ui `new-york`, Phantom/Solflare wallet on Devnet |
 | 0.6 | GitHub Actions CI | completed | `.github/workflows/ci.yml` with parallel `ts` and `anchor` jobs; concurrency cancels stale runs; Solana + Anchor CLI caches keyed on versions |
 | 0.7 | Supabase project + env wiring | scaffold_complete | In-repo package + env.example done. Awaiting user-provided SUPABASE_URL / ANON / SERVICE_ROLE keys and HELIUS_API_KEY to complete. |
-| 0.8 | GitHub repo + push | pending | Requires user sign-off |
-| 0.9 | Phase 0 exit verification | pending | |
+| 0.8 | GitHub repo + push | pending | Blocked on user-provided GitHub remote URL |
+| 0.9 | Phase 0 exit verification | completed | All 16 checks green: pnpm/turbo/lint/typecheck/test/web build, rustc 1.85.0 + anchor-cli 0.30.1 + solana-cli 1.18.26, `anchor build` produces 4 `.so` + 4 IDLs, `anchor test` pings all 4 programs, `/api/health` returns `{"ok":true,...}` |
 
 ## Phase status
 
 | Phase | Days | Status |
 |---|---|---|
-| Phase 0 — Bootstrap | Days 2–3 (Apr 23–24) | in_progress |
+| Phase 0 — Bootstrap | Days 2–3 (Apr 23–24) | completed |
 | Phase 1 — Core programs + happy paths | Days 4–7 (Apr 25–28) | not_started |
 | Phase 2 — Disburse gate + borrower wizard + I1/I2 | Days 8–10 (Apr 29–May 1) | not_started |
 | Phase 3 — Repayment, renewal, auction, I3, SSE | Days 11–13 (May 2–4) | not_started |
