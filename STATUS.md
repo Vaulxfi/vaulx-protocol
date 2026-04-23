@@ -15,7 +15,7 @@
 | P0.0 | Install toolchain (Rust, Solana CLI, Anchor) | in_progress | Running in background |
 | 0.1 | Initialize git + commit existing docs | completed | |
 | 0.2 | pnpm workspace + Turborepo | completed | |
-| 0.3 | Shared packages (types, terms, ccb, anchor-client, idls) | pending | |
+| 0.3 | Shared packages (types, terms, ccb, anchor-client, idls) | completed | LTV math tests green (4/4); TDD red-then-green |
 | 0.4 | Anchor workspace with 4 empty programs | pending | Blocked on P0.0 |
 | 0.5 | Next.js 14 app + Tailwind + shadcn + wallet adapter | pending | |
 | 0.6 | GitHub Actions CI | pending | |
