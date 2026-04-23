@@ -26,6 +26,7 @@ pub mod trdc {
         s.loan_amount = loan_amount;
         s.due_ts = due_ts;
         s.bump = ctx.bumps.trdc_state;
+        s.asset_id = Pubkey::default();
         s.created_at = clock.unix_timestamp;
         s._reserved = [0u8; 64];
         Ok(())
@@ -33,6 +34,19 @@ pub mod trdc {
 
     pub fn test_transition(ctx: Context<TestTransition>, next: Status) -> Result<()> {
         ctx.accounts.trdc_state.transition(next)
+    }
+
+    pub fn mint_trdc_cnft(ctx: Context<MintTrdcCnft>, asset_hint: [u8; 32]) -> Result<()> {
+        // PHASE_2_TODO: replace this stub with a real Bubblegum CPI (mpl-bubblegum
+        // `mint_to_collection_v1`). Phase 1 does not need a real cNFT to ship
+        // Moment 1 (lender deposit) — the LTV gate in loan.create_ccb_trdc is
+        // tested against the initialize + stub-mint call path, which is logically
+        // identical to the real path for the purposes of the LTV assertion.
+        let s = &mut ctx.accounts.trdc_state;
+        let combined = [s.loan_id.as_ref(), &asset_hint].concat();
+        let hash = anchor_lang::solana_program::hash::hash(&combined);
+        s.asset_id = Pubkey::new_from_array(hash.to_bytes());
+        Ok(())
     }
 }
 
@@ -54,6 +68,13 @@ pub struct InitializeTrdcState<'info> {
 
 #[derive(Accounts)]
 pub struct TestTransition<'info> {
+    #[account(mut)]
+    pub trdc_state: Account<'info, TRDCState>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct MintTrdcCnft<'info> {
     #[account(mut)]
     pub trdc_state: Account<'info, TRDCState>,
     pub authority: Signer<'info>,

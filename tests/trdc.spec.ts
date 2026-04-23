@@ -170,3 +170,40 @@ describe("trdc / transitions", () => {
     }
   });
 });
+
+describe("trdc / mint_trdc_cnft", () => {
+  anchor.setProvider(anchor.AnchorProvider.env());
+  const program = anchor.workspace.Trdc as Program<any>;
+  const provider = anchor.getProvider();
+
+  it("writes a deterministic non-default asset_id", async () => {
+    const loanId = Keypair.generate().publicKey;
+    const [pda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("trdc_state"), loanId.toBuffer()], program.programId,
+    );
+    await program.methods
+      .initializeTrdcState(loanId, new anchor.BN(1), new anchor.BN(1), new anchor.BN(1))
+      .accounts({ trdcState: pda, payer: provider.publicKey, systemProgram: SystemProgram.programId })
+      .rpc();
+
+    // asset_id defaults to Pubkey::default()
+    let s = await program.account.trdcState.fetch(pda);
+    expect(s.assetId.toBase58()).to.eq(PublicKey.default.toBase58());
+
+    const hint = new Uint8Array(32); hint.fill(7);
+    await program.methods.mintTrdcCnft(Array.from(hint))
+      .accounts({ trdcState: pda, authority: provider.publicKey })
+      .rpc();
+
+    s = await program.account.trdcState.fetch(pda);
+    expect(s.assetId.toBase58()).to.not.eq(PublicKey.default.toBase58());
+
+    // Determinism: calling again with the same hint yields the same asset_id.
+    const before = s.assetId.toBase58();
+    await program.methods.mintTrdcCnft(Array.from(hint))
+      .accounts({ trdcState: pda, authority: provider.publicKey })
+      .rpc();
+    s = await program.account.trdcState.fetch(pda);
+    expect(s.assetId.toBase58()).to.eq(before);
+  });
+});

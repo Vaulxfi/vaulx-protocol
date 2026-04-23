@@ -20,12 +20,14 @@ pub struct TRDCState {
     pub loan_amount: u64,
     pub due_ts: i64,
     pub bump: u8,
+    pub asset_id: Pubkey,
     pub created_at: i64,
     pub _reserved: [u8; 64],
 }
 
 impl TRDCState {
-    pub const SIZE: usize = 8 + 32 + 2 + 8 + 8 + 8 + 1 + 8 + 64;
+    pub const SIZE: usize = 8 + 32 + 2 + 8 + 8 + 8 + 1 + 32 + 8 + 64;
+                          //  disc + loan_id + status + apraisal + loan_amt + due_ts + bump + asset_id + created_at + reserved
     pub const SEED: &'static [u8] = b"trdc_state";
 
     pub fn transition(&mut self, next: Status) -> Result<()> {
