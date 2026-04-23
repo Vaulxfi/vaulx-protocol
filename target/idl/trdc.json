@@ -7,24 +7,216 @@
   },
   "instructions": [
     {
-      "name": "ping",
+      "name": "initialize_trdc_state",
       "discriminator": [
-        173,
-        0,
-        94,
-        236,
+        162,
+        90,
         73,
-        133,
-        225,
-        153
+        89,
+        250,
+        60,
+        220,
+        80
       ],
       "accounts": [
         {
-          "name": "signer",
+          "name": "trdc_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  114,
+                  100,
+                  99,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "loan_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "loan_id",
+          "type": "pubkey"
+        },
+        {
+          "name": "appraisal_value",
+          "type": "u64"
+        },
+        {
+          "name": "loan_amount",
+          "type": "u64"
+        },
+        {
+          "name": "due_ts",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "test_transition",
+      "discriminator": [
+        22,
+        30,
+        75,
+        8,
+        163,
+        145,
+        16,
+        176
+      ],
+      "accounts": [
+        {
+          "name": "trdc_state",
+          "writable": true
+        },
+        {
+          "name": "authority",
           "signer": true
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "next",
+          "type": {
+            "defined": {
+              "name": "Status"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "TRDCState",
+      "discriminator": [
+        180,
+        245,
+        164,
+        25,
+        221,
+        228,
+        245,
+        236
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidStateTransition",
+      "msg": "Invalid state transition"
+    },
+    {
+      "code": 6001,
+      "name": "MathOverflow",
+      "msg": "Math overflow"
+    }
+  ],
+  "types": [
+    {
+      "name": "Status",
+      "docs": [
+        "7-state enum — mirrors `packages/types/src/index.ts` `TRDCStatus`."
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "PendingCustody"
+          },
+          {
+            "name": "Active"
+          },
+          {
+            "name": "Renewed"
+          },
+          {
+            "name": "Repaid"
+          },
+          {
+            "name": "Overdue"
+          },
+          {
+            "name": "Defaulted"
+          },
+          {
+            "name": "Liquidated"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TRDCState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "loan_id",
+            "type": "pubkey"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "Status"
+              }
+            }
+          },
+          {
+            "name": "appraisal_value",
+            "type": "u64"
+          },
+          {
+            "name": "loan_amount",
+            "type": "u64"
+          },
+          {
+            "name": "due_ts",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "_reserved",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          }
+        ]
+      }
     }
   ]
 }
