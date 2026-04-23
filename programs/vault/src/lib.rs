@@ -154,6 +154,14 @@ pub mod vault {
         Ok(())
     }
 
+    pub fn disburse(_ctx: Context<Disburse>, _amount: u64) -> Result<()> {
+        // PHASE_2_TODO: implement the custody-gated CPI path per canonical spec §4.2.
+        // Contract is defined here so anchor-client-gen can emit the typed builder
+        // and the FE can display a "coming in Phase 2" disabled button without
+        // being blocked on backend work.
+        err!(VaultError::DisburseNotYetImplemented)
+    }
+
     // test-only helper — Phase 2 removes this.
     // Bumps vault.total_assets without minting shares, simulating yield accrual
     // so rounding-down behavior of the deposit share math is testable.
@@ -235,6 +243,20 @@ pub struct Withdraw<'info> {
     pub depositor_share_ata: Account<'info, TokenAccount>,
 
     #[account(mut)] pub depositor: Signer<'info>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct Disburse<'info> {
+    #[account(mut, seeds = [Vault::SEED, asset_mint.key().as_ref()], bump = vault.bump)]
+    pub vault: Account<'info, Vault>,
+    pub asset_mint: Account<'info, Mint>,
+    #[account(mut, token::mint = asset_mint, token::authority = vault)]
+    pub vault_ata: Account<'info, TokenAccount>,
+    #[account(mut, token::mint = asset_mint)]
+    pub borrower_ata: Account<'info, TokenAccount>,
+    /// CHECK: validated in Phase 2 CPI authority check
+    pub loan_program_authority: UncheckedAccount<'info>,
     pub token_program: Program<'info, Token>,
 }
 

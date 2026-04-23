@@ -354,3 +354,55 @@ describe("vault / withdraw", () => {
     expect(threw).to.eq(true);
   });
 });
+
+describe("vault / disburse", () => {
+  anchor.setProvider(anchor.AnchorProvider.env());
+  const program = anchor.workspace.Vault as Program<any>;
+  const provider = anchor.getProvider() as anchor.AnchorProvider;
+  const payer = (provider.wallet as any).payer as Keypair;
+
+  it("disburse returns DisburseNotYetImplemented", async () => {
+    const assetMint = await createMint(
+      provider.connection, payer, provider.publicKey, null, 6,
+    );
+    const [vaultPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("vault"), assetMint.toBuffer()], program.programId,
+    );
+    const shareMintKp = Keypair.generate();
+    await program.methods.initializeVault().accounts({
+      vault: vaultPda,
+      assetMint,
+      shareMint: shareMintKp.publicKey,
+      payer: provider.publicKey,
+      tokenProgram: TOKEN_PROGRAM_ID,
+      systemProgram: SystemProgram.programId,
+      rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+    }).signers([shareMintKp]).rpc();
+
+    const vaultAta = await createAssociatedTokenAccount(
+      provider.connection, payer, assetMint, vaultPda, undefined, undefined, undefined, true,
+    );
+    const borrower = Keypair.generate();
+    const borrowerAta = await createAssociatedTokenAccount(
+      provider.connection, payer, assetMint, borrower.publicKey,
+    );
+
+    let threw = false;
+    let code: string | undefined;
+    try {
+      await program.methods.disburse(new BN(1)).accounts({
+        vault: vaultPda,
+        assetMint,
+        vaultAta,
+        borrowerAta,
+        loanProgramAuthority: PublicKey.default,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      }).rpc();
+    } catch (e: any) {
+      threw = true;
+      code = e.error?.errorCode?.code ?? e.code;
+    }
+    expect(threw).to.eq(true);
+    expect(code).to.eq("DisburseNotYetImplemented");
+  });
+});
