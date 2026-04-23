@@ -11,8 +11,15 @@
     "typecheck": "turbo run typecheck"
   },
   "devDependencies": {
+    "@coral-xyz/anchor": "^0.30.1",
+    "@types/chai": "^5.2.3",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^25.6.0",
+    "chai": "^6.2.2",
+    "mocha": "^11.7.5",
+    "ts-mocha": "^11.1.0",
     "turbo": "^2.0.4",
-    "typescript": "^5.4.5"
+    "typescript": "^5.9.3"
   },
   "engines": {
     "node": ">=20"

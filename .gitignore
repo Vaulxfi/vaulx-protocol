@@ -7,7 +7,9 @@ dist/
 .turbo/
 
 # Rust / Anchor
-target/
+target/*
+!target/idl/
+target/idl/*.ts
 .anchor/
 test-ledger/
 *.log

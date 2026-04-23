@@ -1,0 +1,24 @@
+[workspace]
+members = [
+  "programs/trdc",
+  "programs/vault",
+  "programs/loan",
+  "programs/auction",
+]
+resolver = "2"
+
+[profile.release]
+overflow-checks = true
+lto = "fat"
+codegen-units = 1
+
+[workspace.dependencies]
+anchor-lang = "0.30.1"
+anchor-spl = "0.30.1"
+
+# Local patch of anchor-syn 0.30.1 disabling the `source_file()` codepath that
+# breaks IDL generation on modern rustc (the stdlib `proc_macro::Span::source_file`
+# API was removed post-1.79). The removed codepath only resolves cross-file type
+# aliases, which none of our programs currently use.
+[patch.crates-io]
+anchor-syn = { path = "vendor/anchor-syn" }
