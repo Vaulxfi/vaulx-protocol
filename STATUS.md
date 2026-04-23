@@ -1,6 +1,6 @@
 # Vaulx — Build Status
 
-**Last updated:** 2026-04-24 (Phase 1 tasks 1.1–1.7 complete, 1.8 starting)
+**Last updated:** 2026-04-24 (Phase 1 tasks 1.1–1.8 complete, 1.9 starting — both exit-criteria tests green)
 **Plan:** [docs/plans/2026-04-23-vaulx-build-plan.md](docs/plans/2026-04-23-vaulx-build-plan.md)
 **Phase 1 plan:** [docs/plans/2026-04-25-vaulx-phase-1-core-programs.md](docs/plans/2026-04-25-vaulx-phase-1-core-programs.md)
 **Design:** [docs/plans/2026-04-23-vaulx-full-stack-build-design.md](docs/plans/2026-04-23-vaulx-full-stack-build-design.md)
@@ -23,8 +23,8 @@ Supabase: `vaulx-devnet` (project id `ctiypfxtymnszposgaky`, region `us-east-1`)
 | 1.5 | `deposit` with share math (`test_vault_share_accounting` required) | completed | TDD green: first=1:1, second rounds down, multi-depositor invariant held |
 | 1.6 | `withdraw` with share math | completed | TDD green: roundtrip ±1 lamport + over-withdraw reverts. Dust guard (`assets_out > 0`) added post code-review |
 | 1.7 | `disburse` stub | completed | Signature + accounts published; body returns `DisburseNotYetImplemented`. 14/14 tests green. |
-| 1.8 | `Loan.create_ccb_trdc` with LTV gate (CPI into TRDC) | in_progress | Rejects LTV > 60% via CPI; `test_ltv_enforced_at_mint` green |
-| 1.9 | Event emission + IDL copy to `packages/idls` | pending | `Deposited`, `Withdrawn`, `LoanCreated`, state-change events |
+| 1.8 | `Loan.create_ccb_trdc` with LTV gate (CPI into TRDC) | completed | 16/16 tests green. `test_ltv_enforced_at_mint` (61% rejected) + happy-path (59% accepted, TRDCState in PendingCustody, non-default asset_id). CPI into `trdc::initialize_trdc_state` + `mint_trdc_cnft`. |
+| 1.9 | Event emission + IDL copy to `packages/idls` | in_progress | `Deposited`, `Withdrawn`, `LoanCreated`, state-change events |
 | 1.10 | Generate `@vaulx/anchor-client` via `anchor-client-gen` | pending | Typed clients for all 4 programs; build + typecheck green |
 | 1.11 | USDC mint on Devnet + demo-wallet seed script | pending | Mock-USDC mint address pinned; seed script funds demo wallets |
 | 1.12 | `/lend`, `/lend/vaults`, `/lend/vaults/[id]` frontend + I4 mock modal | pending | Moment 1 UI; Civic/Blockpass hardcoded-pass modal on first deposit |

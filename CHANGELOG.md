@@ -4,6 +4,11 @@ Chronological log of build progress. Newest at the top.
 
 ---
 
+## 2026-04-24 — Phase 1 planning + tasks 1.1–1.8 (both exit-criteria tests green)
+
+- **Task 1.8 completed (Loan.create_ccb_trdc with LTV gate + CPI into TRDC):** new `create_ccb_trdc(loan_id, appraisal_value, loan_amount, due_ts, asset_hint)` instruction in loan program. Enforces `loan_amount * 10_000 <= appraisal_value * 6_000` (≤60% LTV, mirroring `packages/terms/src/ltv.ts`) via u128 checked_mul. CPIs into `trdc::initialize_trdc_state` + `trdc::mint_trdc_cnft`. New `programs/loan/src/errors.rs` with `MAX_LTV_BPS = 6_000` + `LoanError {LtvTooHigh, ZeroAmount, MathOverflow}`. Added `trdc = { path = "../trdc", features = ["cpi"] }` to loan's Cargo.toml. Tests: `test_ltv_enforced_at_mint` (61% → `LtvTooHigh`) + happy-path (59% → TRDCState in PendingCustody with non-default asset_id). 16/16 Anchor tests passing. Commit `3e8324e`.
+- **Both Phase 1 exit-criteria tests now green:** `test_vault_share_accounting` (vault share math invariant, task 1.5) + `test_ltv_enforced_at_mint` (LTV gate, task 1.8).
+
 ## 2026-04-24 — Phase 1 planning + tasks 1.1–1.7
 
 - **Phase 1 detailed plan written:** `docs/plans/2026-04-25-vaulx-phase-1-core-programs.md` (14 tasks, TDD-granular, covers TRDC 7-state PDA, Vault share accounting, Loan LTV gate, lender FE, indexer worker; Bubblegum + Civic-on-chain gate deferred to Phase 2).
