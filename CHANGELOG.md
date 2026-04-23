@@ -4,6 +4,10 @@ Chronological log of build progress. Newest at the top.
 
 ---
 
+## 2026-04-24 — Phase 1 planning + tasks 1.1–1.11
+
+- **Task 1.11 completed (seed script):** `scripts/dev/seed-usdc.ts` — idempotent Devnet USDC mint + 6-wallet seeder (2 SOL + 50k USDC each). Re-reads `scripts/dev/devnet-usdc.json` + `scripts/dev/demo-wallets.json` on each run to only fund the delta. Payer underfunded-guard path verified (payer `2HYjytRc4oKY2ndmJfAq2XdGhPqYB7VdDPLzA18QEiAH` has 0 SOL — CLI airdrop rate-limited; user must fund at faucet.solana.com before the mint materializes). Added `tsx` + `@solana/web3.js` to root dev-deps (web3.js was transitive-only via spl-token and didn't hoist). Root `pnpm seed:usdc` script wired. typecheck 6/6 green. `.gitignore`s exclude `demo-wallets.json` + `devnet-usdc.json`. Commit `a124674`.
+
 ## 2026-04-24 — Phase 1 planning + tasks 1.1–1.10
 
 - **Task 1.10 completed (anchor-client):** anchor-client-gen 0.28.1 (latest published) errors on Anchor 0.30 IDL shape (`address` top-level, `metadata`, inline `discriminator` arrays). Switched to the plan-authorized fallback: hand-rolled façade at `packages/anchor-client/src/index.ts` that re-exports the raw IDLs from `@vaulx/idls` and exposes `{ idl, programId, program(provider) }` per program via `new Program<Idl>(idl, provider)`. `build:client` script + `scripts/dev/gen-clients.mjs` stay wired so we can flip to real generated clients when upstream catches up. Added `@coral-xyz/anchor ^0.30.1` + `@vaulx/idls workspace:*` deps. `pnpm -w typecheck` → 6/6 green. Commit `e4c64be`.
