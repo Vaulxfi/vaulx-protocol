@@ -11,3 +11,4 @@ Chronological log of build progress. Newest at the top.
 - Started Phase 0 bootstrap execution (subagent-driven).
 - Kicked off Rust 1.79 + Solana CLI 1.18.26 installation in background.
 - **Task 0.1 completed:** initialized git repo on `main`, added `.gitignore` (incl. `.claude/`) and minimal `README.md`, committed design docs + STATUS + CHANGELOG. Legacy root-level `*.docx`/`*.pdf`/`*.png`/pre-Vaulx planning `.md` files left untracked pending triage.
+- **Task 0.2 completed:** initialized pnpm workspace + Turborepo at repo root (`package.json`, `pnpm-workspace.yaml`, `turbo.json`, `pnpm-lock.yaml`); `packageManager` pinned to `pnpm@10.13.1` to match local install; `pnpm -w exec turbo --version` reports `2.9.6`.
