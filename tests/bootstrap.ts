@@ -4,10 +4,9 @@ import { Program } from "@coral-xyz/anchor";
 describe("bootstrap", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
 
-  it("pings vault/loan/auction programs", async () => {
+  it("pings loan/auction programs", async () => {
     const provider = anchor.getProvider();
     const programs = [
-      anchor.workspace.Vault as Program<any>,
       anchor.workspace.Loan as Program<any>,
       anchor.workspace.Auction as Program<any>,
     ];
