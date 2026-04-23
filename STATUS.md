@@ -13,7 +13,7 @@
 | # | Task | Status | Notes |
 |---|---|---|---|
 | P0.0 | Install toolchain (Rust, Solana CLI, Anchor) | in_progress | Running in background |
-| 0.1 | Initialize git + commit existing docs | pending | |
+| 0.1 | Initialize git + commit existing docs | completed | |
 | 0.2 | pnpm workspace + Turborepo | pending | |
 | 0.3 | Shared packages (types, terms, ccb, anchor-client, idls) | pending | |
 | 0.4 | Anchor workspace with 4 empty programs | pending | Blocked on P0.0 |
