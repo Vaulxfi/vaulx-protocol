@@ -4,13 +4,14 @@ Chronological log of build progress. Newest at the top.
 
 ---
 
-## 2026-04-24 — Phase 1 planning + tasks 1.1–1.6
+## 2026-04-24 — Phase 1 planning + tasks 1.1–1.7
 
 - **Phase 1 detailed plan written:** `docs/plans/2026-04-25-vaulx-phase-1-core-programs.md` (14 tasks, TDD-granular, covers TRDC 7-state PDA, Vault share accounting, Loan LTV gate, lender FE, indexer worker; Bubblegum + Civic-on-chain gate deferred to Phase 2).
 - **Tasks 1.1–1.3 completed (TRDC program):** `TRDCState` PDA + 7-state Status enum (`PendingCustody → Active → {Renewed|Repaid|Overdue} → Defaulted → Liquidated`), transition table enforced on-chain via `InvalidStateTransition`, `mint_trdc_cnft` stub writes a deterministic hash-based `asset_id` (real Bubblegum CPI deferred to Phase 2).
 - **Task 1.4 completed (Vault init):** `initialize_vault` creates `Vault` PDA (seeds `[b"vault", asset_mint]`), USDC reserve ATA, share mint owned by the vault PDA. `anchor-spl` wired with `token` + `idl-build` features.
 - **Task 1.5 completed (deposit):** `deposit(amount)` mints shares using u128-intermediate checked math (`shares_out = floor(amount * total_shares / total_assets)`). Required invariant test `test_vault_share_accounting` green (first deposit 1:1, second rounds down, multi-depositor proportional). Added test-only `test_donate_assets` helper to let rounding tests bump `total_assets` without minting.
 - **Task 1.6 completed (withdraw):** `withdraw(shares)` burns caller's shares + transfers `floor(shares * total_assets / total_shares)` back from the vault reserve with vault PDA signer seeds. Tests: deposit+withdraw roundtrip within ±1 lamport, over-withdraw reverts. Code review flagged dust-withdraw (shares round to zero assets) → added `require!(assets_out > 0, ZeroAmount)` guard (commit `4aea6a0`). All 13 Anchor tests passing.
+- **Task 1.7 completed (disburse stub):** `disburse(_ctx, _amount)` instruction signature + full `Disburse` accounts struct published; body returns `err!(VaultError::DisburseNotYetImplemented)`. Lets anchor-client-gen emit the typed builder now so the FE can wire a disabled "coming in Phase 2" button without blocking on backend work. Custody-gated CPI body lands in Phase 2. Test asserts the exact error code name. 14/14 Anchor tests passing.
 
 ---
 
