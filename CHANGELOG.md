@@ -4,6 +4,12 @@ Chronological log of build progress. Newest at the top.
 
 ---
 
+## 2026-04-24 — Phase 1 planning
+
+- **Phase 1 detailed plan written:** `docs/plans/2026-04-25-vaulx-phase-1-core-programs.md` (14 tasks, TDD-granular, covers TRDC 7-state PDA, Vault share accounting, Loan LTV gate, lender FE, indexer worker; Bubblegum + Civic-on-chain gate deferred to Phase 2).
+
+---
+
 ## 2026-04-23 — Phase 0 kickoff
 
 - Wrote design doc: `docs/plans/2026-04-23-vaulx-full-stack-build-design.md`
