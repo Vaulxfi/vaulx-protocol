@@ -19,7 +19,7 @@
 | 0.4 | Anchor workspace with 4 empty programs | completed | `anchor build` + `anchor test` green; all 4 programs ping on localnet. rustc 1.85.0, anchor-cli 0.30.1, solana-cli 1.18.26. IDL blocker resolved by vendoring anchor-syn 0.30.1 locally (via `[patch.crates-io]`) with the unused `source_file()` cross-file type alias path disabled. |
 | 0.5 | Next.js 14 app + Tailwind + shadcn + wallet adapter | completed | Next.js 14 + App Router, Tailwind with Vaulx palette, shadcn/ui `new-york`, Phantom/Solflare wallet on Devnet |
 | 0.6 | GitHub Actions CI | completed | `.github/workflows/ci.yml` with parallel `ts` and `anchor` jobs; concurrency cancels stale runs; Solana + Anchor CLI caches keyed on versions |
-| 0.7 | Supabase project + env wiring | pending | Requires user-provided keys |
+| 0.7 | Supabase project + env wiring | scaffold_complete | In-repo package + env.example done. Awaiting user-provided SUPABASE_URL / ANON / SERVICE_ROLE keys and HELIUS_API_KEY to complete. |
 | 0.8 | GitHub repo + push | pending | Requires user sign-off |
 | 0.9 | Phase 0 exit verification | pending | |
 
