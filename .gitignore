@@ -1,0 +1,35 @@
+# Node
+node_modules/
+.pnpm-store/
+.next/
+out/
+dist/
+.turbo/
+
+# Rust / Anchor
+target/
+.anchor/
+test-ledger/
+*.log
+
+# Env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Editor
+.DS_Store
+.vscode/
+.idea/
+
+# Secrets / wallets
+*.json.keypair
+**/id.json
+wallet-*.json
+
+# Build artifacts
+*.so
+
+# Claude local settings
+.claude/
