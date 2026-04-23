@@ -29,7 +29,8 @@
     "@vaulx/terms": "workspace:*",
     "@vaulx/ccb": "workspace:*",
     "@vaulx/anchor-client": "workspace:*",
-    "@vaulx/idls": "workspace:*"
+    "@vaulx/idls": "workspace:*",
+    "@vaulx/supabase": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.16.11",

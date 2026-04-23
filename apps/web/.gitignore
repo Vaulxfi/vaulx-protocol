@@ -1,0 +1,11 @@
+# Env (also covered by repo-root .gitignore; duplicated here for clarity)
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo

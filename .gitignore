@@ -20,6 +20,11 @@ test-ledger/
 .env.*.local
 !.env.example
 
+# Supabase CLI — local/per-developer
+supabase/config.toml
+supabase/.temp/
+supabase/.branches/
+
 # Editor
 .DS_Store
 .vscode/

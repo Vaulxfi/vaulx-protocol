@@ -1,0 +1,24 @@
+# Supabase CLI config (placeholder).
+# Copy to `supabase/config.toml` and fill in `project_id` when the real
+# Supabase project is created. `supabase/config.toml` is git-ignored so each
+# developer can point at their own branch/shadow DB during local work.
+#
+# Reference: https://supabase.com/docs/guides/cli/config
+
+# Project ref from your Supabase dashboard (e.g. "abcdefghijklmnopqrst").
+project_id = "REPLACE_ME"
+
+[api]
+# Port used by the local `supabase start` PostgREST instance.
+port = 54321
+# Schemas exposed via the REST + GraphQL APIs.
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+# Max rows returned by a single REST query.
+max_rows = 1000
+
+[db]
+# Port used by the local Postgres instance.
+port = 54322
+# Postgres major version; keep in sync with the hosted project.
+major_version = 15
