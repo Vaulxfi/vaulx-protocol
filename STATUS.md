@@ -1,6 +1,6 @@
 # Vaulx — Build Status
 
-**Last updated:** 2026-04-24 (Phase 1 tasks 1.1–1.9 complete, 1.10 starting)
+**Last updated:** 2026-04-24 (Phase 1 tasks 1.1–1.10 complete, 1.11 starting)
 **Plan:** [docs/plans/2026-04-23-vaulx-build-plan.md](docs/plans/2026-04-23-vaulx-build-plan.md)
 **Phase 1 plan:** [docs/plans/2026-04-25-vaulx-phase-1-core-programs.md](docs/plans/2026-04-25-vaulx-phase-1-core-programs.md)
 **Design:** [docs/plans/2026-04-23-vaulx-full-stack-build-design.md](docs/plans/2026-04-23-vaulx-full-stack-build-design.md)
@@ -25,8 +25,8 @@ Supabase: `vaulx-devnet` (project id `ctiypfxtymnszposgaky`, region `us-east-1`)
 | 1.7 | `disburse` stub | completed | Signature + accounts published; body returns `DisburseNotYetImplemented`. 14/14 tests green. |
 | 1.8 | `Loan.create_ccb_trdc` with LTV gate (CPI into TRDC) | completed | 16/16 tests green. `test_ltv_enforced_at_mint` (61% rejected) + happy-path (59% accepted, TRDCState in PendingCustody, non-default asset_id). CPI into `trdc::initialize_trdc_state` + `mint_trdc_cnft`. |
 | 1.9 | Event emission + IDL copy to `packages/idls` | completed | 6 `#[event]`s across trdc/vault/loan; `scripts/dev/copy-idls.sh` + `packages/idls/src/index.ts`. 17/17 tests green (incl. listener-based Deposited test). ⚠️ Anchor 0.30.1 lowercases event names for `addEventListener` — use `"deposited"` not `"Deposited"` (indexer gotcha for 1.13). |
-| 1.10 | Generate `@vaulx/anchor-client` via `anchor-client-gen` | in_progress | Typed clients for all 4 programs; build + typecheck green |
-| 1.11 | USDC mint on Devnet + demo-wallet seed script | pending | Mock-USDC mint address pinned; seed script funds demo wallets |
+| 1.10 | Generate `@vaulx/anchor-client` via `anchor-client-gen` | completed | anchor-client-gen 0.28.1 doesn't handle Anchor 0.30 IDLs (upstream gap). Used plan-authorized fallback: hand-rolled façade at `packages/anchor-client/src/index.ts` exposing `{idl, programId, program(provider)}` per program via `@coral-xyz/anchor`'s `Program<Idl>`. `build:client` script stays wired for when upstream catches up. typecheck 6/6 green. |
+| 1.11 | USDC mint on Devnet + demo-wallet seed script | in_progress | Mock-USDC mint address pinned; seed script funds demo wallets |
 | 1.12 | `/lend`, `/lend/vaults`, `/lend/vaults/[id]` frontend + I4 mock modal | pending | Moment 1 UI; Civic/Blockpass hardcoded-pass modal on first deposit |
 | 1.13 | Indexer worker + `onchain_events` table | pending | Node worker subscribes to Vault logs via WS; Supabase upserts |
 | 1.14 | Moment 1 E2E happy-path test (`test_happy_path_end_to_end` stub) | pending | Scripted Devnet E2E: connect → KYC mock → deposit → share + event visible |

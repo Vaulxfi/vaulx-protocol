@@ -4,6 +4,10 @@ Chronological log of build progress. Newest at the top.
 
 ---
 
+## 2026-04-24 — Phase 1 planning + tasks 1.1–1.10
+
+- **Task 1.10 completed (anchor-client):** anchor-client-gen 0.28.1 (latest published) errors on Anchor 0.30 IDL shape (`address` top-level, `metadata`, inline `discriminator` arrays). Switched to the plan-authorized fallback: hand-rolled façade at `packages/anchor-client/src/index.ts` that re-exports the raw IDLs from `@vaulx/idls` and exposes `{ idl, programId, program(provider) }` per program via `new Program<Idl>(idl, provider)`. `build:client` script + `scripts/dev/gen-clients.mjs` stay wired so we can flip to real generated clients when upstream catches up. Added `@coral-xyz/anchor ^0.30.1` + `@vaulx/idls workspace:*` deps. `pnpm -w typecheck` → 6/6 green. Commit `e4c64be`.
+
 ## 2026-04-24 — Phase 1 planning + tasks 1.1–1.9
 
 - **Task 1.9 completed (events + IDL copy):** added 6 `#[event]`s across trdc/vault/loan — trdc `TrdcStateInitialized` + `TrdcTransitioned`; vault `VaultInitialized` + `Deposited` + `Withdrawn`; loan `CcbTrdcCreated`. Emits placed after all state mutation / CPIs so captured totals reflect post-state. `scripts/dev/copy-idls.sh` (executable, `set -euo pipefail`) copies all 4 IDLs from `target/idl/*.json` → `packages/idls/src/*.json`. `packages/idls/src/index.ts` re-exports all 4; `tsconfig.base.json` already had `resolveJsonModule: true`. Added listener-based `deposit emits a Deposited event` test with `getTransaction().meta.logMessages` fallback parse to avoid localnet finalized-commitment WS flakiness. 17/17 Anchor tests green; `pnpm -w typecheck` green (5/5 packages). **Indexer gotcha:** Anchor 0.30.1 runtime lowercases the first letter of event names for `addEventListener` — Task 1.13 must subscribe to `"deposited"` / `"withdrawn"` / `"ccbTrdcCreated"` etc., not the PascalCase struct name. Commit `798b208`.
