@@ -230,3 +230,127 @@ describe("vault / deposit", () => {
     expect(threw).to.eq(true);
   });
 });
+
+describe("vault / withdraw", () => {
+  anchor.setProvider(anchor.AnchorProvider.env());
+  const program = anchor.workspace.Vault as Program<any>;
+  const provider = anchor.getProvider() as anchor.AnchorProvider;
+  const payer = (provider.wallet as any).payer as Keypair;
+
+  let assetMint: PublicKey;
+  let shareMint: PublicKey;
+  let vaultPda: PublicKey;
+  let vaultAta: PublicKey;
+
+  type Lender = {
+    kp: Keypair;
+    assetAta: PublicKey;
+    shareAta: PublicKey;
+  };
+
+  const LENDER_FUND = new BN("10000000000"); // 10_000 USDC @ 6 decimals
+
+  async function setupLender(): Promise<Lender> {
+    const kp = Keypair.generate();
+    const sig = await provider.connection.requestAirdrop(kp.publicKey, 2 * LAMPORTS_PER_SOL);
+    await provider.connection.confirmTransaction(sig, "confirmed");
+
+    const assetAta = await createAssociatedTokenAccount(
+      provider.connection, payer, assetMint, kp.publicKey,
+    );
+    await mintTo(
+      provider.connection, payer, assetMint, assetAta, payer, BigInt(LENDER_FUND.toString()),
+    );
+    const shareAta = await createAssociatedTokenAccount(
+      provider.connection, payer, shareMint, kp.publicKey,
+    );
+    return { kp, assetAta, shareAta };
+  }
+
+  async function deposit(lender: Lender, amount: BN) {
+    await program.methods.deposit(amount).accounts({
+      vault: vaultPda,
+      assetMint,
+      shareMint,
+      vaultAta,
+      depositorAta: lender.assetAta,
+      depositorShareAta: lender.shareAta,
+      depositor: lender.kp.publicKey,
+      tokenProgram: TOKEN_PROGRAM_ID,
+    }).signers([lender.kp]).rpc();
+  }
+
+  async function withdraw(lender: Lender, shares: BN) {
+    await program.methods.withdraw(shares).accounts({
+      vault: vaultPda,
+      assetMint,
+      shareMint,
+      vaultAta,
+      depositorAta: lender.assetAta,
+      depositorShareAta: lender.shareAta,
+      depositor: lender.kp.publicKey,
+      tokenProgram: TOKEN_PROGRAM_ID,
+    }).signers([lender.kp]).rpc();
+  }
+
+  before(async () => {
+    assetMint = await createMint(
+      provider.connection, payer, provider.publicKey, null, 6,
+    );
+
+    [vaultPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("vault"), assetMint.toBuffer()], program.programId,
+    );
+
+    const shareMintKp = Keypair.generate();
+    shareMint = shareMintKp.publicKey;
+    await program.methods.initializeVault().accounts({
+      vault: vaultPda,
+      assetMint,
+      shareMint,
+      payer: provider.publicKey,
+      tokenProgram: TOKEN_PROGRAM_ID,
+      systemProgram: SystemProgram.programId,
+      rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+    }).signers([shareMintKp]).rpc();
+
+    vaultAta = await createAssociatedTokenAccount(
+      provider.connection, payer, assetMint, vaultPda, undefined, undefined, undefined, true,
+    );
+  });
+
+  it("roundtrips deposit + withdraw within 1 lamport", async () => {
+    const lender = await setupLender();
+    const startAsset = (await getAccount(provider.connection, lender.assetAta)).amount;
+
+    const amount = new BN("1000000000"); // 1000 USDC
+    await deposit(lender, amount);
+
+    const shareBal = (await getAccount(provider.connection, lender.shareAta)).amount;
+    expect(shareBal.toString()).to.not.eq("0");
+
+    await withdraw(lender, new BN(shareBal.toString()));
+
+    const endAsset = (await getAccount(provider.connection, lender.assetAta)).amount;
+    const diff = startAsset > endAsset ? startAsset - endAsset : endAsset - startAsset;
+    expect(diff <= 1n).to.eq(true);
+
+    const shareAfter = (await getAccount(provider.connection, lender.shareAta)).amount;
+    expect(shareAfter.toString()).to.eq("0");
+  });
+
+  it("withdraw more shares than owned reverts", async () => {
+    const lender = await setupLender();
+    const amount = new BN("500000000"); // 500 USDC
+    await deposit(lender, amount);
+
+    const shareBal = (await getAccount(provider.connection, lender.shareAta)).amount;
+    const tooMany = new BN((shareBal + 1n).toString());
+
+    let threw = false;
+    try {
+      await withdraw(lender, tooMany);
+    } catch { threw = true; }
+    expect(threw).to.eq(true);
+  });
+});

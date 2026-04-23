@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Mint, MintTo, Token, TokenAccount, Transfer};
+use anchor_spl::token::{self, Burn, Mint, MintTo, Token, TokenAccount, Transfer};
 
 pub mod errors;
 pub mod state;
@@ -88,6 +88,71 @@ pub mod vault {
         Ok(())
     }
 
+    pub fn withdraw(ctx: Context<Withdraw>, shares: u64) -> Result<()> {
+        require!(shares > 0, VaultError::ZeroAmount);
+
+        let total_assets = ctx.accounts.vault.total_assets;
+        let total_shares = ctx.accounts.vault.total_shares;
+
+        let assets_u128 = (shares as u128)
+            .checked_mul(total_assets as u128)
+            .ok_or(VaultError::MathOverflow)?
+            .checked_div(total_shares as u128)
+            .ok_or(VaultError::MathOverflow)?;
+        let assets_out = u64::try_from(assets_u128).map_err(|_| VaultError::MathOverflow)?;
+
+        require!(
+            assets_out <= ctx.accounts.vault.total_assets,
+            VaultError::InsufficientVaultLiquidity
+        );
+
+        // 1) burn shares from depositor (authority = depositor)
+        token::burn(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                Burn {
+                    mint: ctx.accounts.share_mint.to_account_info(),
+                    from: ctx.accounts.depositor_share_ata.to_account_info(),
+                    authority: ctx.accounts.depositor.to_account_info(),
+                },
+            ),
+            shares,
+        )?;
+
+        // 2) transfer assets from vault_ata -> depositor_ata (vault PDA signs)
+        let asset_mint_key = ctx.accounts.asset_mint.key();
+        let seeds: &[&[u8]] = &[
+            Vault::SEED,
+            asset_mint_key.as_ref(),
+            &[ctx.accounts.vault.bump],
+        ];
+        token::transfer(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                Transfer {
+                    from: ctx.accounts.vault_ata.to_account_info(),
+                    to: ctx.accounts.depositor_ata.to_account_info(),
+                    authority: ctx.accounts.vault.to_account_info(),
+                },
+                &[seeds],
+            ),
+            assets_out,
+        )?;
+
+        // 3) accounting
+        let v = &mut ctx.accounts.vault;
+        v.total_assets = v
+            .total_assets
+            .checked_sub(assets_out)
+            .ok_or(VaultError::MathOverflow)?;
+        v.total_shares = v
+            .total_shares
+            .checked_sub(shares)
+            .ok_or(VaultError::MathOverflow)?;
+
+        Ok(())
+    }
+
     // test-only helper — Phase 2 removes this.
     // Bumps vault.total_assets without minting shares, simulating yield accrual
     // so rounding-down behavior of the deposit share math is testable.
@@ -124,6 +189,31 @@ pub struct InitializeVault<'info> {
 
 #[derive(Accounts)]
 pub struct Deposit<'info> {
+    #[account(
+        mut,
+        seeds = [Vault::SEED, asset_mint.key().as_ref()],
+        bump = vault.bump,
+    )]
+    pub vault: Account<'info, Vault>,
+    pub asset_mint: Account<'info, Mint>,
+    #[account(mut, address = vault.share_mint)]
+    pub share_mint: Account<'info, Mint>,
+
+    #[account(mut, token::mint = asset_mint, token::authority = vault)]
+    pub vault_ata: Account<'info, TokenAccount>,
+
+    #[account(mut, token::mint = asset_mint, token::authority = depositor)]
+    pub depositor_ata: Account<'info, TokenAccount>,
+
+    #[account(mut, token::mint = share_mint, token::authority = depositor)]
+    pub depositor_share_ata: Account<'info, TokenAccount>,
+
+    #[account(mut)] pub depositor: Signer<'info>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct Withdraw<'info> {
     #[account(
         mut,
         seeds = [Vault::SEED, asset_mint.key().as_ref()],
