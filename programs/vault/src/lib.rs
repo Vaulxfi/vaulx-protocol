@@ -101,6 +101,7 @@ pub mod vault {
             .ok_or(VaultError::MathOverflow)?;
         let assets_out = u64::try_from(assets_u128).map_err(|_| VaultError::MathOverflow)?;
 
+        require!(assets_out > 0, VaultError::ZeroAmount);
         require!(
             assets_out <= ctx.accounts.vault.total_assets,
             VaultError::InsufficientVaultLiquidity
