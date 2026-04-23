@@ -20,6 +20,13 @@ pub mod vault {
         v.total_shares = 0;
         v.bump = ctx.bumps.vault;
         v._reserved = [0u8; 64];
+
+        emit!(VaultInitialized {
+            vault: v.key(),
+            asset_mint: v.asset_mint,
+            share_mint: v.share_mint,
+            ts: Clock::get()?.unix_timestamp,
+        });
         Ok(())
     }
 
@@ -75,6 +82,7 @@ pub mod vault {
         )?;
 
         // 3) accounting
+        let depositor_key = ctx.accounts.depositor.key();
         let v = &mut ctx.accounts.vault;
         v.total_assets = v
             .total_assets
@@ -84,6 +92,16 @@ pub mod vault {
             .total_shares
             .checked_add(shares_to_mint)
             .ok_or(VaultError::MathOverflow)?;
+
+        emit!(Deposited {
+            vault: v.key(),
+            depositor: depositor_key,
+            amount,
+            shares_minted: shares_to_mint,
+            total_assets: v.total_assets,
+            total_shares: v.total_shares,
+            ts: Clock::get()?.unix_timestamp,
+        });
 
         Ok(())
     }
@@ -141,6 +159,7 @@ pub mod vault {
         )?;
 
         // 3) accounting
+        let depositor_key = ctx.accounts.depositor.key();
         let v = &mut ctx.accounts.vault;
         v.total_assets = v
             .total_assets
@@ -150,6 +169,16 @@ pub mod vault {
             .total_shares
             .checked_sub(shares)
             .ok_or(VaultError::MathOverflow)?;
+
+        emit!(Withdrawn {
+            vault: v.key(),
+            depositor: depositor_key,
+            shares_burned: shares,
+            assets_out,
+            total_assets: v.total_assets,
+            total_shares: v.total_shares,
+            ts: Clock::get()?.unix_timestamp,
+        });
 
         Ok(())
     }
@@ -270,6 +299,36 @@ pub struct TestDonateAssets<'info> {
     )]
     pub vault: Account<'info, Vault>,
     pub asset_mint: Account<'info, Mint>,
+}
+
+#[event]
+pub struct VaultInitialized {
+    pub vault: Pubkey,
+    pub asset_mint: Pubkey,
+    pub share_mint: Pubkey,
+    pub ts: i64,
+}
+
+#[event]
+pub struct Deposited {
+    pub vault: Pubkey,
+    pub depositor: Pubkey,
+    pub amount: u64,
+    pub shares_minted: u64,
+    pub total_assets: u64,
+    pub total_shares: u64,
+    pub ts: i64,
+}
+
+#[event]
+pub struct Withdrawn {
+    pub vault: Pubkey,
+    pub depositor: Pubkey,
+    pub shares_burned: u64,
+    pub assets_out: u64,
+    pub total_assets: u64,
+    pub total_shares: u64,
+    pub ts: i64,
 }
 
 pub use errors::*;

@@ -355,6 +355,102 @@ describe("vault / withdraw", () => {
   });
 });
 
+describe("vault / events", () => {
+  anchor.setProvider(anchor.AnchorProvider.env());
+  const program = anchor.workspace.Vault as Program<any>;
+  const provider = anchor.getProvider() as anchor.AnchorProvider;
+  const payer = (provider.wallet as any).payer as Keypair;
+
+  it("deposit emits a Deposited event", async () => {
+    const assetMint = await createMint(
+      provider.connection, payer, provider.publicKey, null, 6,
+    );
+    const [vaultPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("vault"), assetMint.toBuffer()], program.programId,
+    );
+    const shareMintKp = Keypair.generate();
+    const shareMint = shareMintKp.publicKey;
+    await program.methods.initializeVault().accounts({
+      vault: vaultPda,
+      assetMint,
+      shareMint,
+      payer: provider.publicKey,
+      tokenProgram: TOKEN_PROGRAM_ID,
+      systemProgram: SystemProgram.programId,
+      rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+    }).signers([shareMintKp]).rpc();
+
+    const vaultAta = await createAssociatedTokenAccount(
+      provider.connection, payer, assetMint, vaultPda, undefined, undefined, undefined, true,
+    );
+
+    const depositor = Keypair.generate();
+    const sig = await provider.connection.requestAirdrop(
+      depositor.publicKey, 2 * LAMPORTS_PER_SOL,
+    );
+    await provider.connection.confirmTransaction(sig, "confirmed");
+    const depositorAta = await createAssociatedTokenAccount(
+      provider.connection, payer, assetMint, depositor.publicKey,
+    );
+    await mintTo(
+      provider.connection, payer, assetMint, depositorAta, payer, BigInt("5000000000"),
+    );
+    const depositorShareAta = await createAssociatedTokenAccount(
+      provider.connection, payer, shareMint, depositor.publicKey,
+    );
+
+    const captured: any[] = [];
+    const parser = new anchor.EventParser(program.programId, program.coder);
+
+    // Anchor 0.30 lowercases the first letter of event names in the runtime parser
+    // (struct `Deposited` becomes "deposited"); addEventListener dispatches off the
+    // same normalised name. Subscribe accordingly.
+    const listener = program.addEventListener("deposited", (ev: any) => {
+      captured.push(ev);
+    });
+
+    let sigDeposit: string;
+    const amount = new BN("1000000000");
+    try {
+      sigDeposit = await program.methods.deposit(amount).accounts({
+        vault: vaultPda,
+        assetMint,
+        shareMint,
+        vaultAta,
+        depositorAta,
+        depositorShareAta,
+        depositor: depositor.publicKey,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      }).signers([depositor]).rpc();
+
+      await new Promise((r) => setTimeout(r, 1500));
+    } finally {
+      await program.removeEventListener(listener);
+    }
+
+    // Fallback: parse the confirmed transaction's logs directly if the ws dropped.
+    if (captured.length === 0) {
+      await provider.connection.confirmTransaction(sigDeposit!, "confirmed");
+      const tx = await provider.connection.getTransaction(sigDeposit!, {
+        commitment: "confirmed",
+        maxSupportedTransactionVersion: 0,
+      });
+      const logs = tx?.meta?.logMessages ?? [];
+      for (const ev of parser.parseLogs(logs)) {
+        if (ev.name === "deposited") captured.push(ev.data);
+      }
+    }
+
+    expect(captured.length).to.be.greaterThan(0);
+    const ev = captured[0];
+    expect(ev.vault.toBase58()).to.eq(vaultPda.toBase58());
+    expect(ev.depositor.toBase58()).to.eq(depositor.publicKey.toBase58());
+    expect(ev.amount.toString()).to.eq(amount.toString());
+    // first deposit: shares_minted == amount
+    expect(ev.sharesMinted.toString()).to.eq(amount.toString());
+  });
+});
+
 describe("vault / disburse", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
   const program = anchor.workspace.Vault as Program<any>;

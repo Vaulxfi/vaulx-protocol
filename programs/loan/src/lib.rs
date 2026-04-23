@@ -49,8 +49,27 @@ pub mod loan {
             }),
             asset_hint,
         )?;
+
+        emit!(CcbTrdcCreated {
+            trdc_state: ctx.accounts.trdc_state.key(),
+            loan_id,
+            appraisal_value,
+            loan_amount,
+            due_ts,
+            ts: Clock::get()?.unix_timestamp,
+        });
         Ok(())
     }
+}
+
+#[event]
+pub struct CcbTrdcCreated {
+    pub trdc_state: Pubkey,
+    pub loan_id: Pubkey,
+    pub appraisal_value: u64,
+    pub loan_amount: u64,
+    pub due_ts: i64,
+    pub ts: i64,
 }
 
 #[derive(Accounts)]

@@ -29,11 +29,29 @@ pub mod trdc {
         s.asset_id = Pubkey::default();
         s.created_at = clock.unix_timestamp;
         s._reserved = [0u8; 64];
+
+        emit!(TrdcStateInitialized {
+            trdc_state: s.key(),
+            loan_id,
+            appraisal_value,
+            loan_amount,
+            due_ts,
+            ts: clock.unix_timestamp,
+        });
         Ok(())
     }
 
     pub fn test_transition(ctx: Context<TestTransition>, next: Status) -> Result<()> {
-        ctx.accounts.trdc_state.transition(next)
+        let from = ctx.accounts.trdc_state.status;
+        ctx.accounts.trdc_state.transition(next)?;
+        let to = ctx.accounts.trdc_state.status;
+        emit!(TrdcTransitioned {
+            trdc_state: ctx.accounts.trdc_state.key(),
+            from,
+            to,
+            ts: Clock::get()?.unix_timestamp,
+        });
+        Ok(())
     }
 
     pub fn mint_trdc_cnft(ctx: Context<MintTrdcCnft>, asset_hint: [u8; 32]) -> Result<()> {
@@ -78,6 +96,24 @@ pub struct MintTrdcCnft<'info> {
     #[account(mut)]
     pub trdc_state: Account<'info, TRDCState>,
     pub authority: Signer<'info>,
+}
+
+#[event]
+pub struct TrdcStateInitialized {
+    pub trdc_state: Pubkey,
+    pub loan_id: Pubkey,
+    pub appraisal_value: u64,
+    pub loan_amount: u64,
+    pub due_ts: i64,
+    pub ts: i64,
+}
+
+#[event]
+pub struct TrdcTransitioned {
+    pub trdc_state: Pubkey,
+    pub from: Status,
+    pub to: Status,
+    pub ts: i64,
 }
 
 pub use errors::*;

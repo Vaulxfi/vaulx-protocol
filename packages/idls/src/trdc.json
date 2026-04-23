@@ -1,0 +1,352 @@
+{
+  "address": "FcDPvRaixjAz7LeC64h9xkXPzvHT7dusbNmg83eJfr7R",
+  "metadata": {
+    "name": "trdc",
+    "version": "0.1.0",
+    "spec": "0.1.0"
+  },
+  "instructions": [
+    {
+      "name": "initialize_trdc_state",
+      "discriminator": [
+        162,
+        90,
+        73,
+        89,
+        250,
+        60,
+        220,
+        80
+      ],
+      "accounts": [
+        {
+          "name": "trdc_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  114,
+                  100,
+                  99,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "loan_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "loan_id",
+          "type": "pubkey"
+        },
+        {
+          "name": "appraisal_value",
+          "type": "u64"
+        },
+        {
+          "name": "loan_amount",
+          "type": "u64"
+        },
+        {
+          "name": "due_ts",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "mint_trdc_cnft",
+      "discriminator": [
+        43,
+        103,
+        42,
+        173,
+        169,
+        175,
+        191,
+        119
+      ],
+      "accounts": [
+        {
+          "name": "trdc_state",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "asset_hint",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "test_transition",
+      "discriminator": [
+        22,
+        30,
+        75,
+        8,
+        163,
+        145,
+        16,
+        176
+      ],
+      "accounts": [
+        {
+          "name": "trdc_state",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "next",
+          "type": {
+            "defined": {
+              "name": "Status"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "TRDCState",
+      "discriminator": [
+        180,
+        245,
+        164,
+        25,
+        221,
+        228,
+        245,
+        236
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "TrdcStateInitialized",
+      "discriminator": [
+        43,
+        130,
+        185,
+        56,
+        101,
+        110,
+        210,
+        78
+      ]
+    },
+    {
+      "name": "TrdcTransitioned",
+      "discriminator": [
+        51,
+        120,
+        98,
+        221,
+        169,
+        39,
+        9,
+        100
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidStateTransition",
+      "msg": "Invalid state transition"
+    },
+    {
+      "code": 6001,
+      "name": "MathOverflow",
+      "msg": "Math overflow"
+    }
+  ],
+  "types": [
+    {
+      "name": "Status",
+      "docs": [
+        "7-state enum — mirrors `packages/types/src/index.ts` `TRDCStatus`."
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "PendingCustody"
+          },
+          {
+            "name": "Active"
+          },
+          {
+            "name": "Renewed"
+          },
+          {
+            "name": "Repaid"
+          },
+          {
+            "name": "Overdue"
+          },
+          {
+            "name": "Defaulted"
+          },
+          {
+            "name": "Liquidated"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TRDCState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "loan_id",
+            "type": "pubkey"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "Status"
+              }
+            }
+          },
+          {
+            "name": "appraisal_value",
+            "type": "u64"
+          },
+          {
+            "name": "loan_amount",
+            "type": "u64"
+          },
+          {
+            "name": "due_ts",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "asset_id",
+            "type": "pubkey"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "_reserved",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "TrdcStateInitialized",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "trdc_state",
+            "type": "pubkey"
+          },
+          {
+            "name": "loan_id",
+            "type": "pubkey"
+          },
+          {
+            "name": "appraisal_value",
+            "type": "u64"
+          },
+          {
+            "name": "loan_amount",
+            "type": "u64"
+          },
+          {
+            "name": "due_ts",
+            "type": "i64"
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TrdcTransitioned",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "trdc_state",
+            "type": "pubkey"
+          },
+          {
+            "name": "from",
+            "type": {
+              "defined": {
+                "name": "Status"
+              }
+            }
+          },
+          {
+            "name": "to",
+            "type": {
+              "defined": {
+                "name": "Status"
+              }
+            }
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          }
+        ]
+      }
+    }
+  ]
+}
