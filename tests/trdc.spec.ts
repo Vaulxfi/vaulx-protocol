@@ -52,3 +52,121 @@ describe("trdc / initialize_trdc_state", () => {
     expect(threw).to.eq(true);
   });
 });
+
+describe("trdc / transitions", () => {
+  anchor.setProvider(anchor.AnchorProvider.env());
+  const program = anchor.workspace.Trdc as Program<any>;
+  const provider = anchor.getProvider() as anchor.AnchorProvider;
+
+  type StateKey =
+    | "pendingCustody"
+    | "active"
+    | "renewed"
+    | "repaid"
+    | "overdue"
+    | "defaulted"
+    | "liquidated";
+
+  const ALL_STATES: StateKey[] = [
+    "pendingCustody",
+    "active",
+    "renewed",
+    "repaid",
+    "overdue",
+    "defaulted",
+    "liquidated",
+  ];
+
+  // Exactly 10 legal edges.
+  const legal: Array<[StateKey, StateKey]> = [
+    ["pendingCustody", "active"],
+    ["active", "renewed"],
+    ["active", "repaid"],
+    ["active", "overdue"],
+    ["renewed", "active"],
+    ["renewed", "overdue"],
+    ["renewed", "repaid"],
+    ["overdue", "repaid"],
+    ["overdue", "defaulted"],
+    ["defaulted", "liquidated"],
+  ];
+
+  const legalSet = new Set(legal.map(([f, t]) => `${f}->${t}`));
+
+  // Shortest legal walk from pendingCustody to any reachable state.
+  const walks: Record<StateKey, StateKey[]> = {
+    pendingCustody: [],
+    active: ["active"],
+    renewed: ["active", "renewed"],
+    repaid: ["active", "repaid"],
+    overdue: ["active", "overdue"],
+    defaulted: ["active", "overdue", "defaulted"],
+    liquidated: ["active", "overdue", "defaulted", "liquidated"],
+  };
+
+  async function freshPda(): Promise<PublicKey> {
+    const loanId = Keypair.generate().publicKey;
+    const [pda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("trdc_state"), loanId.toBuffer()],
+      program.programId,
+    );
+    await program.methods
+      .initializeTrdcState(
+        loanId,
+        new anchor.BN(1),
+        new anchor.BN(1),
+        new anchor.BN(1),
+      )
+      .accounts({
+        trdcState: pda,
+        payer: provider.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc();
+    return pda;
+  }
+
+  async function walkTo(pda: PublicKey, target: StateKey) {
+    for (const step of walks[target]) {
+      await program.methods
+        .testTransition({ [step]: {} })
+        .accounts({ trdcState: pda, authority: provider.publicKey })
+        .rpc();
+    }
+  }
+
+  it("enforces the transition table", async function () {
+    this.timeout(600_000);
+
+    for (const from of ALL_STATES) {
+      for (const to of ALL_STATES) {
+        const key = `${from}->${to}`;
+        const pda = await freshPda();
+        await walkTo(pda, from);
+
+        if (legalSet.has(key)) {
+          await program.methods
+            .testTransition({ [to]: {} })
+            .accounts({ trdcState: pda, authority: provider.publicKey })
+            .rpc();
+          const s = await program.account.trdcState.fetch(pda);
+          expect(s.status, `legal ${key}`).to.deep.equal({ [to]: {} });
+        } else {
+          let threw = false;
+          let code: string | undefined;
+          try {
+            await program.methods
+              .testTransition({ [to]: {} })
+              .accounts({ trdcState: pda, authority: provider.publicKey })
+              .rpc();
+          } catch (e: any) {
+            threw = true;
+            code = e.error?.errorCode?.code ?? e.code;
+          }
+          expect(threw, `illegal ${key} should revert`).to.eq(true);
+          expect(code, `illegal ${key} code`).to.eq("InvalidStateTransition");
+        }
+      }
+    }
+  });
+});

@@ -30,6 +30,10 @@ pub mod trdc {
         s._reserved = [0u8; 64];
         Ok(())
     }
+
+    pub fn test_transition(ctx: Context<TestTransition>, next: Status) -> Result<()> {
+        ctx.accounts.trdc_state.transition(next)
+    }
 }
 
 #[derive(Accounts)]
@@ -46,6 +50,13 @@ pub struct InitializeTrdcState<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct TestTransition<'info> {
+    #[account(mut)]
+    pub trdc_state: Account<'info, TRDCState>,
+    pub authority: Signer<'info>,
 }
 
 pub use errors::*;
