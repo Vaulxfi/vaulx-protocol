@@ -4,7 +4,10 @@ Chronological log of build progress. Newest at the top.
 
 ---
 
-## 2026-04-24 — Phase 2 kickoff (tasks 2.1–2.5)
+## 2026-04-24 — Phase 2 kickoff (tasks 2.1–2.6)
+
+- **Task 2.6 completed (I1 appraisal aggregator):** `POST /api/appraisal` (Next.js App Router, `runtime="nodejs"`, `dynamic="force-dynamic"`, `Cache-Control: private, max-age=60`). Zod-validated `AppraisalInput`. Three sources fanned out via `Promise.all` + per-source `withTimeout` (10s): Chrono24 (direct fetch + `node-html-parser`, 3 extraction strategies with regex fallback; never returns `ok:false` — always emits `fallback:true` stub on any failure), WatchCharts (real API behind `WATCHCHARTS_API_KEY` env; else 20-ref JSON fixture at `fixtures/watchcharts-fallback.json` with Rolex/Patek/AP/Omega/IWC + nearest-match by make/model, default $10k), internal (deterministic TS: `base × (1 − ageDiscount + youthPremium) × conditionMult`; Rolex 116610LN/2020/excellent → $14,500). Median computed over `ok` values; returns 502 if all sources dead. 6/6 vitest green (happy path, chrono24 timeout, unknown ref, ±15% snapshot, condition + age sensitivity). Added `apps/web/vitest.config.ts` + `node-html-parser`. Web build + typecheck clean; dynamic route `/api/appraisal` registered. Commit `877977c`.
+
 
 - **Task 2.5 completed (`@vaulx/ccb` real generator):** Replaced the `TODO = true` stub with a real CCB.B3 PDF writer. `generateCcbPdf(input: CcbInput)` lays out a one-page A4 document from scratch via `pdf-lib` (header + parties + garantia + condições financeiras + 4 Portuguese cláusulas + 3 signature lines + footer). Accents stripped for Helvetica WinAnsi safety. Metadata pinned to `issuedAtTs` + `Producer`/`Creator` hardcoded to `vaulx-ccb` + `useObjectStreams: false` on save → byte-identical output across runs. PDF `Keywords` carries raw atoms + rate bps + term days so the SHA-256 is sensitive to sub-cent changes the 2-decimal render would hide. `hashCcb(bytes)` returns `{ digest, hex }` via `@noble/hashes/sha256`. 4/4 vitest green: non-empty Uint8Array starting `%PDF-`, 32-byte digest + 64-char hex, byte-equal determinism across two identical calls, 1-atom delta flips the hash. `pnpm -w typecheck` + `pnpm -w test` green. Commit `1917680`.
 

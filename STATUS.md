@@ -1,6 +1,6 @@
 # Vaulx — Build Status
 
-**Last updated:** 2026-04-24 (Phase 2 in progress — 2.1–2.5 complete, 2.6 starting)
+**Last updated:** 2026-04-24 (Phase 2 in progress — 2.1–2.6 complete, 2.7 starting)
 **Plan:** [docs/plans/2026-04-23-vaulx-build-plan.md](docs/plans/2026-04-23-vaulx-build-plan.md)
 **Phase 1 plan:** [docs/plans/2026-04-25-vaulx-phase-1-core-programs.md](docs/plans/2026-04-25-vaulx-phase-1-core-programs.md)
 **Phase 2 plan:** [docs/plans/2026-04-29-vaulx-phase-2-disburse-and-wizard.md](docs/plans/2026-04-29-vaulx-phase-2-disburse-and-wizard.md)
@@ -20,8 +20,8 @@
 | 2.3 | Remaining 8 BRD §7 named tests | completed | 29/29 anchor tests green (up from 21). All 8 named `it()` blocks land as first-class coverage: exact-limit LTV, zero/oversize amount reverts, illegal transition revert, stable asset_id hash, full deposited event field match, deterministic vault PDA derivation. Commit `f113582`. |
 | 2.4 | IDL freeze + client regeneration attempt | completed | `phase-2-idl-freeze` tag placed at commit `b4cd6cb`. Re-ran `anchor-client-gen@latest` — still fails with `Unreachable.` on the Anchor 0.30 IDL shape; hand-rolled façade at `packages/anchor-client/src/index.ts` remains the source of truth until upstream catches up. IDLs in `packages/idls/src/` are the frozen reference for Phase 2 consumers. |
 | 2.5 | `@vaulx/ccb` real PDF generator + SHA-256 | completed | `generateCcbPdf` + `hashCcb`; deterministic A4 one-pager (pdf-lib + @noble/hashes); creation/mod dates pinned to `issuedAtTs`; 4/4 vitest green incl. byte-equal determinism + 1-atom sensitivity. Commit `1917680`. |
-| 2.6 | I1 Chrono24 + WatchCharts appraisal aggregator | in_progress | Triangular convergence API |
-| 2.7 | I2 gov.br mocked ID flow | pending | CPF check-digit validated; wallet-keyed |
+| 2.6 | I1 Chrono24 + WatchCharts appraisal aggregator | completed | `POST /api/appraisal` (zod-validated), 3-source parallel fetch w/ 10s per-source timeout, median over `ok` values, always-fallback-safe. 6/6 vitest green. 20-ref fixture (Rolex/Patek/AP/Omega/IWC). Deterministic internal model hits ±15% of fallback stubs. Commit `877977c`. |
+| 2.7 | I2 gov.br mocked ID flow | in_progress | CPF check-digit validated; wallet-keyed |
 | 2.8 | Borrower wizard pages (Moment 2) | pending | /borrow/new/{asset, appraisal, terms} |
 | 2.9 | Awaiting-custody + custodian intake UI (Moment 3) | pending | Polls onchain_events for custodyConfirmed |
 | 2.10 | Moments 2+3+4 E2E test | pending | Mirror moment-1-e2e.ts; SKIPPED path same |
