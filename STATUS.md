@@ -1,6 +1,6 @@
 # Vaulx — Build Status
 
-**Last updated:** 2026-04-24 (Phase 2 in progress — 2.1–2.6.5 complete; 2.7 gov.br mock starting)
+**Last updated:** 2026-04-24 (Phase 2 in progress — 2.1–2.7 complete; 2.8 borrower wizard starting)
 **Plan:** [docs/plans/2026-04-23-vaulx-build-plan.md](docs/plans/2026-04-23-vaulx-build-plan.md)
 **Phase 1 plan:** [docs/plans/2026-04-25-vaulx-phase-1-core-programs.md](docs/plans/2026-04-25-vaulx-phase-1-core-programs.md)
 **Phase 2 plan:** [docs/plans/2026-04-29-vaulx-phase-2-disburse-and-wizard.md](docs/plans/2026-04-29-vaulx-phase-2-disburse-and-wizard.md)
@@ -22,8 +22,8 @@
 | 2.5 | `@vaulx/ccb` real PDF generator + SHA-256 | completed | `generateCcbPdf` + `hashCcb`; deterministic A4 one-pager (pdf-lib + @noble/hashes); creation/mod dates pinned to `issuedAtTs`; 4/4 vitest green incl. byte-equal determinism + 1-atom sensitivity. Commit `1917680`. |
 | 2.6 | I1 Chrono24 + WatchCharts appraisal aggregator | completed | `POST /api/appraisal` (zod-validated), 3-source parallel fetch w/ 10s per-source timeout, median over `ok` values, always-fallback-safe. 6/6 vitest green. 20-ref fixture (Rolex/Patek/AP/Omega/IWC). Deterministic internal model hits ±15% of fallback stubs. Commit `877977c`. |
 | 2.6.5 | **I4 REAL: Civic Pass on-chain gate + SDK swap** | completed | 33/33 anchor tests green (29 baseline + 4 civic-gate smoke). Feature-flag gate: `vault.deposit` + `loan.create_ccb_trdc` check gateway token only when `VaultConfig.civic_network`/`LoanConfig.civic_network` ≠ `Pubkey::default()`. Manual Borsh parse + state-byte check in `programs/{vault,loan}/src/civic.rs`. FE wires `GatewayProvider` + `<CivicPassGate>` (conditional on `NEXT_PUBLIC_CIVIC_PASS_NETWORK`); mock modal + localStorage bookkeeping deleted. **6 `TODO(civic-sdk-verify)` markers remain in code for user to close after SDK install confirms exact APIs.** Commit `bc7ce5c`. |
-| 2.7 | I2 gov.br mocked ID flow | in_progress | CPF check-digit validated; wallet-keyed |
-| 2.8 | Borrower wizard pages (Moment 2) | pending | /borrow/new/{asset, appraisal, terms} |
+| 2.7 | I2 gov.br mocked ID flow | completed | 4 pages at `/borrow/verify-id/*` with gov.br blue styling + demo-mode badge. Real CPF check-digit validation; `?mock=auto` completes in ~2s. `useGovbrVerification(wallet)` hook ready for 2.8 to consume. 5/5 cpf.test.ts vitest green; web build green (routes prerendered). Commit `96e54b3`. |
+| 2.8 | Borrower wizard pages (Moment 2) | in_progress | /borrow/new/{asset, appraisal, terms} — consumes 2.5 CCB + 2.6 I1 + 2.6.5 Civic + 2.7 gov.br |
 | 2.9 | Awaiting-custody + custodian intake UI (Moment 3) | pending | Polls onchain_events for custodyConfirmed |
 | 2.10 | Moments 2+3+4 E2E test | pending | Mirror moment-1-e2e.ts; SKIPPED path same |
 | 2.11 | STATUS/CHANGELOG close-out | pending | Tag `phase-2-done` |
