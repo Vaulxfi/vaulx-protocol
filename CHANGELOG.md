@@ -4,7 +4,10 @@ Chronological log of build progress. Newest at the top.
 
 ---
 
-## 2026-04-24 — Phase 2 kickoff (tasks 2.1–2.3)
+## 2026-04-24 — Phase 2 kickoff (tasks 2.1–2.4)
+
+- **Task 2.4 completed (IDL freeze):** Tagged `phase-2-idl-freeze` at commit `b4cd6cb`. Re-ran `node scripts/dev/gen-clients.mjs` against the frozen Anchor 0.30 IDLs — `anchor-client-gen@latest` still errors with `Unreachable.` on `trdc.json` (same root cause as Phase 1 Task 1.10: top-level `address` + `metadata` + inline `discriminator` arrays not yet parsed upstream). Hand-rolled façade in `packages/anchor-client/src/index.ts` remains canonical; `packages/anchor-client/src/generated/.gitkeep` reserves the slot for when upstream adds Anchor 0.30 support. `pnpm -w typecheck` green (7/7 cached).
+
 
 - **Task 2.3 completed (BRD §7 named tests):** 8 new first-class `it()` blocks promoted from informal coverage — `test_ltv_exactly_at_limit_accepted` (60.00%), `test_deposit_rejects_zero_amount`, `test_withdraw_rejects_over_balance` (liquidity guard fires before SPL burn CPI), `test_ccb_create_requires_nonzero_amount`, `test_trdc_state_transition_rejects_illegal` (PendingCustody→Liquidated reverts `InvalidStateTransition`), `test_mint_trdc_cnft_writes_stable_asset_id` (asserts on-chain `asset_id` == TS `SHA-256(loan_id || asset_hint)` + stable across repeat calls), `test_deposited_event_fields_match` (parses tx logs via `EventParser` + `BorshCoder`, field-by-field match incl. lowercased `deposited`), `test_vault_pda_derivation_is_deterministic` (2× `findProgramAddressSync` identical; post-init owner = vault program). 29/29 anchor tests green; no program code changes. Commit `f113582`.
 
