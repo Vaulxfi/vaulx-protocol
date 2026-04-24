@@ -303,6 +303,46 @@ pub mod vault {
             .ok_or(VaultError::MathOverflow)?;
         Ok(())
     }
+
+    /// Records a loan repayment / renewal-fee inflow: bumps `total_assets`
+    /// without minting shares, so existing share-price accounting absorbs
+    /// the yield. Mirrors `disburse`'s two-layer gate — only the loan
+    /// program's `loan_authority` PDA, issued as the top-level tx by the
+    /// loan program, may call this.
+    pub fn record_inflow(ctx: Context<RecordInflow>, amount: u64) -> Result<()> {
+        require!(amount > 0, VaultError::ZeroAmount);
+
+        // Layer 1: authority must be the loan-authority PDA and a signer.
+        let (expected_authority, _bump) =
+            Pubkey::find_program_address(&[LOAN_AUTHORITY_SEED], &LOAN_PROGRAM_ID);
+        require_keys_eq!(
+            ctx.accounts.loan_authority.key(),
+            expected_authority,
+            VaultError::UnauthorizedDisbursar
+        );
+        require!(
+            ctx.accounts.loan_authority.is_signer,
+            VaultError::UnauthorizedDisbursar
+        );
+
+        // Layer 2: the top-level instruction must be issued by the loan program.
+        use anchor_lang::solana_program::sysvar::instructions::load_instruction_at_checked;
+        let ix_sysvar = &ctx.accounts.instructions_sysvar.to_account_info();
+        let top_level_ix = load_instruction_at_checked(0, ix_sysvar)
+            .map_err(|_| error!(VaultError::UnauthorizedDisbursar))?;
+        require_keys_eq!(
+            top_level_ix.program_id,
+            LOAN_PROGRAM_ID,
+            VaultError::UnauthorizedDisbursar
+        );
+
+        let v = &mut ctx.accounts.vault;
+        v.total_assets = v
+            .total_assets
+            .checked_add(amount)
+            .ok_or(VaultError::MathOverflow)?;
+        Ok(())
+    }
 }
 
 #[account]
@@ -440,6 +480,22 @@ pub struct TestDonateAssets<'info> {
     )]
     pub vault: Account<'info, Vault>,
     pub asset_mint: Account<'info, Mint>,
+}
+
+/// Accounts for `record_inflow`. Same layer-2 instruction sysvar gate as
+/// `disburse` (only the loan program can issue the top-level tx).
+#[derive(Accounts)]
+pub struct RecordInflow<'info> {
+    #[account(mut, seeds = [Vault::SEED, asset_mint.key().as_ref()], bump = vault.bump)]
+    pub vault: Account<'info, Vault>,
+    pub asset_mint: Account<'info, Mint>,
+    /// CHECK: validated in-body — must equal `[b"loan_authority"]` PDA owned
+    /// by the loan program and must be a signer via `invoke_signed`.
+    #[account(signer)]
+    pub loan_authority: UncheckedAccount<'info>,
+    /// CHECK: address-constrained to the instructions sysvar; used by Layer 2.
+    #[account(address = anchor_lang::solana_program::sysvar::instructions::ID)]
+    pub instructions_sysvar: UncheckedAccount<'info>,
 }
 
 #[event]

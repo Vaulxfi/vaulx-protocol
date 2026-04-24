@@ -20,7 +20,7 @@ describe("trdc / initialize_trdc_state", () => {
     const dueTs          = new anchor.BN(Math.floor(Date.now() / 1000) + 120 * 86400);
 
     await program.methods
-      .initializeTrdcState(loanId, appraisalValue, loanAmount, dueTs)
+      .initializeTrdcState(loanId, appraisalValue, loanAmount, dueTs, new anchor.BN(1000))
       .accounts({
         trdcState: trdcStatePda,
         payer: provider.publicKey,
@@ -33,6 +33,8 @@ describe("trdc / initialize_trdc_state", () => {
     expect(state.status).to.deep.equal({ pendingCustody: {} });
     expect(state.loanAmount.toString()).to.eq("25000000000");
     expect(state.appraisalValue.toString()).to.eq("50000000000");
+    expect(state.rateBps.toString()).to.eq("1000");
+    expect(state.principalRemaining.toString()).to.eq("25000000000");
   });
 
   it("rejects second initialize for same loan_id", async () => {
@@ -40,7 +42,7 @@ describe("trdc / initialize_trdc_state", () => {
     const [pda] = PublicKey.findProgramAddressSync(
       [Buffer.from("trdc_state"), loanId.toBuffer()], program.programId,
     );
-    const args = [loanId, new anchor.BN(1), new anchor.BN(1), new anchor.BN(1)];
+    const args = [loanId, new anchor.BN(1), new anchor.BN(1), new anchor.BN(1), new anchor.BN(800)];
     await program.methods.initializeTrdcState(...args)
       .accounts({ trdcState: pda, payer: provider.publicKey, systemProgram: SystemProgram.programId })
       .rpc();
@@ -121,6 +123,7 @@ describe("trdc / transitions", () => {
         new anchor.BN(1),
         new anchor.BN(1),
         new anchor.BN(1),
+        new anchor.BN(800),
       )
       .accounts({
         trdcState: pda,
@@ -209,7 +212,7 @@ describe("trdc / mint_trdc_cnft", () => {
       [Buffer.from("trdc_state"), loanId.toBuffer()], program.programId,
     );
     await program.methods
-      .initializeTrdcState(loanId, new anchor.BN(1), new anchor.BN(1), new anchor.BN(1))
+      .initializeTrdcState(loanId, new anchor.BN(1), new anchor.BN(1), new anchor.BN(1), new anchor.BN(800))
       .accounts({ trdcState: pda, payer: provider.publicKey, systemProgram: SystemProgram.programId })
       .rpc();
 
@@ -240,7 +243,7 @@ describe("trdc / mint_trdc_cnft", () => {
       [Buffer.from("trdc_state"), loanId.toBuffer()], program.programId,
     );
     await program.methods
-      .initializeTrdcState(loanId, new anchor.BN(1), new anchor.BN(1), new anchor.BN(1))
+      .initializeTrdcState(loanId, new anchor.BN(1), new anchor.BN(1), new anchor.BN(1), new anchor.BN(800))
       .accounts({ trdcState: pda, payer: provider.publicKey, systemProgram: SystemProgram.programId })
       .rpc();
 

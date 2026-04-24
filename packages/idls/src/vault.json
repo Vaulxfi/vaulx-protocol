@@ -306,6 +306,70 @@
       ]
     },
     {
+      "name": "record_inflow",
+      "docs": [
+        "Records a loan repayment / renewal-fee inflow: bumps `total_assets`",
+        "without minting shares, so existing share-price accounting absorbs",
+        "the yield. Mirrors `disburse`'s two-layer gate — only the loan",
+        "program's `loan_authority` PDA, issued as the top-level tx by the",
+        "loan program, may call this."
+      ],
+      "discriminator": [
+        66,
+        7,
+        180,
+        208,
+        106,
+        28,
+        58,
+        248
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "asset_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "asset_mint"
+        },
+        {
+          "name": "loan_authority",
+          "docs": [
+            "by the loan program and must be a signer via `invoke_signed`."
+          ],
+          "signer": true
+        },
+        {
+          "name": "instructions_sysvar",
+          "address": "Sysvar1nstructions1111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "test_donate_assets",
       "discriminator": [
         14,

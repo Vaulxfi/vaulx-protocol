@@ -333,6 +333,7 @@ async function main(): Promise<void> {
       APPRAISAL,
       LOAN_AMOUNT,
       dueTs,
+      new BN(800),
       Array.from(assetHintBytes),
     )
     .accounts({

@@ -24,12 +24,20 @@ pub struct TRDCState {
     pub asset_id: Pubkey,
     pub created_at: i64,
     pub doc_hash: [u8; 32],
-    pub _reserved: [u8; 32],
+    /// Outstanding principal in USDC atoms. Starts = `loan_amount`,
+    /// decrements on `pay_installment`, zeroed on `repay_ccb`.
+    pub principal_remaining: u64,
+    /// APR stored at mint-time (fixed-rate); lets `repay_ccb` / `renew_ccb`
+    /// accrue interest on-chain without re-deriving from the term length.
+    pub rate_bps: u64,
+    pub _reserved: [u8; 16],
 }
 
 impl TRDCState {
-    pub const SIZE: usize = 8 + 32 + 2 + 8 + 8 + 8 + 1 + 32 + 8 + 32 + 32;
-                          //  disc + loan_id + status + apraisal + loan_amt + due_ts + bump + asset_id + created_at + doc_hash + reserved
+    // disc(8) + loan_id(32) + status(2) + appraisal(8) + loan_amt(8) + due_ts(8)
+    // + bump(1) + asset_id(32) + created_at(8) + doc_hash(32)
+    // + principal_remaining(8) + rate_bps(8) + reserved(16) = 171
+    pub const SIZE: usize = 8 + 32 + 2 + 8 + 8 + 8 + 1 + 32 + 8 + 32 + 8 + 8 + 16;
     pub const SEED: &'static [u8] = b"trdc_state";
 
     pub fn transition(&mut self, next: Status) -> Result<()> {

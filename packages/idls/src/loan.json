@@ -145,6 +145,10 @@
           "type": "i64"
         },
         {
+          "name": "rate_bps",
+          "type": "u64"
+        },
+        {
           "name": "asset_hint",
           "type": {
             "array": [
@@ -330,6 +334,107 @@
       ]
     },
     {
+      "name": "pay_installment",
+      "docs": [
+        "Moment 5 (partial) — borrower pays down principal in installments.",
+        "Does NOT transition the TRDC state — the loan stays `Active` until",
+        "`repay_ccb` zeroes out the remainder."
+      ],
+      "discriminator": [
+        214,
+        118,
+        104,
+        215,
+        242,
+        93,
+        33,
+        60
+      ],
+      "accounts": [
+        {
+          "name": "trdc_state",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "docs": [
+            "`record_inflow`."
+          ],
+          "writable": true
+        },
+        {
+          "name": "asset_mint"
+        },
+        {
+          "name": "vault_ata",
+          "writable": true
+        },
+        {
+          "name": "borrower_ata",
+          "writable": true
+        },
+        {
+          "name": "borrower",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "loan_authority",
+          "docs": [
+            "the `vault::record_inflow` CPI for the two-layer gate."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  97,
+                  110,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "trdc_program",
+          "address": "FcDPvRaixjAz7LeC64h9xkXPzvHT7dusbNmg83eJfr7R"
+        },
+        {
+          "name": "vault_program",
+          "address": "4PPyUvazjDBvFndGUL2rgKTwZrFbsSP1tk4a2uMhE9MS"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "instructions_sysvar",
+          "docs": [
+            "vault CPI so vault's Layer 2 check can read it."
+          ],
+          "address": "Sysvar1nstructions1111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "ping",
       "discriminator": [
         173,
@@ -345,6 +450,211 @@
         {
           "name": "signer",
           "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "renew_ccb",
+      "docs": [
+        "Moment 6 — borrower pays accrued interest + 2% renewal fee, the term",
+        "extends to `new_due_ts`, the rate flips to `new_rate_bps`, and the",
+        "interest clock resets."
+      ],
+      "discriminator": [
+        6,
+        12,
+        77,
+        204,
+        26,
+        101,
+        154,
+        33
+      ],
+      "accounts": [
+        {
+          "name": "trdc_state",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "docs": [
+            "`record_inflow`."
+          ],
+          "writable": true
+        },
+        {
+          "name": "asset_mint"
+        },
+        {
+          "name": "vault_ata",
+          "writable": true
+        },
+        {
+          "name": "borrower_ata",
+          "writable": true
+        },
+        {
+          "name": "borrower",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "loan_authority",
+          "docs": [
+            "the `vault::record_inflow` CPI for the two-layer gate."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  97,
+                  110,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "trdc_program",
+          "address": "FcDPvRaixjAz7LeC64h9xkXPzvHT7dusbNmg83eJfr7R"
+        },
+        {
+          "name": "vault_program",
+          "address": "4PPyUvazjDBvFndGUL2rgKTwZrFbsSP1tk4a2uMhE9MS"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "instructions_sysvar",
+          "docs": [
+            "vault CPI so vault's Layer 2 check can read it."
+          ],
+          "address": "Sysvar1nstructions1111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "_new_term_days",
+          "type": "u64"
+        },
+        {
+          "name": "new_due_ts",
+          "type": "i64"
+        },
+        {
+          "name": "new_rate_bps",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "repay_ccb",
+      "docs": [
+        "Moment 5 (full) — borrower pays the current payoff and the TRDC flips",
+        "to `Repaid`. Accrued interest is computed on-chain against the stored",
+        "`rate_bps` and `created_at`. No amount param — the program computes."
+      ],
+      "discriminator": [
+        202,
+        39,
+        94,
+        231,
+        254,
+        179,
+        227,
+        8
+      ],
+      "accounts": [
+        {
+          "name": "trdc_state",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "docs": [
+            "`record_inflow`."
+          ],
+          "writable": true
+        },
+        {
+          "name": "asset_mint"
+        },
+        {
+          "name": "vault_ata",
+          "writable": true
+        },
+        {
+          "name": "borrower_ata",
+          "writable": true
+        },
+        {
+          "name": "borrower",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "loan_authority",
+          "docs": [
+            "the `vault::record_inflow` CPI for the two-layer gate."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  97,
+                  110,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "trdc_program",
+          "address": "FcDPvRaixjAz7LeC64h9xkXPzvHT7dusbNmg83eJfr7R"
+        },
+        {
+          "name": "vault_program",
+          "address": "4PPyUvazjDBvFndGUL2rgKTwZrFbsSP1tk4a2uMhE9MS"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "instructions_sysvar",
+          "docs": [
+            "vault CPI so vault's Layer 2 check can read it."
+          ],
+          "address": "Sysvar1nstructions1111111111111111111111111"
         }
       ],
       "args": []
@@ -379,6 +689,32 @@
     }
   ],
   "events": [
+    {
+      "name": "CcbRenewed",
+      "discriminator": [
+        182,
+        223,
+        24,
+        165,
+        74,
+        179,
+        222,
+        253
+      ]
+    },
+    {
+      "name": "CcbRepaid",
+      "discriminator": [
+        231,
+        180,
+        21,
+        190,
+        238,
+        0,
+        104,
+        183
+      ]
+    },
     {
       "name": "CcbTrdcCreated",
       "discriminator": [
@@ -417,6 +753,19 @@
         30,
         80
       ]
+    },
+    {
+      "name": "InstallmentPaid",
+      "discriminator": [
+        247,
+        32,
+        44,
+        43,
+        84,
+        76,
+        215,
+        84
+      ]
     }
   ],
   "errors": [
@@ -449,9 +798,82 @@
       "code": 6005,
       "name": "NoValidGatewayToken",
       "msg": "No valid Civic gateway token"
+    },
+    {
+      "code": 6006,
+      "name": "OverPayment",
+      "msg": "Installment exceeds outstanding principal"
     }
   ],
   "types": [
+    {
+      "name": "CcbRenewed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "trdc_state",
+            "type": "pubkey"
+          },
+          {
+            "name": "borrower",
+            "type": "pubkey"
+          },
+          {
+            "name": "new_due_ts",
+            "type": "i64"
+          },
+          {
+            "name": "new_rate_bps",
+            "type": "u64"
+          },
+          {
+            "name": "accrued_paid",
+            "type": "u64"
+          },
+          {
+            "name": "fee_paid",
+            "type": "u64"
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CcbRepaid",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "trdc_state",
+            "type": "pubkey"
+          },
+          {
+            "name": "borrower",
+            "type": "pubkey"
+          },
+          {
+            "name": "payoff_amount",
+            "type": "u64"
+          },
+          {
+            "name": "principal_paid",
+            "type": "u64"
+          },
+          {
+            "name": "interest_paid",
+            "type": "u64"
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
     {
       "name": "CcbTrdcCreated",
       "type": {
@@ -476,6 +898,10 @@
           {
             "name": "due_ts",
             "type": "i64"
+          },
+          {
+            "name": "rate_bps",
+            "type": "u64"
           },
           {
             "name": "ts",
@@ -528,6 +954,34 @@
           },
           {
             "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InstallmentPaid",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "trdc_state",
+            "type": "pubkey"
+          },
+          {
+            "name": "borrower",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "principal_remaining_after",
             "type": "u64"
           },
           {
@@ -650,11 +1104,27 @@
             }
           },
           {
+            "name": "principal_remaining",
+            "docs": [
+              "Outstanding principal in USDC atoms. Starts = `loan_amount`,",
+              "decrements on `pay_installment`, zeroed on `repay_ccb`."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "rate_bps",
+            "docs": [
+              "APR stored at mint-time (fixed-rate); lets `repay_ccb` / `renew_ccb`",
+              "accrue interest on-chain without re-deriving from the term length."
+            ],
+            "type": "u64"
+          },
+          {
             "name": "_reserved",
             "type": {
               "array": [
                 "u8",
-                32
+                16
               ]
             }
           }

@@ -37,7 +37,7 @@ describe("loan / create_ccb_trdc", () => {
     let code: string | undefined;
     try {
       await loanProgram.methods
-        .createCcbTrdc(loanId, new BN(100), new BN(61), nowPlus30Days(), randomAssetHint())
+        .createCcbTrdc(loanId, new BN(100), new BN(61), nowPlus30Days(), new BN(800), randomAssetHint())
         .accounts({
           trdcState: trdcStatePda,
           trdcProgram: trdcProgram.programId,
@@ -63,7 +63,7 @@ describe("loan / create_ccb_trdc", () => {
     );
 
     await loanProgram.methods
-      .createCcbTrdc(loanId, new BN(100), new BN(59), nowPlus30Days(), randomAssetHint())
+      .createCcbTrdc(loanId, new BN(100), new BN(59), nowPlus30Days(), new BN(800), randomAssetHint())
       .accounts({
         trdcState: trdcStatePda,
         trdcProgram: trdcProgram.programId,
@@ -92,7 +92,7 @@ describe("loan / create_ccb_trdc", () => {
 
     // No throw expected: the inclusive-equality branch of the LTV check accepts this.
     await loanProgram.methods
-      .createCcbTrdc(loanId, appraisalValue, loanAmount, nowPlus30Days(), randomAssetHint())
+      .createCcbTrdc(loanId, appraisalValue, loanAmount, nowPlus30Days(), new BN(800), randomAssetHint())
       .accounts({
         trdcState: trdcStatePda,
         trdcProgram: trdcProgram.programId,
@@ -120,7 +120,7 @@ describe("loan / create_ccb_trdc", () => {
     let code: string | undefined;
     try {
       await loanProgram.methods
-        .createCcbTrdc(loanId, new BN(100), new BN(0), nowPlus30Days(), randomAssetHint())
+        .createCcbTrdc(loanId, new BN(100), new BN(0), nowPlus30Days(), new BN(800), randomAssetHint())
         .accounts({
           trdcState: trdcStatePda,
           trdcProgram: trdcProgram.programId,

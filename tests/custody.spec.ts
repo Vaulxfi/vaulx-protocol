@@ -49,6 +49,7 @@ describe("loan / confirm_custody", () => {
         new BN(100),
         new BN(50),
         nowPlus30Days(),
+        new BN(800),
         randomAssetHint(),
       )
       .accounts({

@@ -10,4 +10,5 @@ pub enum LoanError {
     #[msg("Unauthorized custodian")] UnauthorizedCustodian,
     #[msg("Unauthorized admin")] UnauthorizedAdmin,
     #[msg("No valid Civic gateway token")] NoValidGatewayToken,
+    #[msg("Installment exceeds outstanding principal")] OverPayment,
 }

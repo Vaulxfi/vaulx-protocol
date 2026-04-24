@@ -7,6 +7,41 @@
   },
   "instructions": [
     {
+      "name": "apply_installment",
+      "docs": [
+        "Decrement outstanding `principal_remaining` by `amount`. Intended to be",
+        "called from the loan program as part of `pay_installment`. The loan",
+        "program pre-checks `amount <= principal_remaining` to revert with",
+        "`OverPayment`; the trdc program here just enforces saturating arithmetic."
+      ],
+      "discriminator": [
+        193,
+        172,
+        18,
+        84,
+        156,
+        130,
+        153,
+        235
+      ],
+      "accounts": [
+        {
+          "name": "trdc_state",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "confirm_custody_transition",
       "discriminator": [
         208,
@@ -106,6 +141,10 @@
         {
           "name": "due_ts",
           "type": "i64"
+        },
+        {
+          "name": "rate_bps",
+          "type": "u64"
         }
       ]
     },
@@ -173,6 +212,75 @@
               "name": "Status"
             }
           }
+        }
+      ]
+    },
+    {
+      "name": "transition_active_to_repaid",
+      "docs": [
+        "Flip `Active -> Repaid` and zero `principal_remaining`. CPI-friendly",
+        "from the loan program's `repay_ccb`."
+      ],
+      "discriminator": [
+        34,
+        165,
+        163,
+        110,
+        160,
+        42,
+        212,
+        105
+      ],
+      "accounts": [
+        {
+          "name": "trdc_state",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "transition_renew",
+      "docs": [
+        "Two-hop renewal transition: `Active -> Renewed -> Active`. Also updates",
+        "`due_ts`, `rate_bps`, and resets `created_at` to the current clock —",
+        "mutations the loan program can't perform directly because it doesn't",
+        "own the trdc_state account. Emits a single `TrdcTransitioned",
+        "{ from: Active, to: Active }`; the loan program's `CcbRenewed` event",
+        "carries the fee / rate breakdown."
+      ],
+      "discriminator": [
+        203,
+        247,
+        37,
+        75,
+        233,
+        149,
+        226,
+        120
+      ],
+      "accounts": [
+        {
+          "name": "trdc_state",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "new_due_ts",
+          "type": "i64"
+        },
+        {
+          "name": "new_rate_bps",
+          "type": "u64"
         }
       ]
     },
@@ -343,11 +451,27 @@
             }
           },
           {
+            "name": "principal_remaining",
+            "docs": [
+              "Outstanding principal in USDC atoms. Starts = `loan_amount`,",
+              "decrements on `pay_installment`, zeroed on `repay_ccb`."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "rate_bps",
+            "docs": [
+              "APR stored at mint-time (fixed-rate); lets `repay_ccb` / `renew_ccb`",
+              "accrue interest on-chain without re-deriving from the term length."
+            ],
+            "type": "u64"
+          },
+          {
             "name": "_reserved",
             "type": {
               "array": [
                 "u8",
-                32
+                16
               ]
             }
           }
@@ -378,6 +502,10 @@
           {
             "name": "due_ts",
             "type": "i64"
+          },
+          {
+            "name": "rate_bps",
+            "type": "u64"
           },
           {
             "name": "ts",

@@ -160,6 +160,7 @@ describe("loan / disburse_from_vault — CPI-only gate (Task 2.2)", () => {
         new BN(100),
         new BN(50),
         nowPlus30(),
+        new BN(800),
         rand32(),
       )
       .accounts({

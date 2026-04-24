@@ -17,6 +17,7 @@ pub mod trdc {
         appraisal_value: u64,
         loan_amount: u64,
         due_ts: i64,
+        rate_bps: u64,
     ) -> Result<()> {
         let clock = Clock::get()?;
         let s = &mut ctx.accounts.trdc_state;
@@ -29,7 +30,9 @@ pub mod trdc {
         s.asset_id = Pubkey::default();
         s.created_at = clock.unix_timestamp;
         s.doc_hash = [0u8; 32];
-        s._reserved = [0u8; 32];
+        s.principal_remaining = loan_amount;
+        s.rate_bps = rate_bps;
+        s._reserved = [0u8; 16];
 
         emit!(TrdcStateInitialized {
             trdc_state: s.key(),
@@ -37,6 +40,7 @@ pub mod trdc {
             appraisal_value,
             loan_amount,
             due_ts,
+            rate_bps,
             ts: clock.unix_timestamp,
         });
         Ok(())
@@ -90,6 +94,80 @@ pub mod trdc {
             from,
             to: s.status,
             ts: Clock::get()?.unix_timestamp,
+        });
+        Ok(())
+    }
+
+    /// Decrement outstanding `principal_remaining` by `amount`. Intended to be
+    /// called from the loan program as part of `pay_installment`. The loan
+    /// program pre-checks `amount <= principal_remaining` to revert with
+    /// `OverPayment`; the trdc program here just enforces saturating arithmetic.
+    pub fn apply_installment(
+        ctx: Context<TransitionAuth>,
+        amount: u64,
+    ) -> Result<()> {
+        let s = &mut ctx.accounts.trdc_state;
+        require!(
+            s.status == Status::Active,
+            crate::errors::TrdcError::InvalidStateTransition
+        );
+        s.principal_remaining = s
+            .principal_remaining
+            .checked_sub(amount)
+            .ok_or(crate::errors::TrdcError::MathOverflow)?;
+        Ok(())
+    }
+
+    /// Flip `Active -> Repaid` and zero `principal_remaining`. CPI-friendly
+    /// from the loan program's `repay_ccb`.
+    pub fn transition_active_to_repaid(
+        ctx: Context<TransitionAuth>,
+    ) -> Result<()> {
+        let s = &mut ctx.accounts.trdc_state;
+        require!(
+            s.status == Status::Active,
+            crate::errors::TrdcError::InvalidStateTransition
+        );
+        let from = s.status;
+        s.principal_remaining = 0;
+        s.transition(Status::Repaid)?;
+        emit!(TrdcTransitioned {
+            trdc_state: s.key(),
+            from,
+            to: s.status,
+            ts: Clock::get()?.unix_timestamp,
+        });
+        Ok(())
+    }
+
+    /// Two-hop renewal transition: `Active -> Renewed -> Active`. Also updates
+    /// `due_ts`, `rate_bps`, and resets `created_at` to the current clock —
+    /// mutations the loan program can't perform directly because it doesn't
+    /// own the trdc_state account. Emits a single `TrdcTransitioned
+    /// { from: Active, to: Active }`; the loan program's `CcbRenewed` event
+    /// carries the fee / rate breakdown.
+    pub fn transition_renew(
+        ctx: Context<TransitionAuth>,
+        new_due_ts: i64,
+        new_rate_bps: u64,
+    ) -> Result<()> {
+        let clock = Clock::get()?;
+        let s = &mut ctx.accounts.trdc_state;
+        require!(
+            s.status == Status::Active,
+            crate::errors::TrdcError::InvalidStateTransition
+        );
+        let from = s.status;
+        s.transition(Status::Renewed)?;
+        s.transition(Status::Active)?;
+        s.due_ts = new_due_ts;
+        s.rate_bps = new_rate_bps;
+        s.created_at = clock.unix_timestamp;
+        emit!(TrdcTransitioned {
+            trdc_state: s.key(),
+            from,
+            to: s.status,
+            ts: clock.unix_timestamp,
         });
         Ok(())
     }
@@ -152,6 +230,13 @@ pub struct TransitionToActive<'info> {
     pub authority: Signer<'info>,
 }
 
+#[derive(Accounts)]
+pub struct TransitionAuth<'info> {
+    #[account(mut)]
+    pub trdc_state: Account<'info, TRDCState>,
+    pub authority: Signer<'info>,
+}
+
 #[event]
 pub struct TrdcStateInitialized {
     pub trdc_state: Pubkey,
@@ -159,6 +244,7 @@ pub struct TrdcStateInitialized {
     pub appraisal_value: u64,
     pub loan_amount: u64,
     pub due_ts: i64,
+    pub rate_bps: u64,
     pub ts: i64,
 }
 
