@@ -68,4 +68,58 @@ describe("loan / create_ccb_trdc", () => {
     expect(state.loanId.toBase58()).to.eq(loanId.toBase58());
     expect(state.assetId.toBase58()).to.not.eq(PublicKey.default.toBase58());
   });
+
+  it("test_ltv_exactly_at_limit_accepted — 60.00% LTV (60k/100k USDC @ 6dp) succeeds", async () => {
+    const loanId = Keypair.generate().publicKey;
+    const [trdcStatePda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("trdc_state"), loanId.toBuffer()],
+      trdcProgram.programId,
+    );
+
+    const appraisalValue = new BN("100000000000"); // 100k USDC @ 6dp
+    const loanAmount = new BN("60000000000"); // 60k USDC @ 6dp → exactly 60.00%
+
+    // No throw expected: the inclusive-equality branch of the LTV check accepts this.
+    await loanProgram.methods
+      .createCcbTrdc(loanId, appraisalValue, loanAmount, nowPlus30Days(), randomAssetHint())
+      .accounts({
+        trdcState: trdcStatePda,
+        trdcProgram: trdcProgram.programId,
+        payer: provider.wallet.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc();
+
+    const state = await trdcProgram.account.trdcState.fetch(trdcStatePda);
+    expect(state.status).to.deep.equal({ pendingCustody: {} });
+    expect(state.loanAmount.toString()).to.eq(loanAmount.toString());
+    expect(state.appraisalValue.toString()).to.eq(appraisalValue.toString());
+  });
+
+  it("test_ccb_create_requires_nonzero_amount — loan_amount=0 reverts with ZeroAmount", async () => {
+    const loanId = Keypair.generate().publicKey;
+    const [trdcStatePda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("trdc_state"), loanId.toBuffer()],
+      trdcProgram.programId,
+    );
+
+    let threw = false;
+    let code: string | undefined;
+    try {
+      await loanProgram.methods
+        .createCcbTrdc(loanId, new BN(100), new BN(0), nowPlus30Days(), randomAssetHint())
+        .accounts({
+          trdcState: trdcStatePda,
+          trdcProgram: trdcProgram.programId,
+          payer: provider.wallet.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+    } catch (e: any) {
+      threw = true;
+      code = e.error?.errorCode?.code ?? e.code;
+    }
+    expect(threw).to.eq(true);
+    expect(code).to.eq("ZeroAmount");
+  });
 });

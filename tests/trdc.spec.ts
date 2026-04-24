@@ -2,6 +2,7 @@ import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { PublicKey, Keypair, SystemProgram } from "@solana/web3.js";
 import { expect } from "chai";
+import { createHash } from "node:crypto";
 
 describe("trdc / initialize_trdc_state", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -173,6 +174,28 @@ describe("trdc / transitions", () => {
       }
     }
   });
+
+  it("test_trdc_state_transition_rejects_illegal — PendingCustody -> Liquidated reverts with InvalidStateTransition", async () => {
+    const pda = await freshPda();
+    // freshPda leaves the state in PendingCustody; jumping to Liquidated skips
+    // ActiveInCustody/Active/Overdue/Defaulted and is not in the 11-edge legal set.
+    let threw = false;
+    let code: string | undefined;
+    try {
+      await program.methods
+        .testTransition({ liquidated: {} })
+        .accounts({ trdcState: pda, authority: provider.publicKey })
+        .rpc();
+    } catch (e: any) {
+      threw = true;
+      code = e.error?.errorCode?.code ?? e.code;
+    }
+    expect(threw).to.eq(true);
+    expect(code).to.eq("InvalidStateTransition");
+
+    const s = await program.account.trdcState.fetch(pda);
+    expect(s.status).to.deep.equal({ pendingCustody: {} });
+  });
 });
 
 describe("trdc / mint_trdc_cnft", () => {
@@ -209,5 +232,43 @@ describe("trdc / mint_trdc_cnft", () => {
       .rpc();
     s = await program.account.trdcState.fetch(pda);
     expect(s.assetId.toBase58()).to.eq(before);
+  });
+
+  it("test_mint_trdc_cnft_writes_stable_asset_id — asset_id equals SHA-256(loan_id || asset_hint) and is stable across calls", async () => {
+    const loanId = Keypair.generate().publicKey;
+    const [pda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("trdc_state"), loanId.toBuffer()], program.programId,
+    );
+    await program.methods
+      .initializeTrdcState(loanId, new anchor.BN(1), new anchor.BN(1), new anchor.BN(1))
+      .accounts({ trdcState: pda, payer: provider.publicKey, systemProgram: SystemProgram.programId })
+      .rpc();
+
+    const hint = Buffer.alloc(32);
+    for (let i = 0; i < 32; i++) hint[i] = (i * 7 + 3) & 0xff;
+
+    await program.methods.mintTrdcCnft(Array.from(hint))
+      .accounts({ trdcState: pda, authority: provider.publicKey })
+      .rpc();
+
+    const s1 = await program.account.trdcState.fetch(pda);
+    const assetId1 = new PublicKey(s1.assetId);
+
+    // Expected: SHA-256(loan_id_bytes || asset_hint_bytes). Solana's
+    // solana_program::hash::hash is SHA-256 and produces 32 bytes that trdc
+    // maps to a Pubkey via Pubkey::new_from_array.
+    const expected = createHash("sha256")
+      .update(Buffer.concat([loanId.toBuffer(), hint]))
+      .digest();
+    const expectedPk = new PublicKey(expected);
+    expect(assetId1.toBase58()).to.eq(expectedPk.toBase58());
+
+    // Calling again with the same hint on the same TRDCState must leave
+    // asset_id unchanged (no nonce / no clock in the derivation).
+    await program.methods.mintTrdcCnft(Array.from(hint))
+      .accounts({ trdcState: pda, authority: provider.publicKey })
+      .rpc();
+    const s2 = await program.account.trdcState.fetch(pda);
+    expect(new PublicKey(s2.assetId).toBase58()).to.eq(assetId1.toBase58());
   });
 });

@@ -229,6 +229,19 @@ describe("vault / deposit", () => {
     } catch { threw = true; }
     expect(threw).to.eq(true);
   });
+
+  it("test_deposit_rejects_zero_amount — deposit(0) reverts with ZeroAmount", async () => {
+    let threw = false;
+    let code: string | undefined;
+    try {
+      await deposit(lenders[0], new BN(0));
+    } catch (e: any) {
+      threw = true;
+      code = e.error?.errorCode?.code ?? e.code;
+    }
+    expect(threw).to.eq(true);
+    expect(code).to.eq("ZeroAmount");
+  });
 });
 
 describe("vault / withdraw", () => {
@@ -353,6 +366,30 @@ describe("vault / withdraw", () => {
     } catch { threw = true; }
     expect(threw).to.eq(true);
   });
+
+  it("test_withdraw_rejects_over_balance — shares > total_shares reverts with InsufficientVaultLiquidity", async () => {
+    // Sole lender for this vault — total_shares == lender's shares. Asking to
+    // burn shares+1 drives assets_out above total_assets, which fails the
+    // liquidity guard BEFORE the SPL burn CPI runs.
+    const lender = await setupLender();
+    const amount = new BN("700000000"); // 700 USDC
+    await deposit(lender, amount);
+
+    const v = await program.account.vault.fetch(vaultPda);
+    const totalShares = BigInt(v.totalShares.toString());
+    const tooMany = new BN((totalShares + 1n).toString());
+
+    let threw = false;
+    let code: string | undefined;
+    try {
+      await withdraw(lender, tooMany);
+    } catch (e: any) {
+      threw = true;
+      code = e.error?.errorCode?.code ?? e.code;
+    }
+    expect(threw).to.eq(true);
+    expect(code).to.eq("InsufficientVaultLiquidity");
+  });
 });
 
 describe("vault / events", () => {
@@ -448,6 +485,118 @@ describe("vault / events", () => {
     expect(ev.amount.toString()).to.eq(amount.toString());
     // first deposit: shares_minted == amount
     expect(ev.sharesMinted.toString()).to.eq(amount.toString());
+  });
+
+  it("test_deposited_event_fields_match — every field in the deposited event matches post-deposit state", async () => {
+    const assetMint = await createMint(
+      provider.connection, payer, provider.publicKey, null, 6,
+    );
+    const [vaultPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("vault"), assetMint.toBuffer()], program.programId,
+    );
+    const shareMintKp = Keypair.generate();
+    const shareMint = shareMintKp.publicKey;
+    await program.methods.initializeVault().accounts({
+      vault: vaultPda,
+      assetMint,
+      shareMint,
+      payer: provider.publicKey,
+      tokenProgram: TOKEN_PROGRAM_ID,
+      systemProgram: SystemProgram.programId,
+      rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+    }).signers([shareMintKp]).rpc();
+
+    const vaultAta = await createAssociatedTokenAccount(
+      provider.connection, payer, assetMint, vaultPda, undefined, undefined, undefined, true,
+    );
+
+    const depositor = Keypair.generate();
+    const sigAir = await provider.connection.requestAirdrop(
+      depositor.publicKey, 2 * LAMPORTS_PER_SOL,
+    );
+    await provider.connection.confirmTransaction(sigAir, "confirmed");
+    const depositorAta = await createAssociatedTokenAccount(
+      provider.connection, payer, assetMint, depositor.publicKey,
+    );
+    await mintTo(
+      provider.connection, payer, assetMint, depositorAta, payer, BigInt("3000000000"),
+    );
+    const depositorShareAta = await createAssociatedTokenAccount(
+      provider.connection, payer, shareMint, depositor.publicKey,
+    );
+
+    const amount = new BN("1500000000"); // 1500 USDC
+    const sigDep = await program.methods.deposit(amount).accounts({
+      vault: vaultPda,
+      assetMint,
+      shareMint,
+      vaultAta,
+      depositorAta,
+      depositorShareAta,
+      depositor: depositor.publicKey,
+      tokenProgram: TOKEN_PROGRAM_ID,
+    }).signers([depositor]).rpc();
+    await provider.connection.confirmTransaction(sigDep, "confirmed");
+
+    // Parse the event directly from the confirmed tx logs via EventParser +
+    // BorshCoder (stable path, no ws reliance).
+    const tx = await provider.connection.getTransaction(sigDep, {
+      commitment: "confirmed",
+      maxSupportedTransactionVersion: 0,
+    });
+    const logs = tx?.meta?.logMessages ?? [];
+    const parser = new anchor.EventParser(program.programId, program.coder);
+    const captured: any[] = [];
+    for (const ev of parser.parseLogs(logs)) {
+      if (ev.name === "deposited") captured.push(ev.data);
+    }
+    expect(captured.length).to.eq(1);
+    const ev = captured[0];
+
+    const v = await program.account.vault.fetch(vaultPda);
+
+    expect(ev.vault.toBase58()).to.eq(vaultPda.toBase58());
+    expect(ev.depositor.toBase58()).to.eq(depositor.publicKey.toBase58());
+    expect(ev.amount.toString()).to.eq(amount.toString());
+    // first deposit: 1:1 shares
+    expect(ev.sharesMinted.toString()).to.eq(amount.toString());
+    expect(ev.totalAssets.toString()).to.eq(v.totalAssets.toString());
+    expect(ev.totalShares.toString()).to.eq(v.totalShares.toString());
+    expect(typeof ev.ts.toNumber === "function" ? ev.ts.toNumber() : Number(ev.ts)).to.be.greaterThan(0);
+  });
+
+  it("test_vault_pda_derivation_is_deterministic — same seeds yield the same PDA, and initialized account is owned by the vault program", async () => {
+    const assetMint = await createMint(
+      provider.connection, payer, provider.publicKey, null, 6,
+    );
+
+    const first = PublicKey.findProgramAddressSync(
+      [Buffer.from("vault"), assetMint.toBuffer()], program.programId,
+    );
+    const second = PublicKey.findProgramAddressSync(
+      [Buffer.from("vault"), assetMint.toBuffer()], program.programId,
+    );
+    expect(first[0].toBase58()).to.eq(second[0].toBase58());
+    expect(first[1]).to.eq(second[1]);
+
+    const vaultPda = first[0];
+    const shareMintKp = Keypair.generate();
+    await program.methods.initializeVault().accounts({
+      vault: vaultPda,
+      assetMint,
+      shareMint: shareMintKp.publicKey,
+      payer: provider.publicKey,
+      tokenProgram: TOKEN_PROGRAM_ID,
+      systemProgram: SystemProgram.programId,
+      rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+    }).signers([shareMintKp]).rpc();
+
+    const info = await provider.connection.getAccountInfo(vaultPda);
+    expect(info, "vault account info must exist post-init").to.not.eq(null);
+    expect(info!.owner.toBase58()).to.eq(program.programId.toBase58());
+
+    const v = await program.account.vault.fetch(vaultPda);
+    expect(v.bump).to.eq(first[1]);
   });
 });
 
