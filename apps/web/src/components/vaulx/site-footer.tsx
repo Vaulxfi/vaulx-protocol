@@ -19,6 +19,13 @@ const COLUMNS = [
     ]
   },
   {
+    title: "Ops",
+    links: [
+      { href: "/admin/tests", label: "Live tests" },
+      { href: "/admin/demo", label: "Demo cockpit" }
+    ]
+  },
+  {
     title: "Legal",
     links: [
       { href: "#", label: "White paper" },
@@ -33,7 +40,7 @@ export function SiteFooter() {
   return (
     <footer className="border-t border-[var(--rule)] bg-[var(--bg)] text-[var(--ink-dim)]">
       <div className="mx-auto w-full max-w-[1440px] px-6 py-16 md:px-10 md:py-24">
-        <div className="grid gap-14 md:grid-cols-[1.4fr,1fr,1fr,1fr]">
+        <div className="grid gap-14 md:grid-cols-[1.4fr,1fr,1fr,1fr,1fr]">
           {/* Wordmark column */}
           <div className="flex flex-col gap-5">
             <div className="flex items-center gap-2.5">
