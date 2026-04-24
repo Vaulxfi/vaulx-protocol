@@ -1,15 +1,34 @@
 # Vaulx — Build Status
 
-**Last updated:** 2026-04-24 (Phase 2 complete + editorial design pass landed — commit `a0e0ba5`)
+**Last updated:** 2026-04-24 (Phase 3 kickoff — Task 3.0 Civic close-out in progress)
 **Plan:** [docs/plans/2026-04-23-vaulx-build-plan.md](docs/plans/2026-04-23-vaulx-build-plan.md)
 **Phase 1 plan:** [docs/plans/2026-04-25-vaulx-phase-1-core-programs.md](docs/plans/2026-04-25-vaulx-phase-1-core-programs.md)
 **Phase 2 plan:** [docs/plans/2026-04-29-vaulx-phase-2-disburse-and-wizard.md](docs/plans/2026-04-29-vaulx-phase-2-disburse-and-wizard.md)
+**Phase 3 plan:** [docs/plans/2026-05-02-vaulx-phase-3-closing-loops.md](docs/plans/2026-05-02-vaulx-phase-3-closing-loops.md)
 **Design:** [docs/plans/2026-04-23-vaulx-full-stack-build-design.md](docs/plans/2026-04-23-vaulx-full-stack-build-design.md)
 **Submission deadline:** 2026-05-10 (Day 18 from kickoff)
 **User action TODOs:** [USER_TODO.md](USER_TODO.md)
 
 ## Current phase
-**Phase 2 — Disburse gate + borrower wizard + I1/I2/I4** (completed — ready for Phase 3)
+**Phase 3 — Closing loops** (starting — 3.0 Civic close-out in progress)
+
+**Decision applied:** Civic gatekeeper network = CAPTCHA/uniqueness (`ignRE…`). Full Civic Pass KYC documented as upgrade path.
+
+## Phase 3 tasks
+
+| # | Task | Status | Notes |
+|---|---|---|---|
+| 3.0 | Civic Pass KYC operational close-out (CAPTCHA) | in_progress | Resolve 6 SDK TODOs; runtime happy-path test; `init-civic-configs.ts` helper; README docs |
+| 3.1 | Loan pay_installment + repay_ccb + renew_ccb + terms math | pending | Full math in `@vaulx/terms`; 4 named tests |
+| 3.2 | Auction program + `execute_af_default` | pending | New crate; CPI from loan; 4 named tests |
+| 3.3 | Borrower loan routes `/borrow/loans/[trdc]/{pay,renew,repay}` | pending | |
+| 3.4 | I3 Solana Pay QR | pending | `@solana/pay` transfer-request + QR |
+| 3.5 | Lender auction routes + indexer extension | pending | `/lend/auctions*` |
+| 3.6 | `/admin/tests` SSE runner | pending | Live stream `anchor test` output |
+| 3.7 | Fallback demo video scaffold | pending | `public/demo/` dir + record instructions |
+| 3.8 | Demo cockpit `/admin/demo` | pending | 6 buttons + reset + time-accelerate toggle |
+| 3.9 | Moments 5–9 E2E harness | pending | Mirror moments-2-3-4 pattern |
+| 3.10 | STATUS/CHANGELOG close-out + tag `phase-3-done` | pending | |
 
 ## Phase 2 tasks
 
@@ -75,7 +94,7 @@ Supabase: `vaulx-devnet` (project id `ctiypfxtymnszposgaky`, region `us-east-1`)
 | Phase 0 — Bootstrap | Days 2–3 (Apr 23–24) | completed |
 | Phase 1 — Core programs + happy paths | Days 4–7 (Apr 25–28) | completed |
 | Phase 2 — Disburse gate + borrower wizard + I1/I2/I4 | Days 8–10 (Apr 29–May 1) | completed |
-| Phase 3 — Repayment, renewal, auction, I3, SSE | Days 11–13 (May 2–4) | ready_to_start |
+| Phase 3 — Repayment, renewal, auction, I3, SSE | Days 11–13 (May 2–4) | in_progress |
 | Phase 4 — Rehearsal, polish, deploy, record | Days 14–16 (May 5–7) | not_started |
 | Phase 5 — Submission | Days 17–18 (May 8–9) | not_started |
 
