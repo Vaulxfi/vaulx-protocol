@@ -1,0 +1,22 @@
+{
+  "116610LN": { "make": "Rolex", "model": "Submariner Date", "price_usd": 14500 },
+  "126610LN": { "make": "Rolex", "model": "Submariner Date", "price_usd": 15500 },
+  "126710BLRO": { "make": "Rolex", "model": "GMT-Master II Pepsi", "price_usd": 22000 },
+  "126334": { "make": "Rolex", "model": "Datejust 41", "price_usd": 13000 },
+  "116500LN": { "make": "Rolex", "model": "Daytona", "price_usd": 32000 },
+  "116500LN-WHITE": { "make": "Rolex", "model": "Daytona White", "price_usd": 34000 },
+  "124300": { "make": "Rolex", "model": "Oyster Perpetual 41", "price_usd": 7800 },
+  "5513": { "make": "Rolex", "model": "Submariner Vintage", "price_usd": 18000 },
+  "16610": { "make": "Rolex", "model": "Submariner Date", "price_usd": 11500 },
+  "5711/1A-014": { "make": "Patek Philippe", "model": "Nautilus", "price_usd": 110000 },
+  "5712/1A": { "make": "Patek Philippe", "model": "Nautilus", "price_usd": 85000 },
+  "7118/1A": { "make": "Patek Philippe", "model": "Nautilus", "price_usd": 62000 },
+  "15202ST": { "make": "Audemars Piguet", "model": "Royal Oak Jumbo", "price_usd": 95000 },
+  "15500ST": { "make": "Audemars Piguet", "model": "Royal Oak 41", "price_usd": 45000 },
+  "26470ST": { "make": "Audemars Piguet", "model": "Royal Oak Offshore", "price_usd": 38000 },
+  "310.30.42.50.01.001": { "make": "Omega", "model": "Speedmaster Moonwatch", "price_usd": 7200 },
+  "311.30.42.30.01.005": { "make": "Omega", "model": "Speedmaster Professional", "price_usd": 6500 },
+  "210.30.42.20.01.001": { "make": "Omega", "model": "Seamaster 300M", "price_usd": 5400 },
+  "IW371446": { "make": "IWC", "model": "Portugieser Chronograph", "price_usd": 8500 },
+  "5167A": { "make": "Patek Philippe", "model": "Aquanaut", "price_usd": 55000 }
+}
