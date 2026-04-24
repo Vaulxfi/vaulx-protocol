@@ -8,6 +8,16 @@ use state::Vault;
 
 declare_id!("4PPyUvazjDBvFndGUL2rgKTwZrFbsSP1tk4a2uMhE9MS");
 
+/// Hardcoded loan program id — mirrors `loan::declare_id!`. We hardcode rather
+/// than import the `loan` crate to avoid a circular crate dep (loan depends on
+/// vault).
+// base58("BHdxEKkfsyjERiz5XiUybDLquvoWRtF7r1zDgVCDZJow") decoded to bytes.
+pub const LOAN_PROGRAM_ID: Pubkey = Pubkey::new_from_array([
+    152, 215, 241, 185, 109, 120, 219, 107, 20, 193, 123, 114, 110, 63, 95, 49, 169, 245, 238, 185,
+    46, 68, 146, 201, 83, 132, 96, 201, 29, 0, 0, 38,
+]);
+pub const LOAN_AUTHORITY_SEED: &[u8] = b"loan_authority";
+
 #[program]
 pub mod vault {
     use super::*;
@@ -183,12 +193,76 @@ pub mod vault {
         Ok(())
     }
 
-    pub fn disburse(_ctx: Context<Disburse>, _amount: u64) -> Result<()> {
-        // PHASE_2_TODO: implement the custody-gated CPI path per canonical spec §4.2.
-        // Contract is defined here so anchor-client-gen can emit the typed builder
-        // and the FE can display a "coming in Phase 2" disabled button without
-        // being blocked on backend work.
-        err!(VaultError::DisburseNotYetImplemented)
+    pub fn disburse(ctx: Context<Disburse>, amount: u64) -> Result<()> {
+        require!(amount > 0, VaultError::ZeroAmount);
+
+        // Layer 1: authority must be the loan-authority PDA and a signer.
+        let (expected_authority, _bump) =
+            Pubkey::find_program_address(&[LOAN_AUTHORITY_SEED], &LOAN_PROGRAM_ID);
+        require_keys_eq!(
+            ctx.accounts.loan_authority.key(),
+            expected_authority,
+            VaultError::UnauthorizedDisbursar
+        );
+        require!(
+            ctx.accounts.loan_authority.is_signer,
+            VaultError::UnauthorizedDisbursar
+        );
+
+        // Layer 2: the top-level instruction must be issued by the loan program.
+        // Prevents a compromised/misused signer from invoking vault.disburse directly.
+        use anchor_lang::solana_program::sysvar::instructions::load_instruction_at_checked;
+        let ix_sysvar = &ctx.accounts.instructions_sysvar.to_account_info();
+        let top_level_ix = load_instruction_at_checked(0, ix_sysvar)
+            .map_err(|_| error!(VaultError::UnauthorizedDisbursar))?;
+        require_keys_eq!(
+            top_level_ix.program_id,
+            LOAN_PROGRAM_ID,
+            VaultError::UnauthorizedDisbursar
+        );
+
+        require!(
+            amount <= ctx.accounts.vault.total_assets,
+            VaultError::InsufficientVaultLiquidity
+        );
+
+        // Transfer vault_ata -> borrower_ata, vault PDA signs.
+        let asset_mint_key = ctx.accounts.asset_mint.key();
+        let seeds: &[&[u8]] = &[
+            Vault::SEED,
+            asset_mint_key.as_ref(),
+            &[ctx.accounts.vault.bump],
+        ];
+        token::transfer(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                Transfer {
+                    from: ctx.accounts.vault_ata.to_account_info(),
+                    to: ctx.accounts.borrower_ata.to_account_info(),
+                    authority: ctx.accounts.vault.to_account_info(),
+                },
+                &[seeds],
+            ),
+            amount,
+        )?;
+
+        // disburse is a loan, not a withdrawal: shares are NOT burned. But
+        // total_assets must drop to reflect the outflow.
+        let borrower_ata_key = ctx.accounts.borrower_ata.key();
+        let v = &mut ctx.accounts.vault;
+        v.total_assets = v
+            .total_assets
+            .checked_sub(amount)
+            .ok_or(VaultError::InsufficientVaultLiquidity)?;
+
+        emit!(Disbursed {
+            vault: v.key(),
+            borrower: borrower_ata_key,
+            amount,
+            total_assets: v.total_assets,
+            ts: Clock::get()?.unix_timestamp,
+        });
+        Ok(())
     }
 
     // test-only helper — Phase 2 removes this.
@@ -284,9 +358,16 @@ pub struct Disburse<'info> {
     pub vault_ata: Account<'info, TokenAccount>,
     #[account(mut, token::mint = asset_mint)]
     pub borrower_ata: Account<'info, TokenAccount>,
-    /// CHECK: validated in Phase 2 CPI authority check
-    pub loan_program_authority: UncheckedAccount<'info>,
+    /// CHECK: validated in the disburse body (Layer 1) — must equal the PDA
+    /// `[b"loan_authority"]` in the loan program and must be a signer via
+    /// `invoke_signed` from the loan program.
+    #[account(signer)]
+    pub loan_authority: UncheckedAccount<'info>,
     pub token_program: Program<'info, Token>,
+    /// CHECK: address-constrained to the instructions sysvar; used by Layer 2
+    /// to prove the top-level tx was issued by the loan program.
+    #[account(address = anchor_lang::solana_program::sysvar::instructions::ID)]
+    pub instructions_sysvar: UncheckedAccount<'info>,
 }
 
 // test-only helper — Phase 2 removes this.
@@ -328,6 +409,15 @@ pub struct Withdrawn {
     pub assets_out: u64,
     pub total_assets: u64,
     pub total_shares: u64,
+    pub ts: i64,
+}
+
+#[event]
+pub struct Disbursed {
+    pub vault: Pubkey,
+    pub borrower: Pubkey,
+    pub amount: u64,
+    pub total_assets: u64,
     pub ts: i64,
 }
 

@@ -124,16 +124,28 @@
           "writable": true
         },
         {
-          "name": "loan_program_authority"
+          "name": "loan_authority",
+          "docs": [
+            "`[b\"loan_authority\"]` in the loan program and must be a signer via",
+            "`invoke_signed` from the loan program."
+          ],
+          "signer": true
         },
         {
           "name": "token_program",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "instructions_sysvar",
+          "docs": [
+            "to prove the top-level tx was issued by the loan program."
+          ],
+          "address": "Sysvar1nstructions1111111111111111111111111"
         }
       ],
       "args": [
         {
-          "name": "_amount",
+          "name": "amount",
           "type": "u64"
         }
       ]
@@ -349,6 +361,19 @@
       ]
     },
     {
+      "name": "Disbursed",
+      "discriminator": [
+        54,
+        56,
+        246,
+        253,
+        113,
+        228,
+        216,
+        167
+      ]
+    },
+    {
       "name": "VaultInitialized",
       "discriminator": [
         180,
@@ -393,8 +418,8 @@
     },
     {
       "code": 6003,
-      "name": "DisburseNotYetImplemented",
-      "msg": "Disburse not yet implemented"
+      "name": "UnauthorizedDisbursar",
+      "msg": "Unauthorized disbursar"
     }
   ],
   "types": [
@@ -425,6 +450,34 @@
           },
           {
             "name": "total_shares",
+            "type": "u64"
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Disbursed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "borrower",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "total_assets",
             "type": "u64"
           },
           {

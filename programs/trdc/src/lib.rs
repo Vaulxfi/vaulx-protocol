@@ -77,6 +77,23 @@ pub mod trdc {
         Ok(())
     }
 
+    pub fn transition_to_active(ctx: Context<TransitionToActive>) -> Result<()> {
+        let s = &mut ctx.accounts.trdc_state;
+        require!(
+            s.status == Status::ActiveInCustody,
+            crate::errors::TrdcError::InvalidStateTransition
+        );
+        let from = s.status;
+        s.transition(Status::Active)?;
+        emit!(TrdcTransitioned {
+            trdc_state: s.key(),
+            from,
+            to: s.status,
+            ts: Clock::get()?.unix_timestamp,
+        });
+        Ok(())
+    }
+
     pub fn mint_trdc_cnft(ctx: Context<MintTrdcCnft>, asset_hint: [u8; 32]) -> Result<()> {
         // PHASE_2_TODO: replace this stub with a real Bubblegum CPI (mpl-bubblegum
         // `mint_to_collection_v1`). Phase 1 does not need a real cNFT to ship
@@ -123,6 +140,13 @@ pub struct MintTrdcCnft<'info> {
 
 #[derive(Accounts)]
 pub struct ConfirmCustodyTransition<'info> {
+    #[account(mut)]
+    pub trdc_state: Account<'info, TRDCState>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct TransitionToActive<'info> {
     #[account(mut)]
     pub trdc_state: Account<'info, TRDCState>,
     pub authority: Signer<'info>,

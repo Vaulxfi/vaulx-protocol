@@ -175,6 +175,30 @@
           }
         }
       ]
+    },
+    {
+      "name": "transition_to_active",
+      "discriminator": [
+        244,
+        134,
+        48,
+        207,
+        222,
+        214,
+        23,
+        79
+      ],
+      "accounts": [
+        {
+          "name": "trdc_state",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [

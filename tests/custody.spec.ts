@@ -7,6 +7,7 @@ import {
   SystemProgram,
 } from "@solana/web3.js";
 import { expect } from "chai";
+import { ensureLoanConfig, sharedCustodian } from "./_shared";
 
 describe("loan / confirm_custody", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -14,7 +15,7 @@ describe("loan / confirm_custody", () => {
   const trdcProgram = anchor.workspace.Trdc as Program<any>;
   const provider = anchor.getProvider() as anchor.AnchorProvider;
 
-  const custodian = Keypair.generate();
+  const custodian = sharedCustodian;
 
   function randomAssetHint(): number[] {
     const buf = Buffer.alloc(32);
@@ -57,31 +58,7 @@ describe("loan / confirm_custody", () => {
   }
 
   before(async () => {
-    const [loanConfigPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from("loan_config")],
-      loanProgram.programId,
-    );
-
-    const existing = await loanProgram.account.loanConfig.fetchNullable(
-      loanConfigPda,
-    );
-    if (!existing) {
-      await loanProgram.methods
-        .initializeLoanConfig(custodian.publicKey)
-        .accounts({
-          loanConfig: loanConfigPda,
-          admin: provider.wallet.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .rpc();
-    }
-
-    // Fund the custodian so it can pay tx fees when signing.
-    const sig = await provider.connection.requestAirdrop(
-      custodian.publicKey,
-      2 * LAMPORTS_PER_SOL,
-    );
-    await provider.connection.confirmTransaction(sig, "confirmed");
+    await ensureLoanConfig(loanProgram, provider);
   });
 
   it("test_confirm_custody_only_by_custodian — non-custodian signer reverts", async () => {

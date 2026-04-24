@@ -1,12 +1,19 @@
 use anchor_lang::prelude::*;
-use trdc::cpi::accounts::{ConfirmCustodyTransition, InitializeTrdcState, MintTrdcCnft};
+use anchor_spl::token::{Mint, Token};
+use trdc::cpi::accounts::{
+    ConfirmCustodyTransition, InitializeTrdcState, MintTrdcCnft, TransitionToActive,
+};
 use trdc::program::Trdc;
-use trdc::state::TRDCState;
+use trdc::state::{Status, TRDCState};
+use vault::cpi::accounts::Disburse as VaultDisburse;
+use vault::program::Vault as VaultProgram;
 
 pub mod errors;
 use errors::{LoanError, MAX_LTV_BPS};
 
 declare_id!("BHdxEKkfsyjERiz5XiUybDLquvoWRtF7r1zDgVCDZJow");
+
+pub const LOAN_AUTHORITY_SEED: &[u8] = b"loan_authority";
 
 #[program]
 pub mod loan {
@@ -101,6 +108,61 @@ pub mod loan {
         });
         Ok(())
     }
+
+    pub fn disburse_from_vault(ctx: Context<DisburseFromVault>, amount: u64) -> Result<()> {
+        require!(amount > 0, LoanError::ZeroAmount);
+        require!(
+            ctx.accounts.trdc_state.status == Status::ActiveInCustody,
+            trdc::errors::TrdcError::InvalidStateTransition
+        );
+
+        // Derive loan_authority signer seeds.
+        let (expected_authority, bump) =
+            Pubkey::find_program_address(&[LOAN_AUTHORITY_SEED], &crate::ID);
+        require_keys_eq!(
+            ctx.accounts.loan_authority.key(),
+            expected_authority,
+            LoanError::UnauthorizedAdmin
+        );
+
+        let seeds: &[&[u8]] = &[LOAN_AUTHORITY_SEED, &[bump]];
+        let signer_seeds: &[&[&[u8]]] = &[seeds];
+
+        // 1) CPI into vault::disburse, signed by the loan_authority PDA.
+        vault::cpi::disburse(
+            CpiContext::new_with_signer(
+                ctx.accounts.vault_program.to_account_info(),
+                VaultDisburse {
+                    vault: ctx.accounts.vault.to_account_info(),
+                    asset_mint: ctx.accounts.asset_mint.to_account_info(),
+                    vault_ata: ctx.accounts.vault_ata.to_account_info(),
+                    borrower_ata: ctx.accounts.borrower_ata.to_account_info(),
+                    loan_authority: ctx.accounts.loan_authority.to_account_info(),
+                    token_program: ctx.accounts.token_program.to_account_info(),
+                    instructions_sysvar: ctx.accounts.instructions_sysvar.to_account_info(),
+                },
+                signer_seeds,
+            ),
+            amount,
+        )?;
+
+        // 2) CPI into trdc to flip ActiveInCustody -> Active.
+        trdc::cpi::transition_to_active(CpiContext::new(
+            ctx.accounts.trdc_program.to_account_info(),
+            TransitionToActive {
+                trdc_state: ctx.accounts.trdc_state.to_account_info(),
+                authority: ctx.accounts.borrower.to_account_info(),
+            },
+        ))?;
+
+        emit!(DisburseRequested {
+            trdc_state: ctx.accounts.trdc_state.key(),
+            borrower: ctx.accounts.borrower.key(),
+            amount,
+            ts: Clock::get()?.unix_timestamp,
+        });
+        Ok(())
+    }
 }
 
 #[event]
@@ -118,6 +180,14 @@ pub struct CustodyConfirmed {
     pub trdc_state: Pubkey,
     pub doc_hash: [u8; 32],
     pub custodian: Pubkey,
+    pub ts: i64,
+}
+
+#[event]
+pub struct DisburseRequested {
+    pub trdc_state: Pubkey,
+    pub borrower: Pubkey,
+    pub amount: u64,
     pub ts: i64,
 }
 
@@ -174,4 +244,45 @@ pub struct ConfirmCustody<'info> {
     pub loan_config: Account<'info, LoanConfig>,
     pub trdc_program: Program<'info, Trdc>,
     pub custodian: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct DisburseFromVault<'info> {
+    #[account(mut)]
+    pub trdc_state: Account<'info, TRDCState>,
+    #[account(
+        seeds = [LoanConfig::SEED],
+        bump = loan_config.bump,
+    )]
+    pub loan_config: Account<'info, LoanConfig>,
+
+    /// CHECK: asserted by the vault program via its own seeds/bump constraint.
+    #[account(mut)]
+    pub vault: UncheckedAccount<'info>,
+    pub asset_mint: Account<'info, Mint>,
+    /// CHECK: asserted by the vault program (token::mint/token::authority).
+    #[account(mut)]
+    pub vault_ata: UncheckedAccount<'info>,
+    /// CHECK: asserted by the vault program (token::mint).
+    #[account(mut)]
+    pub borrower_ata: UncheckedAccount<'info>,
+
+    /// CHECK: PDA `[b"loan_authority"]` owned by this program. The vault program
+    /// re-derives and requires this as the signer.
+    #[account(
+        seeds = [LOAN_AUTHORITY_SEED],
+        bump,
+    )]
+    pub loan_authority: UncheckedAccount<'info>,
+
+    #[account(mut)]
+    pub borrower: Signer<'info>,
+
+    pub trdc_program: Program<'info, Trdc>,
+    pub vault_program: Program<'info, VaultProgram>,
+    pub token_program: Program<'info, Token>,
+    /// CHECK: address-constrained to the instructions sysvar; forwarded to the
+    /// vault CPI so vault::disburse's Layer 2 check can read it.
+    #[account(address = anchor_lang::solana_program::sysvar::instructions::ID)]
+    pub instructions_sysvar: UncheckedAccount<'info>,
 }

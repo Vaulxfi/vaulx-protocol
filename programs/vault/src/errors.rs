@@ -5,5 +5,5 @@ pub enum VaultError {
     #[msg("Math overflow")] MathOverflow,
     #[msg("Zero amount")] ZeroAmount,
     #[msg("Insufficient vault liquidity")] InsufficientVaultLiquidity,
-    #[msg("Disburse not yet implemented")] DisburseNotYetImplemented,
+    #[msg("Unauthorized disbursar")] UnauthorizedDisbursar,
 }
