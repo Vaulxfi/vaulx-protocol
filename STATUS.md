@@ -1,6 +1,6 @@
 # Vaulx — Build Status
 
-**Last updated:** 2026-04-24 (Phase 3 in progress — 3.0–3.5 complete, 3.6 starting)
+**Last updated:** 2026-04-24 (Phase 3 in progress — 3.0–3.6 complete, 3.7–3.9 queued)
 **Plan:** [docs/plans/2026-04-23-vaulx-build-plan.md](docs/plans/2026-04-23-vaulx-build-plan.md)
 **Phase 1 plan:** [docs/plans/2026-04-25-vaulx-phase-1-core-programs.md](docs/plans/2026-04-25-vaulx-phase-1-core-programs.md)
 **Phase 2 plan:** [docs/plans/2026-04-29-vaulx-phase-2-disburse-and-wizard.md](docs/plans/2026-04-29-vaulx-phase-2-disburse-and-wizard.md)
@@ -24,8 +24,8 @@
 | 3.3 | Borrower loan routes `/borrow/loans/[trdc]/{pay,renew,repay}` | completed | Loan dashboard at `/disburse` (repurposed) + 3 action pages + `/repaid` placeholder. New `useLoanSummary(trdc)` hook (10s TanStack refetch, BigInt math via `@vaulx/terms`). 3 new mutation hooks: `useLoanInstallment`, `useLoanRenew`, `useLoanRepay`. `useCreateCcbTrdc` updated to pass `rate_bps` via `rateForTermDays(termDays)`. Shared `<LoanContextPanel>` reused across pay/renew/repay. Editorial 5/7 splits, hairline breakdown tables, gold "pay" totals. Status-aware CTA gating (active/renewed/overdue enabled; pendingCustody/repaid/defaulted/liquidated disabled with hints). Web build + typecheck + vitest green. Commit `1d6fa25`. |
 | 3.4 | I3 Solana Pay QR | completed | Transaction-request `GET/POST /api/solana-pay/[kind]/[trdc]` (pay/repay/renew); builds legacy tx with kind-appropriate ix + memo; returns base64 + message. `<SolanaPayQr>` renders scannable `solana:` deep-link via `QRCodeSVG`; integrated into pay/repay/renew pages as stacked panels alongside existing desktop buttons. Shared `buildLoanIxAccounts` extracted to `loan-accounts.ts` for server/client reuse. Deps added: `@solana/pay`, `bignumber.js`, `qrcode.react`. Web build + typecheck + vitest green. Reference pubkey + confirmation polling deferred per spec. Commit `2a07d2a`. |
 | 3.5 | Lender auction routes + indexer extension | completed | Indexer extended to auction program (`buildSubscription("auction")`); lowercased events `auctionCreated`/`bidPlaced`/`auctionClosed`/`auctionClosedNoBids` land in `onchain_events`. Two new API routes `GET /api/auctions` + `GET /api/auctions/[id]/bids` (graceful Supabase fallback). `lib/chain/auction.ts`: `useAuctionList`/`useAuction`/`useAuctionBids`/`usePlaceBid`/`useCloseAuction`. `<AuctionCard>` component with live 1s countdown. `/lend/auctions` operator table ("The Foreclosure Floor") + stat tiles. `/lend/auctions/[id]` 7/5 split with bid history + min-bid-aware form + permissionless close button. `/lend` sidebar link added. Web + indexer typecheck + build green. Commit `669dd86`. |
-| 3.6 | `/admin/tests` SSE runner | in_progress | Live stream `anchor test` output |
-| 3.7 | Fallback demo video scaffold | pending | `public/demo/` dir + record instructions |
+| 3.6 | `/admin/tests` SSE runner | completed | `GET /api/admin/tests/stream` (Node runtime) spawns `anchor test --skip-build` from repo root, SSE events `started`/`line`/`exit`/`error`, kills child on abort. `<TestStream>` client component w/ ANSI→Tailwind colour mapper, HTML-escaped input, smart auto-scroll, Run/Abort pill. Editorial page at `/admin/tests`. Env-gated admin via cookie/header when `NEXT_PUBLIC_VAULX_ADMIN_PUBKEY` set. Documented local-only + Vercel 30/300s limit caveats in README + operator note. Commit `97db615`. |
+| 3.7 | Fallback demo video scaffold | in_progress | `public/demo/` dir + record instructions |
 | 3.8 | Demo cockpit `/admin/demo` | pending | 6 buttons + reset + time-accelerate toggle |
 | 3.9 | Moments 5–9 E2E harness | pending | Mirror moments-2-3-4 pattern |
 | 3.10 | STATUS/CHANGELOG close-out + tag `phase-3-done` | pending | |
