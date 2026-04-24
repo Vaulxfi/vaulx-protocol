@@ -4,7 +4,10 @@ Chronological log of build progress. Newest at the top.
 
 ---
 
-## 2026-04-24 — Phase 2 kickoff (tasks 2.1–2.4)
+## 2026-04-24 — Phase 2 kickoff (tasks 2.1–2.5)
+
+- **Task 2.5 completed (`@vaulx/ccb` real generator):** Replaced the `TODO = true` stub with a real CCB.B3 PDF writer. `generateCcbPdf(input: CcbInput)` lays out a one-page A4 document from scratch via `pdf-lib` (header + parties + garantia + condições financeiras + 4 Portuguese cláusulas + 3 signature lines + footer). Accents stripped for Helvetica WinAnsi safety. Metadata pinned to `issuedAtTs` + `Producer`/`Creator` hardcoded to `vaulx-ccb` + `useObjectStreams: false` on save → byte-identical output across runs. PDF `Keywords` carries raw atoms + rate bps + term days so the SHA-256 is sensitive to sub-cent changes the 2-decimal render would hide. `hashCcb(bytes)` returns `{ digest, hex }` via `@noble/hashes/sha256`. 4/4 vitest green: non-empty Uint8Array starting `%PDF-`, 32-byte digest + 64-char hex, byte-equal determinism across two identical calls, 1-atom delta flips the hash. `pnpm -w typecheck` + `pnpm -w test` green. Commit `1917680`.
+
 
 - **Task 2.4 completed (IDL freeze):** Tagged `phase-2-idl-freeze` at commit `b4cd6cb`. Re-ran `node scripts/dev/gen-clients.mjs` against the frozen Anchor 0.30 IDLs — `anchor-client-gen@latest` still errors with `Unreachable.` on `trdc.json` (same root cause as Phase 1 Task 1.10: top-level `address` + `metadata` + inline `discriminator` arrays not yet parsed upstream). Hand-rolled façade in `packages/anchor-client/src/index.ts` remains canonical; `packages/anchor-client/src/generated/.gitkeep` reserves the slot for when upstream adds Anchor 0.30 support. `pnpm -w typecheck` green (7/7 cached).
 
