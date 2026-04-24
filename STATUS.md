@@ -1,13 +1,31 @@
 # Vaulx — Build Status
 
-**Last updated:** 2026-04-24 (Phase 1 complete — all 14 tasks landed)
+**Last updated:** 2026-04-24 (Phase 1 complete; Phase 2 started — Task 2.1 in progress)
 **Plan:** [docs/plans/2026-04-23-vaulx-build-plan.md](docs/plans/2026-04-23-vaulx-build-plan.md)
 **Phase 1 plan:** [docs/plans/2026-04-25-vaulx-phase-1-core-programs.md](docs/plans/2026-04-25-vaulx-phase-1-core-programs.md)
+**Phase 2 plan:** [docs/plans/2026-04-29-vaulx-phase-2-disburse-and-wizard.md](docs/plans/2026-04-29-vaulx-phase-2-disburse-and-wizard.md)
 **Design:** [docs/plans/2026-04-23-vaulx-full-stack-build-design.md](docs/plans/2026-04-23-vaulx-full-stack-build-design.md)
 **Submission deadline:** 2026-05-10 (Day 18 from kickoff)
+**User action TODOs:** [USER_TODO.md](USER_TODO.md)
 
 ## Current phase
-**Phase 1 — Core programs + happy paths** (completed — ready for Phase 2)
+**Phase 2 — Disburse gate + borrower wizard + I1/I2** (starting — 2.1 in progress)
+
+## Phase 2 tasks
+
+| # | Task | Status | Notes |
+|---|---|---|---|
+| 2.1 | `ActiveInCustody` state + `confirm_custody` + `doc_hash` | in_progress | TRDCState gains `doc_hash`; new state between PendingCustody and Active; custodian-signed instruction |
+| 2.2 | `vault.disburse` CPI-only gate + `loan.disburse_from_vault` wrapper | pending | Two-layer enforcement: signer PDA + instructions sysvar. Named failing tests land here. |
+| 2.3 | Remaining 8 BRD §7 named tests | pending | Spec coverage batch |
+| 2.4 | IDL freeze + client regeneration attempt | pending | Tag `phase-2-idl-freeze` |
+| 2.5 | `@vaulx/ccb` real PDF generator + SHA-256 | pending | `pdf-lib` + `@noble/hashes` |
+| 2.6 | I1 Chrono24 + WatchCharts appraisal aggregator | pending | Triangular convergence API |
+| 2.7 | I2 gov.br mocked ID flow | pending | CPF check-digit validated; wallet-keyed |
+| 2.8 | Borrower wizard pages (Moment 2) | pending | /borrow/new/{asset, appraisal, terms} |
+| 2.9 | Awaiting-custody + custodian intake UI (Moment 3) | pending | Polls onchain_events for custodyConfirmed |
+| 2.10 | Moments 2+3+4 E2E test | pending | Mirror moment-1-e2e.ts; SKIPPED path same |
+| 2.11 | STATUS/CHANGELOG close-out | pending | Tag `phase-2-done` |
 
 Repo: [github.com/gogysss/vaulx](https://github.com/gogysss/vaulx) (private).
 Supabase: `vaulx-devnet` (project id `ctiypfxtymnszposgaky`, region `us-east-1`).
@@ -55,7 +73,7 @@ Supabase: `vaulx-devnet` (project id `ctiypfxtymnszposgaky`, region `us-east-1`)
 |---|---|---|
 | Phase 0 — Bootstrap | Days 2–3 (Apr 23–24) | completed |
 | Phase 1 — Core programs + happy paths | Days 4–7 (Apr 25–28) | completed |
-| Phase 2 — Disburse gate + borrower wizard + I1/I2 | Days 8–10 (Apr 29–May 1) | ready_to_start |
+| Phase 2 — Disburse gate + borrower wizard + I1/I2 | Days 8–10 (Apr 29–May 1) | in_progress |
 | Phase 3 — Repayment, renewal, auction, I3, SSE | Days 11–13 (May 2–4) | not_started |
 | Phase 4 — Rehearsal, polish, deploy, record | Days 14–16 (May 5–7) | not_started |
 | Phase 5 — Submission | Days 17–18 (May 8–9) | not_started |
