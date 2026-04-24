@@ -1,6 +1,6 @@
 # Vaulx — Build Status
 
-**Last updated:** 2026-04-24 (Phase 2 in progress — 2.1–2.9 complete; 2.10 E2E harness starting)
+**Last updated:** 2026-04-24 (Phase 2 complete — all 12 tasks landed)
 **Plan:** [docs/plans/2026-04-23-vaulx-build-plan.md](docs/plans/2026-04-23-vaulx-build-plan.md)
 **Phase 1 plan:** [docs/plans/2026-04-25-vaulx-phase-1-core-programs.md](docs/plans/2026-04-25-vaulx-phase-1-core-programs.md)
 **Phase 2 plan:** [docs/plans/2026-04-29-vaulx-phase-2-disburse-and-wizard.md](docs/plans/2026-04-29-vaulx-phase-2-disburse-and-wizard.md)
@@ -9,7 +9,7 @@
 **User action TODOs:** [USER_TODO.md](USER_TODO.md)
 
 ## Current phase
-**Phase 2 — Disburse gate + borrower wizard + I1/I2** (starting — 2.1 in progress)
+**Phase 2 — Disburse gate + borrower wizard + I1/I2/I4** (completed — ready for Phase 3)
 
 ## Phase 2 tasks
 
@@ -25,8 +25,8 @@
 | 2.7 | I2 gov.br mocked ID flow | completed | 4 pages at `/borrow/verify-id/*` with gov.br blue styling + demo-mode badge. Real CPF check-digit validation; `?mock=auto` completes in ~2s. `useGovbrVerification(wallet)` hook ready for 2.8 to consume. 5/5 cpf.test.ts vitest green; web build green (routes prerendered). Commit `96e54b3`. |
 | 2.8 | Borrower wizard pages (Moment 2) | completed | 3 wizard pages + placeholder for 2.9. Asset form → `/api/appraisal` → 3-source + median display → terms (LTV slider 10–60%, 30/60/90d radio, rate table 8/10/12% APR, CCB doc-card preview with live SHA-256 + download) → Confirm derives TRDC PDA + regenerates CCB + uploads to Supabase (best-effort) + calls `create_ccb_trdc` with `asset_hint` = first 32 hash bytes → redirects to awaiting-custody. `<IdentityGates>` composes Civic + gov.br. `lib/chain/loan.ts::useCreateCcbTrdc` hook. Web build green, 11/11 vitest green. Commit `635e0e2`. |
 | 2.9 | Awaiting-custody + custodian intake UI (Moment 3) | completed | Borrower page polls `/api/onchain-events/custody-confirmed` every 3s via TanStack Query + auto-advances. Custodian intake gates by `LoanConfig.custodian` match, renders TRDC details + 5-item checklist + doc_hash field, calls `loan.confirm_custody`. Indexer extended to subscribe to both vault + loan programs. 2 placeholder pages (`/borrow/loans/[trdc]/disburse`, `/custodian/done/[trdc]`). Graceful `supabase_not_configured` fallback in poll route. Web + indexer typecheck + build green. Commit `29afbb4`. |
-| 2.10 | Moments 2+3+4 E2E test | in_progress | Mirror moment-1-e2e.ts; SKIPPED path same |
-| 2.11 | STATUS/CHANGELOG close-out | pending | Tag `phase-2-done` |
+| 2.10 | Moments 2+3+4 E2E test | completed | 460-line `scripts/dev/moments-2-3-4-e2e.ts` mirrors moment-1 pattern: prechecks → ensureLoanConfig/VaultConfig → airdrops → Moment 2 (createCcbTrdc + poll `ccbTrdcCreated`) → Moment 3 (confirmCustody + poll `custodyConfirmed` + TRDCState=ActiveInCustody) → Moment 4 (disburseFromVault + poll `disbursed` + balance deltas + TRDCState=Active). Mocha wrapper + `pnpm e2e:moments-2-3-4` root script. SKIPPED exit 2 on env missing. typecheck green. Commit `0cd9196`. |
+| 2.11 | STATUS/CHANGELOG close-out | completed | Tagged `phase-2-done`. |
 
 Repo: [github.com/gogysss/vaulx](https://github.com/gogysss/vaulx) (private).
 Supabase: `vaulx-devnet` (project id `ctiypfxtymnszposgaky`, region `us-east-1`).
@@ -74,8 +74,8 @@ Supabase: `vaulx-devnet` (project id `ctiypfxtymnszposgaky`, region `us-east-1`)
 |---|---|---|
 | Phase 0 — Bootstrap | Days 2–3 (Apr 23–24) | completed |
 | Phase 1 — Core programs + happy paths | Days 4–7 (Apr 25–28) | completed |
-| Phase 2 — Disburse gate + borrower wizard + I1/I2 | Days 8–10 (Apr 29–May 1) | in_progress |
-| Phase 3 — Repayment, renewal, auction, I3, SSE | Days 11–13 (May 2–4) | not_started |
+| Phase 2 — Disburse gate + borrower wizard + I1/I2/I4 | Days 8–10 (Apr 29–May 1) | completed |
+| Phase 3 — Repayment, renewal, auction, I3, SSE | Days 11–13 (May 2–4) | ready_to_start |
 | Phase 4 — Rehearsal, polish, deploy, record | Days 14–16 (May 5–7) | not_started |
 | Phase 5 — Submission | Days 17–18 (May 8–9) | not_started |
 
