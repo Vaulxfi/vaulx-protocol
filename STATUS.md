@@ -90,4 +90,4 @@ Supabase: `vaulx-devnet` (project id `ctiypfxtymnszposgaky`, region `us-east-1`)
 - I1 Chrono24 + WatchCharts real pricing — Phase 2
 - I2 gov.br mocked ID — Phase 2
 - I3 Solana Pay QR — Phase 3
-- ~~I4 Civic/Blockpass hardcoded UI mock — Phase 1~~ **Promoted to real Civic Pass (on-chain gate + SDK) in Phase 2 Task 2.6.5** per user direction.
+- ~~I4 Civic/Blockpass hardcoded UI mock — Phase 1~~ **Promoted to real Civic Pass (on-chain gate + SDK) in Phase 2 Task 2.6.5.** Architectural scaffolding shipped; **operational finish-out planned as Phase 3 Task 3.0** (SDK verification, gatekeeper-network decision, runtime happy-path test, Devnet config init, README upgrade-path docs).

@@ -1098,6 +1098,17 @@ When all boxes are checked, Phase 0 is done.
 **Detailed plan in `docs/plans/2026-05-02-vaulx-phase-3-closing-loops.md` on Day 11.**
 
 **Scope:**
+- **Task 3.0 — Civic Pass KYC completion (preamble):** Close out the architectural scaffolding from Task 2.6.5.
+  1. **SDK verification:** resolve the 6 `TODO(civic-sdk-verify)` markers — confirm `useGateway()` hook shape + status enum (`GatewayStatus.ACTIVE` vs `State.ACTIVE`), `<GatewayProvider>` prop surface, `findGatewayToken` signature, the canonical Civic gateway program id (current hardcoded value is padded from 31 bytes → 32; verify against the SDK's exported const), gateway-token PDA seed nonce byte, and state-byte offset in the Borsh layout.
+  2. **Gatekeeper network decision:** choose which network Vaulx demos against —
+     - **CAPTCHA / uniqueness** (`ignRE...`) — free, instant, proves uniqueness not KYC; good for hackathon judges to test live without payment
+     - **Civic Pass KYC** — Civic's paid full-KYC network with doc upload + liveness; requires Civic account + billing; real regulatory KYC
+     - **Custom gatekeeper** — deploy our own via Civic's tooling; we mint tokens on KYC approval through our own backend
+     - Recommendation: **ship the demo on CAPTCHA** (judges can verify live in 30 seconds) and **document the upgrade path to full KYC** in the README for regulatory maturity.
+  3. **Runtime happy-path test:** new `tests/civic-happy-path.spec.ts` (or extend `tests/civic-gate.spec.ts`) — init vault_config + loan_config with a chosen gatekeeper network, programmatically mint a gateway token (via `@identity.com/solana-gateway-ts` client against a throwaway local gatekeeper keypair OR against Devnet captcha), call `vault.deposit` with the token → expect success. Complement with a revocation test: revoke the token → expect `NoValidGatewayToken`. Current tests only assert the wiring, not the runtime.
+  4. **Enable gate on Devnet config:** run `initialize_vault_config(civic_network=chosen_pubkey)` + update `initialize_loan_config(..., civic_network=chosen_pubkey)` on Devnet so the gate is active when Vercel consumes `NEXT_PUBLIC_CIVIC_PASS_NETWORK`. Ship a helper `scripts/dev/init-civic-configs.ts`.
+  5. **README section** explaining the KYC model + how to upgrade from CAPTCHA to full Civic Pass.
+- **Loan.pay_installment + repay_ccb + renew_ccb:** full math matching `@vaulx/terms`.
 - **Loan.pay_installment + repay_ccb + renew_ccb:** full math matching `@vaulx/terms`.
 - **Solana Pay QR code (I3):** Next.js route generates transfer request URL + QR; mobile Phantom signs.
 - **Auction program:** `create_auction` (CPI from `execute_af_default`), `place_bid`, `close_auction`. Whitelist window = 60s demo vs 72h production behind feature flag.

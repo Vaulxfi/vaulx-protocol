@@ -37,9 +37,11 @@ After (1)–(3):
 
 ## Optional / can wait
 
-### 5. Civic Pass SDK verification (Task 2.6.5 follow-up)
+### 5. Civic Pass SDK verification (now folded into Phase 3 Task 3.0)
 
-After the Civic integration lands (Task 2.6.5, commit `bc7ce5c`), close the `TODO(civic-sdk-verify)` markers:
+**Status:** architectural scaffolding shipped in Task 2.6.5 (commit `bc7ce5c`). Full close-out — SDK verification, runtime happy-path test, Devnet config init, README docs — is planned as **Phase 3 Task 3.0**. Claude will drive it; no user action required until then.
+
+The 6 `TODO(civic-sdk-verify)` markers still in code for reference:
 
 - [ ] Verify the Civic gateway program id. The subagent had to pad `gatem74V238NmbRnHDf4XHJyqjx6YF3GHJqjUw1GJU` → `gatem74V238NmbRnHDf4XHJyqjx6YF3GHJqjUw1GJU9` to reach 32 bytes. Confirm against `@identity.com/solana-gateway-ts`'s exported const (probably `GATEWAY_PROGRAM_ID`). Update both `programs/vault/src/civic.rs` and `programs/loan/src/civic.rs`.
 - [ ] Confirm `findGatewayToken` signature in `apps/web/src/lib/chain/vault.ts`.
