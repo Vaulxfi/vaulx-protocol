@@ -4,8 +4,10 @@ Chronological log of build progress. Newest at the top.
 
 ---
 
-## 2026-04-24 — Phase 1 planning + tasks 1.1–1.11
+## 2026-04-24 — Phase 1 planning + tasks 1.1–1.13
 
+- **Task 1.13 completed (indexer worker + `onchain_events`):** `apps/indexer` (tsx/Node ESM, NodeNext resolution) subscribes to the vault program via `connection.onLogs(programId, ..., "confirmed")`, parses logs with Anchor `EventParser` + `BorshCoder`, and upserts into `public.onchain_events` on Supabase. Migration `supabase/migrations/20260425000000_onchain_events.sql` applied via Supabase MCP (creates `onchain_events` with `unique(signature)` + indexes on `(program, slot)` and `(event_name)`). Gracefully ignores Postgres 23505 unique-violation on replay. Documents the Anchor 0.30.1 lowercase-event-name gotcha inline. Live verification blocked on `SUPABASE_SERVICE_ROLE_KEY` (dashboard-only). typecheck 7/7 green. Commit `386567b`.
+- **Task 1.12 completed (lender FE /lend flow + I4 Civic/Blockpass mock):** 3 Next.js 14 App Router pages (`/lend`, `/lend/vaults`, `/lend/vaults/[id]`) + deposit form (React Hook Form + Zod, ≥ 1 USDC) + KYC mock modal (3s fake Civic/Blockpass verify, localStorage-keyed per wallet `vaulx_kyc_<wallet>`). TanStack Query for vault state + user balances; sonner toasts. `lib/chain/vault.ts` exposes `deriveVaultPda`, `useVaultData`, `useUserShareBalance`, `useUserUsdcBalance`, `useDeposit` (wires all 8 accounts into the Anchor builder). `/lend` → 200 w/ "Browse vaults"; `/lend/vaults` → 200 w/ "USDC" (or empty state until mint seeded). Web build + lint + typecheck green. Commit `529fd9f`.
 - **Task 1.11 completed (seed script):** `scripts/dev/seed-usdc.ts` — idempotent Devnet USDC mint + 6-wallet seeder (2 SOL + 50k USDC each). Re-reads `scripts/dev/devnet-usdc.json` + `scripts/dev/demo-wallets.json` on each run to only fund the delta. Payer underfunded-guard path verified (payer `2HYjytRc4oKY2ndmJfAq2XdGhPqYB7VdDPLzA18QEiAH` has 0 SOL — CLI airdrop rate-limited; user must fund at faucet.solana.com before the mint materializes). Added `tsx` + `@solana/web3.js` to root dev-deps (web3.js was transitive-only via spl-token and didn't hoist). Root `pnpm seed:usdc` script wired. typecheck 6/6 green. `.gitignore`s exclude `demo-wallets.json` + `devnet-usdc.json`. Commit `a124674`.
 
 ## 2026-04-24 — Phase 1 planning + tasks 1.1–1.10
