@@ -1,6 +1,6 @@
 # Vaulx — Build Status
 
-**Last updated:** 2026-04-24 (Phase 3 in progress — 3.0–3.8 complete, 3.9 starting)
+**Last updated:** 2026-04-24 (Phase 3 complete — all 11 tasks landed, ready for Phase 4 polish + deploy)
 **Plan:** [docs/plans/2026-04-23-vaulx-build-plan.md](docs/plans/2026-04-23-vaulx-build-plan.md)
 **Phase 1 plan:** [docs/plans/2026-04-25-vaulx-phase-1-core-programs.md](docs/plans/2026-04-25-vaulx-phase-1-core-programs.md)
 **Phase 2 plan:** [docs/plans/2026-04-29-vaulx-phase-2-disburse-and-wizard.md](docs/plans/2026-04-29-vaulx-phase-2-disburse-and-wizard.md)
@@ -10,7 +10,7 @@
 **User action TODOs:** [USER_TODO.md](USER_TODO.md)
 
 ## Current phase
-**Phase 3 — Closing loops** (starting — 3.0 Civic close-out in progress)
+**Phase 3 — Closing loops** (completed — ready for Phase 4 polish + deploy)
 
 **Decision applied:** Civic gatekeeper network = CAPTCHA/uniqueness (`ignRE…`). Full Civic Pass KYC documented as upgrade path.
 
@@ -27,8 +27,8 @@
 | 3.6 | `/admin/tests` SSE runner | completed | `GET /api/admin/tests/stream` (Node runtime) spawns `anchor test --skip-build` from repo root, SSE events `started`/`line`/`exit`/`error`, kills child on abort. `<TestStream>` client component w/ ANSI→Tailwind colour mapper, HTML-escaped input, smart auto-scroll, Run/Abort pill. Editorial page at `/admin/tests`. Env-gated admin via cookie/header when `NEXT_PUBLIC_VAULX_ADMIN_PUBKEY` set. Documented local-only + Vercel 30/300s limit caveats in README + operator note. Commit `97db615`. |
 | 3.7 | Fallback demo video scaffold | completed | `apps/web/public/demo/` dir + README with 3 capture paths (QuickTime / asciinema+agg / full walkthrough). `.gitignore` for mp4/gif/cast artifacts. `<video>` fallback panel on `/admin/tests` with graceful missing-file state. Commit `0042d54`. User records actual video pre-submission. |
 | 3.8 | Demo cockpit `/admin/demo` | completed | Editorial cockpit page + 6 big buttons (3×2 grid) + accelerate-time toggle + status log. 7 admin API routes (seed-pool/mint-trdc/confirm-custody/disburse/repay/default-and-auction/reset). Shared `lib/admin/demo.ts` with `loadDemoEnv`/`DemoEnvError`/`checkAdminAuth`. Moment 06 (default+auction) does the full sequence in ~10s with `fast=true`. SiteFooter gains "Ops" column linking to `/admin/tests` + `/admin/demo`. Vercel-hostile by design (reads `~/.config/solana/id.json`); env-gated admin auth. Web build + typecheck green. Commit `f1c0f91`. |
-| 3.9 | Moments 5–9 E2E harness | in_progress | Mirror moments-2-3-4 pattern |
-| 3.10 | STATUS/CHANGELOG close-out + tag `phase-3-done` | pending | |
+| 3.9 | Moments 5–9 E2E harness | completed | 957-line `scripts/dev/moments-5-9-e2e.ts` covers Loan A (pay→renew→repay) + Loan B (default→bid→close). 11 tx sigs + final vault snapshot. Mocha wrapper 240s timeout; SKIPPED exit 2 verified. `pnpm e2e:moments-5-9` script. typecheck green. Commit `70f8194`. |
+| 3.10 | STATUS/CHANGELOG close-out + tag `phase-3-done` | completed | Tagged. |
 
 ## Phase 2 tasks
 
@@ -94,8 +94,8 @@ Supabase: `vaulx-devnet` (project id `ctiypfxtymnszposgaky`, region `us-east-1`)
 | Phase 0 — Bootstrap | Days 2–3 (Apr 23–24) | completed |
 | Phase 1 — Core programs + happy paths | Days 4–7 (Apr 25–28) | completed |
 | Phase 2 — Disburse gate + borrower wizard + I1/I2/I4 | Days 8–10 (Apr 29–May 1) | completed |
-| Phase 3 — Repayment, renewal, auction, I3, SSE | Days 11–13 (May 2–4) | in_progress |
-| Phase 4 — Rehearsal, polish, deploy, record | Days 14–16 (May 5–7) | not_started |
+| Phase 3 — Repayment, renewal, auction, I3, SSE | Days 11–13 (May 2–4) | completed |
+| Phase 4 — Rehearsal, polish, deploy, record | Days 14–16 (May 5–7) | ready_to_start |
 | Phase 5 — Submission | Days 17–18 (May 8–9) | not_started |
 
 ## Blockers / open decisions
