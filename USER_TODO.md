@@ -37,19 +37,18 @@ After (1)–(3):
 
 ## Optional / can wait
 
-### 5. Civic Pass SDK verification (now folded into Phase 3 Task 3.0)
+### 5. Civic Pass SDK verification — RESOLVED in Task 3.0
 
-**Status:** architectural scaffolding shipped in Task 2.6.5 (commit `bc7ce5c`). Full close-out — SDK verification, runtime happy-path test, Devnet config init, README docs — is planned as **Phase 3 Task 3.0**. Claude will drive it; no user action required until then.
+All 6 `TODO(civic-sdk-verify)` markers were closed out in Task 3.0:
 
-The 6 `TODO(civic-sdk-verify)` markers still in code for reference:
+- Correct gateway program id (`gatem74V238djXdzWnJf94Wo1DcnuGkfijbf3AuBhfs`) verified against the installed `@identity.com/solana-gateway-ts` SDK + mainnet-beta account lookup. The earlier `...1GJU9` pad-to-32 was wrong; a typo in the prompt.
+- Borsh layout in `programs/{vault,loan}/src/civic.rs` reworked to include the previously-skipped `owner_identity: Option<Pubkey>` field and verified against `dist/lib/GatewayTokenData.js` schema.
+- FE imports (`useGateway`, `GatewayStatus.ACTIVE`, `GatewayProvider`, `findGatewayToken`) all verified against installed types.
+- Runtime happy-path test at `tests/civic-happy-path.spec.ts` mints a real gateway token, asserts the byte layout, revokes it, asserts the state byte flip (0 → 2). `anchor test` stays green at 35/35.
+- Devnet init helper: `pnpm init:civic --custodian <pubkey>` — see `scripts/dev/init-civic-configs.ts`. Idempotent; exits 2 (SKIPPED) when prerequisites are missing.
 
-- [ ] Verify the Civic gateway program id. The subagent had to pad `gatem74V238NmbRnHDf4XHJyqjx6YF3GHJqjUw1GJU` → `gatem74V238NmbRnHDf4XHJyqjx6YF3GHJqjUw1GJU9` to reach 32 bytes. Confirm against `@identity.com/solana-gateway-ts`'s exported const (probably `GATEWAY_PROGRAM_ID`). Update both `programs/vault/src/civic.rs` and `programs/loan/src/civic.rs`.
-- [ ] Confirm `findGatewayToken` signature in `apps/web/src/lib/chain/vault.ts`.
-- [ ] Confirm `<GatewayProvider>` prop shape in `apps/web/src/components/providers/wallet-provider.tsx`.
-- [ ] Confirm `useGateway()` hook + status enum (`GatewayStatus.ACTIVE` vs `State.ACTIVE`) in `apps/web/src/components/vaulx/civic-pass-gate.tsx`.
-- [ ] Confirm gateway-token PDA seed nonce byte + Borsh state-byte offset in the `civic.rs` helpers. Mint a real gateway token via `@identity.com/solana-gateway-ts` against the Devnet CAPTCHA network (`ignREusXmGrscGNUesoU9mxfds9AiYTezUKex2PsZV6`) and run `solana account <token>` to read the raw bytes.
-- [ ] Once verified, set `NEXT_PUBLIC_CIVIC_PASS_NETWORK=ignRE...` in `apps/web/.env.local` to enable the gate in the UI.
-- [ ] Optional: write a full runtime rejection + success E2E test that mints a real gateway token and exercises a gated deposit. (The current 4 civic-gate tests are IDL-smoke only.)
+**Remaining user action to enable the gate live:**
+- [ ] Once you're ready to turn the gate ON in the UI, set `NEXT_PUBLIC_CIVIC_PASS_NETWORK=ignREusXmGrscGNUesoU9mxfds9AiYTezUKex2PsZV6` in `apps/web/.env.local` and run `pnpm init:civic --custodian <your-custodian-pubkey>` on Devnet.
 
 ### 6. Helius Devnet API key
 - Not needed for Phase 1 or Phase 2. Public `api.devnet.solana.com` is fine until rate-limited.

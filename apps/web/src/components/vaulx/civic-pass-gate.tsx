@@ -1,10 +1,10 @@
 "use client";
 
 import type { ReactNode } from "react";
-// TODO(civic-sdk-verify): confirm hook + status enum names against installed
-// package. `@civic/solana-gateway-react@1.2.x` is expected to expose
-// `useGateway`, `IdentityButton`, and `GatewayStatus`. Some versions use
-// `State.ACTIVE` instead of `GatewayStatus.ACTIVE`.
+// SDK: `@civic/solana-gateway-react@1.2.x` re-exports `useGateway`,
+// `IdentityButton`, and `GatewayStatus` (from `@civic/gateway-client-react`).
+// `GatewayStatus.ACTIVE` is the string literal "ACTIVE" — verified against
+// `node_modules/@civic/gateway-client-core/dist/types/gateway.d.ts`.
 import { useGateway, IdentityButton, GatewayStatus } from "@civic/solana-gateway-react";
 
 /**
@@ -27,8 +27,6 @@ export function CivicPassGate({
   fallback?: ReactNode;
 }) {
   const { gatewayStatus } = useGateway();
-  // TODO(civic-sdk-verify): some SDK versions use `State.ACTIVE`, others
-  // `GatewayStatus.ACTIVE`. Confirm post-install.
   const active = gatewayStatus === GatewayStatus.ACTIVE;
   if (active) return <>{children}</>;
   return (

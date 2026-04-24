@@ -20,3 +20,13 @@ wallet  = "~/.config/solana/id.json"
 
 [scripts]
 test = "pnpm exec ts-mocha -p ./tsconfig.anchor.json -t 1000000 tests/**/*.ts"
+
+# Clone the Civic Gateway program into localnet so tests can mint real gateway
+# tokens to exercise the Civic Pass gate end-to-end. Source: mainnet-beta (the
+# program is identical on mainnet/devnet). Used by
+# `tests/civic-happy-path.spec.ts`.
+[test.validator]
+url = "https://api.mainnet-beta.solana.com"
+
+[[test.validator.clone]]
+address = "gatem74V238djXdzWnJf94Wo1DcnuGkfijbf3AuBhfs"

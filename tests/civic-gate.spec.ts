@@ -41,9 +41,10 @@ import { expect } from "chai";
 // and the verification helper rejects a non-Civic-owned gateway_token when
 // the gate would otherwise be enabled.
 //
-// TODO(civic-sdk-verify): once the Civic SDK is installed, add a full
-// end-to-end test that mints a real gateway token via the SDK and verifies
-// a gated deposit succeeds.
+// Task 3.0 follow-up: see `tests/civic-happy-path.spec.ts` for the runtime
+// SDK verification — mints a real gateway token via
+// `@identity.com/solana-gateway-ts` and asserts the Borsh layout matches
+// our on-chain parser.
 
 describe("civic-gate / on-chain plumbing (Task 2.6.5)", () => {
   anchor.setProvider(anchor.AnchorProvider.env());

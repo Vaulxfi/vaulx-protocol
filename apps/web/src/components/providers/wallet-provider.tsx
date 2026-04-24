@@ -18,9 +18,11 @@ import {
   SolflareWalletAdapter
 } from "@solana/wallet-adapter-wallets";
 
-// TODO(civic-sdk-verify): confirm `GatewayProvider` prop shape against
-// `@civic/solana-gateway-react@1.2.x`. Expected props (per Civic docs):
-//   connection, wallet, gatekeeperNetwork, cluster
+// SDK: `@civic/solana-gateway-react@1.2.x` exports `SolanaGatewayProvider` as
+// `GatewayProvider`. Required props (per
+// `node_modules/.../SolanaGatewayProviderProps`): `connection`, `wallet`
+// (SolanaWalletAdapter — the anchor-wallet from `useAnchorWallet()` shape is
+// compatible), `gatekeeperNetwork`, optional `cluster`.
 import { GatewayProvider } from "@civic/solana-gateway-react";
 
 import "@solana/wallet-adapter-react-ui/styles.css";

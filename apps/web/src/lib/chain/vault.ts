@@ -209,9 +209,9 @@ export function useDeposit(assetMint: PublicKey | undefined) {
       let gatewayTokenKey: PublicKey = SystemProgram.programId;
       if (CIVIC_NETWORK) {
         try {
-          // TODO(civic-sdk-verify): confirm `findGatewayToken` signature
-          // against `@identity.com/solana-gateway-ts@0.12.x`. Expected:
-          //   findGatewayToken(connection, owner, gatekeeperNetwork) -> Promise<GatewayToken | null>
+          // `findGatewayToken(connection, owner, gatekeeperNetwork, includeRevoked?=false)`
+          // → `Promise<GatewayToken | null>`. Verified against
+          // `@identity.com/solana-gateway-ts@0.12.0` `dist/index.d.ts`.
           const { findGatewayToken } = await import(
             "@identity.com/solana-gateway-ts"
           );

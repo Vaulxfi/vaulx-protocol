@@ -1,26 +1,40 @@
 use anchor_lang::prelude::*;
 
 /// Civic Gateway program id — stable across mainnet/devnet.
-// TODO(civic-sdk-verify): confirm the canonical 32-byte Civic Gateway program
-// id from the installed `@identity.com/solana-gateway-ts` package. The ground
-// truth provided (`gatem74V238NmbRnHDf4XHJyqjx6YF3GHJqjUw1GJU`) decodes to
-// 31 bytes; appending `9` (Civic's published on-chain id) brings it to 32.
-pub const CIVIC_GATEWAY_PROGRAM: Pubkey = pubkey!("gatem74V238NmbRnHDf4XHJyqjx6YF3GHJqjUw1GJU9");
+///
+/// Source of truth: `@identity.com/solana-gateway-ts` v0.12.0, exported as
+/// `PROGRAM_ID` from `lib/constants.ts`. Verified on mainnet-beta via
+/// `solana account <id> --url mainnet-beta` (executable, owner =
+/// BPFLoaderUpgradeab1e).
+pub const CIVIC_GATEWAY_PROGRAM: Pubkey = pubkey!("gatem74V238djXdzWnJf94Wo1DcnuGkfijbf3AuBhfs");
 
 /// Verify that `gateway_token` is an active gateway token from
-/// `expected_network` for `expected_owner`. Returns Ok(()) iff all checks pass.
+/// `expected_network` for `expected_owner`. Returns `Ok(())` iff all checks
+/// pass.
 ///
-/// TODO(civic-sdk-verify): PDA seeds + state-byte offset per current Civic SDK.
-/// Borsh layout we assume:
-///   u8 version, Option<Pubkey> parent, Pubkey owner, Pubkey network,
-///   Pubkey issuer, u8 state (0=Active,1=Revoked,2=Frozen), Option<i64> expiry
-/// Verify against real gateway token with `solana account <token>` before prod.
+/// Borsh layout (authoritative — matches `@identity.com/solana-gateway-ts`'s
+/// `GatewayTokenData` schema in `lib/GatewayTokenData.js`):
+///
+///   version: [u8; 1]                              // 1 byte
+///   parent_gateway_token: Option<Pubkey>          // 1 + (0 or 32)
+///   owner: Pubkey                                 // 32
+///   owner_identity: Option<Pubkey>                // 1 + (0 or 32)
+///   gatekeeper_network: Pubkey                    // 32
+///   issuing_gatekeeper: Pubkey                    // 32
+///   state: enum { Active=0, Frozen=1, Revoked=2 } // 1 byte
+///   // (Borsh enum order from `@identity.com/solana-gateway-ts`'s
+///   //  GatewayTokenState schema — active, frozen, revoked.)
+///   expiry: Option<u64>                           // 1 + (0 or 8)
+///
+/// This implementation is a zero-dep hand-rolled parser — the Civic SDK is a
+/// TS/JS-only package, so we can't pull it into the program crate. Tested
+/// against a real issued token in `tests/civic-happy-path.spec.ts`.
 pub fn verify_gateway_token(
     gateway_token: &AccountInfo,
     expected_owner: &Pubkey,
     expected_network: &Pubkey,
 ) -> Result<()> {
-    // 1. Owner is Civic gateway program.
+    // 1. Owner is the Civic gateway program.
     require_keys_eq!(
         *gateway_token.owner,
         CIVIC_GATEWAY_PROGRAM,
@@ -28,58 +42,113 @@ pub fn verify_gateway_token(
     );
 
     let data = gateway_token.try_borrow_data()?;
-    // Minimum length: version(1) + parent_disc(1) + owner(32) + network(32) +
-    // issuer(32) + state(1) = 99 bytes (assumes parent = None).
+    // Minimum length with all Options = None:
+    //   version(1) + parent_disc(1) + owner(32) + identity_disc(1) +
+    //   network(32) + issuer(32) + state(1) + expiry_disc(1) = 101 bytes.
     require!(
-        data.len() >= 1 + 1 + 32 + 32 + 32 + 1,
+        data.len() >= 1 + 1 + 32 + 1 + 32 + 32 + 1 + 1,
         crate::errors::VaultError::NoValidGatewayToken
     );
 
-    let _version = data[0];
-    let mut cursor = 1usize;
-    let parent_disc = data[cursor];
+    let mut cursor = 0usize;
+
+    // version: [u8; 1] — 1 byte, no length prefix (fixed-size array in Borsh).
     cursor += 1;
+
+    // parent_gateway_token: Option<Pubkey>
+    let parent_disc = read_byte(&data, &mut cursor)?;
     if parent_disc == 1 {
-        // Some(Pubkey)
-        require!(
-            data.len() >= cursor + 32 + 32 + 32 + 32 + 1,
-            crate::errors::VaultError::NoValidGatewayToken
-        );
-        cursor += 32;
+        cursor = cursor
+            .checked_add(32)
+            .ok_or(error!(crate::errors::VaultError::NoValidGatewayToken))?;
     } else if parent_disc != 0 {
         return err!(crate::errors::VaultError::NoValidGatewayToken);
     }
 
-    // owner_wallet
-    let owner_bytes: [u8; 32] = data[cursor..cursor + 32]
-        .try_into()
-        .map_err(|_| error!(crate::errors::VaultError::NoValidGatewayToken))?;
+    // owner: Pubkey
+    let owner = read_pubkey(&data, &mut cursor)?;
     require_keys_eq!(
-        Pubkey::new_from_array(owner_bytes),
+        owner,
         *expected_owner,
         crate::errors::VaultError::NoValidGatewayToken
     );
-    cursor += 32;
 
-    // gatekeeper_network
-    let net_bytes: [u8; 32] = data[cursor..cursor + 32]
-        .try_into()
-        .map_err(|_| error!(crate::errors::VaultError::NoValidGatewayToken))?;
+    // owner_identity: Option<Pubkey> — SKIP
+    let identity_disc = read_byte(&data, &mut cursor)?;
+    if identity_disc == 1 {
+        cursor = cursor
+            .checked_add(32)
+            .ok_or(error!(crate::errors::VaultError::NoValidGatewayToken))?;
+    } else if identity_disc != 0 {
+        return err!(crate::errors::VaultError::NoValidGatewayToken);
+    }
+
+    // gatekeeper_network: Pubkey
+    let network = read_pubkey(&data, &mut cursor)?;
     require_keys_eq!(
-        Pubkey::new_from_array(net_bytes),
+        network,
         *expected_network,
         crate::errors::VaultError::NoValidGatewayToken
     );
-    cursor += 32;
 
-    // issuing_gatekeeper
-    cursor += 32;
+    // issuing_gatekeeper: Pubkey — skip.
+    cursor = cursor
+        .checked_add(32)
+        .ok_or(error!(crate::errors::VaultError::NoValidGatewayToken))?;
 
-    // state byte: 0 = Active
+    // state: enum byte. 0 = Active.
+    require!(
+        cursor < data.len(),
+        crate::errors::VaultError::NoValidGatewayToken
+    );
     require!(
         data[cursor] == 0,
         crate::errors::VaultError::NoValidGatewayToken
     );
+    cursor += 1;
+
+    // expiry: Option<u64>. Enforce non-expired if Some.
+    if cursor < data.len() {
+        let expiry_disc = data[cursor];
+        cursor += 1;
+        if expiry_disc == 1 {
+            require!(
+                cursor + 8 <= data.len(),
+                crate::errors::VaultError::NoValidGatewayToken
+            );
+            let expiry_bytes: [u8; 8] = data[cursor..cursor + 8]
+                .try_into()
+                .map_err(|_| error!(crate::errors::VaultError::NoValidGatewayToken))?;
+            let expiry = i64::from_le_bytes(expiry_bytes);
+            let now = Clock::get()?.unix_timestamp;
+            require!(
+                expiry > now,
+                crate::errors::VaultError::NoValidGatewayToken
+            );
+        }
+    }
 
     Ok(())
+}
+
+fn read_byte(data: &[u8], cursor: &mut usize) -> Result<u8> {
+    require!(
+        *cursor < data.len(),
+        crate::errors::VaultError::NoValidGatewayToken
+    );
+    let b = data[*cursor];
+    *cursor += 1;
+    Ok(b)
+}
+
+fn read_pubkey(data: &[u8], cursor: &mut usize) -> Result<Pubkey> {
+    require!(
+        *cursor + 32 <= data.len(),
+        crate::errors::VaultError::NoValidGatewayToken
+    );
+    let bytes: [u8; 32] = data[*cursor..*cursor + 32]
+        .try_into()
+        .map_err(|_| error!(crate::errors::VaultError::NoValidGatewayToken))?;
+    *cursor += 32;
+    Ok(Pubkey::new_from_array(bytes))
 }
