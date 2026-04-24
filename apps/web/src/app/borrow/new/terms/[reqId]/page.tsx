@@ -7,15 +7,11 @@ import { toast } from "sonner";
 import { generateCcbPdf, hashCcb, type CcbInput } from "@vaulx/ccb";
 import { maxLoanAmount } from "@vaulx/terms";
 
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { EditorialSection } from "@/components/vaulx/editorial-section";
 import { IdentityGates } from "@/components/vaulx/identity-gates";
+import { SiteFooter } from "@/components/vaulx/site-footer";
+import { SiteHeader } from "@/components/vaulx/site-header";
+import { StepRail } from "@/components/vaulx/step-rail";
 import { useGovbrVerification } from "@/lib/govbr/mock-storage";
 import {
   deriveTrdcStatePda,
@@ -43,13 +39,12 @@ const USD = new Intl.NumberFormat("en-US", {
 });
 
 function fmtUsdc(v: number): string {
-  return `$${USD.format(Math.round(v))} USDC`;
+  return `$${USD.format(Math.round(v))}`;
 }
 
 const TERMS = [30, 60, 90] as const;
 type TermDays = (typeof TERMS)[number];
 
-/** Rate schedule — task 2.8 fallback; matches the values in the spec. */
 const RATE_BPS_BY_TERM: Record<TermDays, number> = {
   30: 800,
   60: 1000,
@@ -74,9 +69,14 @@ function toIsoDate(unixSec: number): string {
 
 export default function TermsPage() {
   return (
-    <Suspense fallback={null}>
-      <TermsContent />
-    </Suspense>
+    <>
+      <SiteHeader />
+      <StepRail />
+      <Suspense fallback={null}>
+        <TermsContent />
+      </Suspense>
+      <SiteFooter />
+    </>
   );
 }
 
@@ -113,26 +113,24 @@ function TermsContent() {
   if (!state || !locked) return null;
 
   return (
-    <main className="min-h-screen bg-background px-6 py-12">
-      <div className="mx-auto flex max-w-6xl flex-col gap-6">
-        <header>
-          <h1 className="font-heading text-3xl font-semibold tracking-tight text-foreground">
-            Loan terms &amp; CCB
-          </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Step 3 of 3 — set your loan size and term, review the CCB, then
-            confirm to mint the TRDC.
-          </p>
-        </header>
+    <main className="relative min-h-[calc(100vh-72px-64px)]">
+      <div className="mx-auto w-full max-w-[1440px] px-6 py-16 md:px-10 md:py-20">
+        <EditorialSection
+          eyebrow="Step 05 — Terms"
+          headline="Lock your terms. Mint the note."
+          lead="Set the loan-to-value, pick a term, review the Cédula. On confirmation Vaulx mints a TRDC on-chain and anchors your CCB's SHA-256."
+        />
 
-        <IdentityGates>
-          <TermsForm
-            state={state}
-            locked={locked}
-            reqId={reqId ?? ""}
-            onCancel={() => router.push(`/borrow/new/appraisal/${reqId}`)}
-          />
-        </IdentityGates>
+        <div className="mt-14">
+          <IdentityGates>
+            <TermsForm
+              state={state}
+              locked={locked}
+              reqId={reqId ?? ""}
+              onCancel={() => router.push(`/borrow/new/appraisal/${reqId}`)}
+            />
+          </IdentityGates>
+        </div>
       </div>
     </main>
   );
@@ -154,15 +152,13 @@ function TermsForm({
   const walletStr = publicKey?.toBase58();
   const { verification: govbr } = useGovbrVerification(walletStr);
 
-  const [ltvBps, setLtvBps] = useState(4000); // 40% default
+  const [ltvBps, setLtvBps] = useState(4000);
   const [termDays, setTermDays] = useState<TermDays>(60);
   const [submitting, setSubmitting] = useState(false);
 
-  const appraisal = locked.median; // whole USDC
+  const appraisal = locked.median;
   const ltvPct = ltvBps / 100;
   const loanAmount = useMemo(() => {
-    // maxLoanAmount expects atoms-or-bigint for appraisal — we track whole
-    // USDC locally, so use JS math here and convert to atoms only at submit.
     return Math.floor((appraisal * ltvBps) / 10000);
   }, [appraisal, ltvBps]);
 
@@ -172,7 +168,6 @@ function TermsForm({
     [termDays],
   );
 
-  // CCB preview object
   const previewInput = useMemo<CcbInput>(() => {
     const loanAtoms = BigInt(Math.round(loanAmount * 1_000_000));
     const apprAtoms = BigInt(Math.round(appraisal * 1_000_000));
@@ -240,12 +235,9 @@ function TermsForm({
     }
     setSubmitting(true);
     try {
-      // 1. Derive loan_id client-side; use as both seed for TRDCState PDA
-      //    and as the `loanId` string stamped into the final CCB.
       const loanId = generateLoanId();
       const trdcPda = deriveTrdcStatePda(loanId);
 
-      // 2. Regenerate CCB with the final loan_id — deterministic hash.
       const finalCcbInput: CcbInput = {
         ...previewInput,
         loanId: loanId.toBase58(),
@@ -254,7 +246,6 @@ function TermsForm({
       const { pdfBytes, sha256: digest } = await generateCcbPdf(finalCcbInput);
       const hash = hashCcb(pdfBytes);
 
-      // 3. Try to upload to Supabase (best-effort).
       try {
         const { uploadCcbPdf } = await import("@/lib/chain/ccb-storage");
         await uploadCcbPdf(loanId.toBase58(), pdfBytes);
@@ -262,7 +253,6 @@ function TermsForm({
         console.warn("CCB storage upload skipped:", e);
       }
 
-      // 4. On-chain mint.
       const loanAtoms = BigInt(Math.round(loanAmount * 1_000_000));
       const apprAtoms = BigInt(Math.round(appraisal * 1_000_000));
 
@@ -279,7 +269,6 @@ function TermsForm({
         `TRDC minted: ${result.trdcPda.toBase58().slice(0, 8)}… (ccb hash ${hash.hex.slice(0, 8)}…)`,
       );
 
-      // Stash a breadcrumb for the awaiting-custody page (Task 2.9).
       try {
         sessionStorage.setItem(
           `vaulx_loan_${result.trdcPda.toBase58()}`,
@@ -311,167 +300,192 @@ function TermsForm({
   );
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      {/* Left: terms form */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Your terms</CardTitle>
-          <CardDescription>
-            Appraisal locked at {fmtUsdc(appraisal)}. LTV capped at 60%
-            (max {fmtUsdc(maxLoanWhole)}).
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-5">
-          <div>
-            <div className="mb-1 flex items-center justify-between">
-              <label className="text-sm font-medium">
-                Loan-to-value (LTV)
-              </label>
-              <span className="text-sm tabular-nums text-muted-foreground">
-                {ltvPct.toFixed(0)}%
-              </span>
-            </div>
-            <input
-              type="range"
-              min={10}
-              max={60}
-              step={1}
-              value={ltvPct}
-              onChange={(e) => setLtvBps(Number(e.target.value) * 100)}
-              className="w-full accent-brand-gold"
-            />
-            <div className="mt-2 text-xl font-semibold tabular-nums">
-              {fmtUsdc(loanAmount)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              You&apos;ll receive this amount in USDC on disbursement.
-            </p>
-          </div>
+    <div className="grid gap-8 md:grid-cols-12 md:gap-8">
+      {/* LEFT: terms form — 5/12 */}
+      <div className="md:col-span-5">
+        <div className="border border-[var(--rule)] bg-[var(--bg-elev-1)] p-6 md:p-8">
+          <span className="eyebrow">Your terms</span>
+          <p className="mt-4 font-sans text-sm leading-[1.65] text-[var(--ink-dim)]">
+            Appraisal locked at <span className="font-mono text-[var(--ink)] tabnums">{fmtUsdc(appraisal)}</span>.
+            LTV capped at 60% (max <span className="font-mono text-[var(--ink)] tabnums">{fmtUsdc(maxLoanWhole)}</span>).
+          </p>
 
-          <div>
-            <div className="mb-2 text-sm font-medium">Term length</div>
-            <div className="flex flex-wrap gap-2">
-              {TERMS.map((d) => (
-                <label
-                  key={d}
-                  className={`cursor-pointer rounded-md border px-3 py-2 text-sm ${
-                    termDays === d
-                      ? "border-brand-gold bg-brand-gold/10"
-                      : "border-input bg-background"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="termDays"
-                    value={d}
-                    checked={termDays === d}
-                    onChange={() => setTermDays(d)}
-                    className="sr-only"
-                  />
-                  {d} days
+          <div className="mt-10 flex flex-col gap-8">
+            {/* LTV slider */}
+            <div>
+              <div className="mb-3 flex items-baseline justify-between">
+                <label className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--ink-muted)]">
+                  Loan-to-value
                 </label>
-              ))}
+                <span className="font-mono text-sm text-[var(--brand)] tabnums">
+                  {ltvPct.toFixed(0)}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min={10}
+                max={60}
+                step={1}
+                value={ltvPct}
+                onChange={(e) => setLtvBps(Number(e.target.value) * 100)}
+                className="w-full accent-[var(--brand)]"
+              />
+              <div className="mt-5">
+                <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--ink-muted)]">
+                  You receive
+                </div>
+                <div className="mt-2 flex items-baseline gap-2">
+                  <span className="font-mono text-4xl text-[var(--ink)] tabnums">
+                    {fmtUsdc(loanAmount)}
+                  </span>
+                  <span className="font-mono text-xs uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+                    USDC
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Term */}
+            <div>
+              <div className="mb-3 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--ink-muted)]">
+                Term length
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {TERMS.map((d) => (
+                  <label
+                    key={d}
+                    className={`flex cursor-pointer items-center justify-center border px-3 py-3 font-mono text-xs uppercase tracking-[0.14em] transition-colors ${
+                      termDays === d
+                        ? "border-[var(--brand)] bg-[var(--brand-wash)] text-[var(--brand)]"
+                        : "border-[var(--rule-strong)] bg-[var(--bg)] text-[var(--ink-dim)]"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="termDays"
+                      value={d}
+                      checked={termDays === d}
+                      onChange={() => setTermDays(d)}
+                      className="sr-only"
+                    />
+                    {d} days
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-px border border-[var(--rule)] bg-[var(--rule)]">
+              <InfoCell label="Interest" value={`${formatBpsPct(rateBps)} APR`} />
+              <InfoCell
+                label="Due date"
+                value={toIsoDate(dueTs)}
+                sub={relativeInDays(termDays)}
+              />
             </div>
           </div>
+        </div>
+      </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <InfoRow label="Interest rate">{formatBpsPct(rateBps)} APR</InfoRow>
-            <InfoRow label="Due date">
-              <div className="tabular-nums">{toIsoDate(dueTs)}</div>
-              <div className="text-xs text-muted-foreground">
-                {relativeInDays(termDays)}
+      {/* RIGHT: CCB preview — 7/12 (asymmetric) */}
+      <div className="md:col-span-7">
+        <div className="border border-[var(--rule-strong)] bg-[var(--bg-elev-1)] p-8 md:p-10">
+          <div className="flex items-start justify-between gap-4 border-b border-[var(--rule)] pb-6">
+            <div>
+              <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--ink-muted)]">
+                Cédula de Crédito Bancário
               </div>
-            </InfoRow>
+              <div className="mt-2 font-display text-2xl font-bold tracking-[-0.01em] text-[var(--ink)]">
+                VAULX-{reqId.slice(0, 8).toUpperCase()}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={downloadCcb}
+              className="btn-ghost text-[10px]"
+            >
+              Download PDF
+            </button>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Right: CCB preview */}
-      <Card>
-        <CardHeader>
-          <CardTitle>CCB preview</CardTitle>
-          <CardDescription>
-            Cédula de Crédito Bancário — what the lender signs against.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <dl className="grid grid-cols-[auto,1fr] gap-x-4 gap-y-1.5 text-sm">
-            <dt className="text-muted-foreground">Borrower</dt>
-            <dd>{govbr?.name ?? "(pending gov.br)"}</dd>
-            <dt className="text-muted-foreground">CPF</dt>
-            <dd className="tabular-nums">{govbr?.cpf ?? "—"}</dd>
-            <dt className="text-muted-foreground">Lender</dt>
-            <dd>Vaulx Lender Pool</dd>
-            <dt className="text-muted-foreground">Asset</dt>
-            <dd>
-              {state.input.make} {state.input.model} ({state.input.year})
-            </dd>
-            <dt className="text-muted-foreground">Reference</dt>
-            <dd className="tabular-nums">{state.input.ref}</dd>
-            <dt className="text-muted-foreground">Appraisal</dt>
-            <dd className="tabular-nums">{fmtUsdc(appraisal)}</dd>
-            <dt className="text-muted-foreground">Loan amount</dt>
-            <dd className="tabular-nums">{fmtUsdc(loanAmount)}</dd>
-            <dt className="text-muted-foreground">Term</dt>
-            <dd>
-              {termDays} days · {formatBpsPct(rateBps)} APR
-            </dd>
-            <dt className="text-muted-foreground">Due</dt>
-            <dd className="tabular-nums">{toIsoDate(dueTs)}</dd>
+          <dl className="mt-8 grid grid-cols-[auto_1fr] gap-x-8 gap-y-4 font-mono text-xs">
+            <Cell k="Borrower" v={govbr?.name ?? "(pending gov.br)"} />
+            <Cell k="CPF" v={govbr?.cpf ?? "—"} mono />
+            <Cell k="Lender" v="Vaulx Lender Pool" />
+            <Cell
+              k="Asset"
+              v={`${state.input.make} ${state.input.model} (${state.input.year})`}
+            />
+            <Cell k="Reference" v={state.input.ref} mono />
+            <Cell k="Appraisal" v={`${fmtUsdc(appraisal)} USD`} mono />
+            <Cell k="Principal" v={`${fmtUsdc(loanAmount)} USDC`} mono />
+            <Cell k="Term" v={`${termDays} days · ${formatBpsPct(rateBps)} APR`} />
+            <Cell k="Due" v={toIsoDate(dueTs)} mono />
           </dl>
 
-          <div className="rounded-md border border-border bg-muted/30 p-3">
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">
-              SHA-256 of CCB.pdf
+          <div className="mt-8 border-t border-[var(--rule)] pt-6">
+            <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--brand)]">
+              SHA-256 · anchored on Solana
             </div>
-            <div className="mt-1 break-all font-mono text-xs">
+            <div className="mt-3 break-all font-mono text-xs leading-relaxed text-[var(--ink-dim)] tabnums">
               {previewHash ? `0x${previewHash}` : "computing…"}
             </div>
           </div>
+        </div>
+      </div>
 
-          <Button
-            type="button"
-            variant="outline"
-            onClick={downloadCcb}
-            className="w-full"
+      {/* Confirm bar */}
+      <div className="md:col-span-12">
+        <div className="flex flex-col gap-3 border-t border-[var(--rule)] pt-8 sm:flex-row">
+          <button
+            onClick={onConfirm}
+            disabled={submitting || mutation.isPending || !publicKey}
+            className="btn-gold flex-1 justify-center disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Download CCB.pdf
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Bottom row: confirm */}
-      <div className="lg:col-span-2 flex flex-col gap-3 sm:flex-row">
-        <Button
-          onClick={onConfirm}
-          disabled={submitting || mutation.isPending || !publicKey}
-          className="bg-brand-gold text-brand-blue hover:bg-brand-gold/90 sm:flex-1"
-        >
-          {submitting || mutation.isPending
-            ? "Minting TRDC…"
-            : "Confirm and mint TRDC"}
-        </Button>
-        <Button variant="outline" onClick={onCancel} className="sm:w-48">
-          Back to appraisal
-        </Button>
+            {submitting || mutation.isPending ? "Minting TRDC…" : "Confirm and mint TRDC"}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4">
+              <path strokeLinecap="round" d="M5 12h14M13 5l7 7-7 7" />
+            </svg>
+          </button>
+          <button onClick={onCancel} className="btn-ghost justify-center sm:w-60">
+            Back to appraisal
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
-function InfoRow({
+function InfoCell({
   label,
-  children,
+  value,
+  sub,
 }: {
   label: string;
-  children: React.ReactNode;
+  value: React.ReactNode;
+  sub?: string;
 }) {
   return (
-    <div className="rounded-md border border-border bg-muted/30 p-3">
-      <div className="text-xs uppercase tracking-wide text-muted-foreground">
+    <div className="bg-[var(--bg-elev-1)] p-4">
+      <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--ink-muted)]">
         {label}
       </div>
-      <div className="mt-1 text-sm font-medium">{children}</div>
+      <div className="mt-2 font-mono text-sm text-[var(--ink)] tabnums">
+        {value}
+      </div>
+      {sub && (
+        <div className="mt-1 font-mono text-[10px] text-[var(--ink-muted)]">{sub}</div>
+      )}
     </div>
+  );
+}
+
+function Cell({ k, v, mono = false }: { k: string; v: React.ReactNode; mono?: boolean }) {
+  return (
+    <>
+      <dt className="text-[10px] uppercase tracking-[0.18em] text-[var(--ink-muted)]">
+        {k}
+      </dt>
+      <dd className={mono ? "text-[var(--ink)] tabnums" : "text-[var(--ink)]"}>{v}</dd>
+    </>
   );
 }

@@ -7,19 +7,12 @@ import {
   useConnection,
   useWallet,
 } from "@solana/wallet-adapter-react";
-import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { WalletConnectButton } from "@/components/wallet-connect-button";
+import { EditorialSection } from "@/components/vaulx/editorial-section";
+import { SiteFooter } from "@/components/vaulx/site-footer";
+import { SiteHeader } from "@/components/vaulx/site-header";
 import {
   hexToBytes32,
   useConfirmCustody,
@@ -47,7 +40,6 @@ function shorten(pda: string, head = 4, tail = 4): string {
 
 function statusName(status: Record<string, unknown> | undefined): string {
   if (!status) return "—";
-  // Anchor serializes enum variants as `{ variantName: {} }`.
   const key = Object.keys(status)[0];
   if (!key) return "—";
   return key.charAt(0).toUpperCase() + key.slice(1);
@@ -63,9 +55,13 @@ const CHECKLIST = [
 
 export default function CustodianIntakePage() {
   return (
-    <Suspense fallback={null}>
-      <CustodianIntakeContent />
-    </Suspense>
+    <>
+      <SiteHeader />
+      <Suspense fallback={null}>
+        <CustodianIntakeContent />
+      </Suspense>
+      <SiteFooter />
+    </>
   );
 }
 
@@ -84,33 +80,30 @@ function CustodianIntakeContent() {
   }, [trdc]);
 
   return (
-    <main className="min-h-screen bg-background px-6 py-12">
-      <div className="mx-auto flex max-w-3xl flex-col gap-6">
-        <header className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="font-heading text-3xl font-semibold tracking-tight text-foreground">
-              Custodian intake — TRDC {shorten(trdc, 6, 6)}
-            </h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Review the loan details, verify the watch, then sign the
-              confirm-custody transaction to flip the TRDC to
-              <code className="mx-1 rounded bg-muted px-1 py-0.5 text-xs">
-                ActiveInCustody
-              </code>
-              .
-            </p>
-          </div>
-          <WalletConnectButton />
-        </header>
+    <main className="relative min-h-[calc(100vh-72px)]">
+      <div className="mx-auto w-full max-w-[1440px] px-6 py-16 md:px-10 md:py-20">
+        <EditorialSection
+          eyebrow="Custody Journal"
+          headline={`Intake · ${shorten(trdc, 6, 6)}`}
+          lead="Verify the asset, match the CCB hash, sign the confirm-custody transaction. The TRDC transitions to ActiveInCustody and the vault disburses."
+        />
 
         {!trdcPda ? (
-          <Card>
-            <CardContent className="pt-6 text-sm text-destructive">
-              Invalid TRDC pubkey in URL.
-            </CardContent>
-          </Card>
+          <div className="mt-10 border border-[var(--signal-bad)] bg-[var(--bg-elev-1)] p-8">
+            <span
+              className="eyebrow"
+              style={{ color: "var(--signal-bad)" }}
+            >
+              Invalid TRDC
+            </span>
+            <p className="mt-3 font-sans text-sm text-[var(--ink-dim)]">
+              The pubkey in the URL is malformed.
+            </p>
+          </div>
         ) : (
-          <CustodianInner trdc={trdc} trdcPda={trdcPda} hashParam={hashParam} />
+          <div className="mt-14">
+            <CustodianInner trdc={trdc} trdcPda={trdcPda} hashParam={hashParam} />
+          </div>
         )}
       </div>
     </main>
@@ -166,87 +159,87 @@ function CustodianInner({
   const loanConfig = loanConfigQuery.data;
   const trdcState = trdcQuery.data;
 
-  // Gate 1: loan_config not initialised.
+  // Gate: loan_config not initialised.
   if (loanConfigQuery.isLoading) {
-    return <Card><CardContent className="pt-6 text-sm">Loading loan config…</CardContent></Card>;
+    return (
+      <GatePanel>
+        <span className="eyebrow">Loading</span>
+        <p className="mt-3 font-sans text-sm text-[var(--ink-dim)]">
+          Reading loan config from chain…
+        </p>
+      </GatePanel>
+    );
   }
   if (loanConfigQuery.isError) {
     return (
-      <Card>
-        <CardContent className="pt-6 text-sm text-destructive">
-          Failed to load loan_config: {String((loanConfigQuery.error as Error)?.message ?? "unknown")}
-        </CardContent>
-      </Card>
+      <GatePanel tone="bad">
+        <span className="eyebrow" style={{ color: "var(--signal-bad)" }}>
+          Failed to load loan config
+        </span>
+        <p className="mt-3 font-sans text-sm text-[var(--ink-dim)]">
+          {String((loanConfigQuery.error as Error)?.message ?? "unknown")}
+        </p>
+      </GatePanel>
     );
   }
   if (!loanConfig) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>LoanConfig not initialized</CardTitle>
-          <CardDescription>
-            The on-chain loan_config singleton has not been initialised yet.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          Task 2.10 wires the E2E script that calls{" "}
-          <code className="rounded bg-muted px-1 py-0.5 text-xs">
+      <GatePanel>
+        <span className="eyebrow">LoanConfig not initialized</span>
+        <p className="mt-3 max-w-[60ch] font-sans text-sm leading-[1.65] text-[var(--ink-dim)]">
+          The on-chain loan_config singleton has not been initialised yet. Run{" "}
+          <code className="bg-[var(--bg)] px-1.5 py-0.5 font-mono text-xs text-[var(--brand)]">
             initialize_loan_config(custodian, civic_network)
-          </code>
-          . Run that first, then come back to this page.
-        </CardContent>
-      </Card>
+          </code>{" "}
+          first.
+        </p>
+      </GatePanel>
     );
   }
 
-  // Gate 2: wallet not connected or not the custodian.
   if (!connected || !publicKey) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Connect the custodian wallet</CardTitle>
-          <CardDescription>
-            The expected custodian pubkey is shown below.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2 text-sm">
-          <div className="text-muted-foreground">Expected custodian:</div>
-          <div className="break-all font-mono text-xs">
-            {loanConfig.custodian.toBase58()}
-          </div>
-        </CardContent>
-      </Card>
+      <GatePanel>
+        <span className="eyebrow">Connect the custodian wallet</span>
+        <p className="mt-3 font-sans text-sm text-[var(--ink-dim)]">
+          Expected custodian pubkey:
+        </p>
+        <div className="mt-3 break-all border border-[var(--rule-strong)] bg-[var(--bg)] px-4 py-3 font-mono text-xs text-[var(--brand)]">
+          {loanConfig.custodian.toBase58()}
+        </div>
+      </GatePanel>
     );
   }
+
   const isCustodian = publicKey.equals(loanConfig.custodian);
   if (!isCustodian) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Not authorized as custodian</CardTitle>
-          <CardDescription>
-            This wallet is not the configured custodian.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2 text-sm">
+      <GatePanel tone="bad">
+        <span className="eyebrow" style={{ color: "var(--signal-bad)" }}>
+          Not authorized as custodian
+        </span>
+        <div className="mt-4 flex flex-col gap-4">
           <div>
-            <div className="text-xs text-muted-foreground">Connected:</div>
-            <div className="break-all font-mono text-xs">
+            <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--ink-muted)]">
+              Connected
+            </div>
+            <div className="mt-2 break-all font-mono text-xs text-[var(--ink)]">
               {publicKey.toBase58()}
             </div>
           </div>
           <div>
-            <div className="text-xs text-muted-foreground">Expected:</div>
-            <div className="break-all font-mono text-xs">
+            <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--ink-muted)]">
+              Expected
+            </div>
+            <div className="mt-2 break-all font-mono text-xs text-[var(--brand)]">
               {loanConfig.custodian.toBase58()}
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </GatePanel>
     );
   }
 
-  // Gate 3: TRDC state loads + is in PendingCustody.
   const trdcLoading = trdcQuery.isLoading;
   const trdcError = trdcQuery.isError;
   const missingTrdc = !trdcLoading && !trdcError && !trdcState;
@@ -254,7 +247,7 @@ function CustodianInner({
   const isPendingCustody = status === "PendingCustody";
 
   const lowBalance =
-    balanceLamports !== null && balanceLamports < 1_000_000; // < 0.001 SOL
+    balanceLamports !== null && balanceLamports < 1_000_000;
 
   const allChecked = checklist.every(Boolean);
   const hashValid = /^(0x)?[0-9a-fA-F]{64}$/.test(docHashHex.trim());
@@ -273,9 +266,7 @@ function CustodianInner({
         trdcPda,
         docHash: bytes,
       });
-      toast.success(
-        `Custody confirmed: ${result.txSig.slice(0, 8)}…`,
-      );
+      toast.success(`Custody confirmed: ${result.txSig.slice(0, 8)}…`);
       router.push(`/custodian/done/${trdc}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
@@ -283,136 +274,179 @@ function CustodianInner({
   }
 
   return (
-    <>
-      <Card>
-        <CardHeader>
-          <CardTitle>TRDC details</CardTitle>
-          <CardDescription>Read-only on-chain state</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {trdcLoading && <div className="text-sm">Loading TRDC…</div>}
+    <div className="grid gap-8 md:grid-cols-12 md:gap-8">
+      {/* LEFT: TRDC details + checklist — 7/12 */}
+      <div className="flex flex-col gap-8 md:col-span-7">
+        <div className="border border-[var(--rule)] bg-[var(--bg-elev-1)] p-6 md:p-8">
+          <div className="flex items-center justify-between">
+            <span className="eyebrow">TRDC · Ledger state</span>
+            {trdcState && (
+              <span
+                className="font-mono text-[10px] uppercase tracking-[0.2em]"
+                style={{
+                  color: isPendingCustody ? "var(--signal-warn)" : "var(--signal-bad)",
+                }}
+              >
+                · {status}
+              </span>
+            )}
+          </div>
+
+          {trdcLoading && (
+            <p className="mt-5 font-sans text-sm text-[var(--ink-dim)]">Loading TRDC…</p>
+          )}
           {trdcError && (
-            <div className="text-sm text-destructive">
+            <p className="mt-5 font-sans text-sm text-[var(--signal-bad)]">
               Failed to load TRDC: {String((trdcQuery.error as Error)?.message)}
-            </div>
+            </p>
           )}
           {missingTrdc && (
-            <div className="text-sm text-destructive">
+            <p className="mt-5 font-sans text-sm text-[var(--signal-bad)]">
               TRDCState account not found at{" "}
               <span className="font-mono">{trdc}</span>.
-            </div>
+            </p>
           )}
           {trdcState && (
-            <dl className="grid grid-cols-[auto,1fr] gap-x-4 gap-y-1.5 text-sm">
-              <dt className="text-muted-foreground">Loan ID</dt>
-              <dd className="break-all font-mono text-xs">
+            <dl className="mt-6 grid grid-cols-[auto_1fr] gap-x-6 gap-y-4 font-mono text-xs">
+              <dt className="text-[10px] uppercase tracking-[0.18em] text-[var(--ink-muted)]">
+                Loan ID
+              </dt>
+              <dd className="break-all text-[var(--ink)] tabnums">
                 {trdcState.loanId.toBase58()}
               </dd>
-              <dt className="text-muted-foreground">Status</dt>
-              <dd>
-                <span
-                  className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                    isPendingCustody
-                      ? "bg-amber-100 text-amber-900"
-                      : "bg-destructive/15 text-destructive"
-                  }`}
-                >
-                  {status}
-                </span>
-              </dd>
-              <dt className="text-muted-foreground">Appraisal</dt>
-              <dd className="tabular-nums">
+              <dt className="text-[10px] uppercase tracking-[0.18em] text-[var(--ink-muted)]">
+                Appraisal
+              </dt>
+              <dd className="text-[var(--ink)] tabnums">
                 {fmtUsdc(trdcState.appraisalValue as unknown as bigint)}
               </dd>
-              <dt className="text-muted-foreground">Loan amount</dt>
-              <dd className="tabular-nums">
+              <dt className="text-[10px] uppercase tracking-[0.18em] text-[var(--ink-muted)]">
+                Loan amount
+              </dt>
+              <dd className="text-[var(--ink)] tabnums">
                 {fmtUsdc(trdcState.loanAmount as unknown as bigint)}
               </dd>
-              <dt className="text-muted-foreground">Due date</dt>
-              <dd className="tabular-nums">
+              <dt className="text-[10px] uppercase tracking-[0.18em] text-[var(--ink-muted)]">
+                Due date
+              </dt>
+              <dd className="text-[var(--ink)] tabnums">
                 {toIsoDate(trdcState.dueTs as unknown as bigint)}
               </dd>
             </dl>
           )}
           {trdcState && !isPendingCustody && (
-            <div className="mt-3 rounded-md border border-destructive bg-destructive/10 p-3 text-xs text-destructive">
+            <div className="mt-6 border border-[var(--signal-bad)] bg-[var(--bg)] p-3 font-mono text-xs text-[var(--signal-bad)]">
               TRDC not in PendingCustody — cannot confirm.
             </div>
           )}
-        </CardContent>
-      </Card>
-
-      {lowBalance && (
-        <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
-          Custodian wallet balance is below 0.001 SOL — fund it on Devnet
-          before signing (<code>solana airdrop 1 &lt;pubkey&gt; --url devnet</code>).
         </div>
-      )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Watch intake checklist</CardTitle>
-          <CardDescription>
-            All items must be checked before confirming.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2">
-          {CHECKLIST.map((item, idx) => (
-            <label
-              key={item}
-              className="flex cursor-pointer items-center gap-3 rounded-md border border-border px-3 py-2 text-sm"
-            >
-              <input
-                type="checkbox"
-                checked={checklist[idx]}
-                onChange={(e) => {
-                  setChecklist((prev) => {
-                    const next = [...prev];
-                    next[idx] = e.target.checked;
-                    return next;
-                  });
-                }}
-                className="h-4 w-4 accent-brand-gold"
-              />
-              <span>{item}</span>
-            </label>
-          ))}
-        </CardContent>
-      </Card>
+        {lowBalance && (
+          <div className="border border-[var(--signal-warn)] bg-[var(--bg-elev-1)] p-4 font-mono text-xs text-[var(--signal-warn)]">
+            Custodian wallet balance is below 0.001 SOL — fund it on Devnet before signing (
+            <code>solana airdrop 1 &lt;pubkey&gt; --url devnet</code>).
+          </div>
+        )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>CCB hash</CardTitle>
-          <CardDescription>
-            32-byte hex — matches the CCB PDF the borrower signed. Pre-filled
-            from the URL when the borrower shared the deeplink.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2">
-          <Input
-            value={docHashHex}
-            onChange={(e) => setDocHashHex(e.target.value)}
-            placeholder="0x… (64 hex chars)"
-            className="font-mono text-xs"
-            spellCheck={false}
-          />
-          {!hashValid && docHashHex.length > 0 && (
-            <div className="text-xs text-destructive">
-              Expected 64 hex characters (with optional <code>0x</code> prefix).
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        {/* Checklist — registrar style */}
+        <div className="border border-[var(--rule)] bg-[var(--bg-elev-1)] p-6 md:p-8">
+          <span className="eyebrow">Intake register</span>
+          <p className="mt-3 font-sans text-sm text-[var(--ink-dim)]">
+            All items must be checked before confirming. Each tick goes into the immutable custody journal.
+          </p>
 
-      <Button
-        onClick={onConfirm}
-        disabled={!canConfirm}
-        className="bg-brand-gold text-brand-blue hover:bg-brand-gold/90"
-      >
-        {confirmMutation.isPending
-          ? "Confirming…"
-          : "Confirm custody received"}
-      </Button>
-    </>
+          <ol className="mt-8 flex flex-col">
+            {CHECKLIST.map((item, idx) => {
+              const checked = checklist[idx];
+              return (
+                <li
+                  key={item}
+                  className="flex items-center gap-5 border-b border-[var(--rule)] py-4 last:border-b-0"
+                >
+                  <span className="w-6 shrink-0 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--ink-muted)] tabnums">
+                    {(idx + 1).toString().padStart(2, "0")}
+                  </span>
+                  <label className="flex flex-1 cursor-pointer items-center gap-4">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) => {
+                        setChecklist((prev) => {
+                          const next = [...prev];
+                          next[idx] = e.target.checked;
+                          return next;
+                        });
+                      }}
+                      className="h-4 w-4 accent-[var(--brand)]"
+                    />
+                    <span
+                      className={`font-sans text-sm transition-colors ${
+                        checked
+                          ? "text-[var(--ink)] border-b border-[var(--brand)] pb-0.5"
+                          : "text-[var(--ink-dim)]"
+                      }`}
+                    >
+                      {item}
+                    </span>
+                  </label>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      </div>
+
+      {/* RIGHT: hash + confirm — 5/12 */}
+      <aside className="md:col-span-5">
+        <div className="sticky top-[96px] flex flex-col gap-6">
+          <div className="border border-[var(--rule)] bg-[var(--bg-elev-1)] p-6 md:p-8">
+            <span className="eyebrow">CCB hash · 32 bytes</span>
+            <p className="mt-3 font-sans text-sm leading-[1.65] text-[var(--ink-dim)]">
+              Pre-filled from the deeplink the borrower shared. Must match the PDF they signed.
+            </p>
+            <Input
+              value={docHashHex}
+              onChange={(e) => setDocHashHex(e.target.value)}
+              placeholder="0x…   (64 hex characters)"
+              className="mt-5 h-14 text-base"
+              spellCheck={false}
+            />
+            {!hashValid && docHashHex.length > 0 && (
+              <p className="mt-3 font-mono text-xs text-[var(--signal-bad)]">
+                Expected 64 hex characters (with optional 0x prefix).
+              </p>
+            )}
+          </div>
+
+          <button
+            onClick={onConfirm}
+            disabled={!canConfirm}
+            className="btn-gold w-full justify-center disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {confirmMutation.isPending ? "Confirming…" : "Confirm custody received"}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </button>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function GatePanel({
+  children,
+  tone = "default",
+}: {
+  children: React.ReactNode;
+  tone?: "default" | "bad";
+}) {
+  return (
+    <div
+      className="mt-10 border border-[var(--rule)] bg-[var(--bg-elev-1)] p-8 md:p-10"
+      style={tone === "bad" ? { borderColor: "var(--signal-bad)" } : undefined}
+    >
+      {children}
+    </div>
   );
 }

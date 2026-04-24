@@ -1,14 +1,8 @@
 import Link from "next/link";
 import { PublicKey } from "@solana/web3.js";
 
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { SiteFooter } from "@/components/vaulx/site-footer";
+import { SiteHeader } from "@/components/vaulx/site-header";
 import { VaultDetail } from "@/components/vaulx/vault-detail";
 
 export default function VaultDetailPage({
@@ -25,28 +19,31 @@ export default function VaultDetailPage({
 
   if (!mint) {
     return (
-      <main className="min-h-screen bg-background px-6 py-16">
-        <div className="mx-auto flex max-w-3xl flex-col gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Invalid vault</CardTitle>
-              <CardDescription>
-                <code className="font-mono text-xs">{params.id}</code> is not a
-                valid asset mint.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button
-                asChild
-                variant="outline"
-                className="border-brand-blue/20"
+      <>
+        <SiteHeader />
+        <main className="min-h-[calc(100vh-72px)]">
+          <div className="mx-auto max-w-[1440px] px-6 py-24 md:px-10">
+            <div className="border border-[var(--signal-bad)] bg-[var(--bg-elev-1)] p-10">
+              <div
+                className="eyebrow"
+                style={{ color: "var(--signal-bad)" }}
               >
-                <Link href="/lend/vaults">Back to vaults</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </main>
+                Invalid vault
+              </div>
+              <p className="mt-4 font-sans text-sm text-[var(--ink-dim)]">
+                <code className="bg-[var(--bg)] px-1.5 py-0.5 font-mono text-xs text-[var(--brand)]">
+                  {params.id}
+                </code>{" "}
+                is not a valid asset mint.
+              </p>
+              <Link href="/lend/vaults" className="btn-ghost mt-6">
+                Back to vaults
+              </Link>
+            </div>
+          </div>
+        </main>
+        <SiteFooter />
+      </>
     );
   }
 

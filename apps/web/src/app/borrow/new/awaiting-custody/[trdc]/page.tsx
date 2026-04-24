@@ -5,14 +5,10 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { EditorialSection } from "@/components/vaulx/editorial-section";
+import { SiteFooter } from "@/components/vaulx/site-footer";
+import { SiteHeader } from "@/components/vaulx/site-header";
+import { StepRail } from "@/components/vaulx/step-rail";
 
 interface LoanBreadcrumb {
   loanId: string;
@@ -51,9 +47,14 @@ const DEV_SHORTCUTS = process.env.NEXT_PUBLIC_VAULX_DEV_SHORTCUTS === "1";
 
 export default function AwaitingCustodyPage() {
   return (
-    <Suspense fallback={null}>
-      <AwaitingCustodyContent />
-    </Suspense>
+    <>
+      <SiteHeader />
+      <StepRail />
+      <Suspense fallback={null}>
+        <AwaitingCustodyContent />
+      </Suspense>
+      <SiteFooter />
+    </>
   );
 }
 
@@ -98,12 +99,16 @@ function AwaitingCustodyContent() {
   const confirmed = pollQuery.data?.confirmed === true;
 
   return (
-    <main className="min-h-screen bg-background px-6 py-12">
-      <div className="mx-auto flex max-w-3xl flex-col gap-6">
+    <main className="relative min-h-[calc(100vh-72px-64px)]">
+      <div className="mx-auto w-full max-w-[1440px] px-6 py-16 md:px-10 md:py-20">
         {confirmed ? (
           <CustodyConfirmedView trdc={trdc} />
         ) : (
-          <AwaitingView trdc={trdc} crumb={crumb} pollReason={pollQuery.data?.reason} />
+          <AwaitingView
+            trdc={trdc}
+            crumb={crumb}
+            pollReason={pollQuery.data?.reason}
+          />
         )}
       </div>
     </main>
@@ -121,109 +126,108 @@ function AwaitingView({
 }) {
   return (
     <>
-      <header>
-        <h1 className="font-heading text-3xl font-semibold tracking-tight text-foreground">
-          Your TRDC is minted — awaiting custody
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Ship your watch to our custodian. Once they confirm receipt, your
-          loan will auto-advance to disbursement.
-        </p>
-      </header>
+      <EditorialSection
+        eyebrow="Step 06 — Awaiting Custody"
+        headline="TRDC minted. Ship the asset."
+        lead="Your credit note is live on-chain. Once our custodian confirms receipt of the watch, your USDC will auto-disburse."
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>TRDC</CardTitle>
-          <CardDescription>On-chain state account (PDA)</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="inline-flex rounded-full border border-border bg-muted/40 px-3 py-1 font-mono text-xs">
-            {trdc}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Ship your watch to</CardTitle>
-          <CardDescription>
-            Include the reference below inside the package.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3 text-sm">
-          <address className="not-italic leading-relaxed">
-            <div className="font-medium">Vaulx Custody</div>
-            <div className="text-muted-foreground">
-              42 Paulista Ave
-              <br />
-              São Paulo, SP 01310-100
-              <br />
-              Brazil
+      <div className="mt-14 grid gap-8 md:grid-cols-12 md:gap-8">
+        {/* LEFT: PDA + shipping + status */}
+        <div className="flex flex-col gap-8 md:col-span-7">
+          <div className="border border-[var(--rule)] bg-[var(--bg-elev-1)] p-6 md:p-8">
+            <span className="eyebrow">TRDC · On-chain state</span>
+            <div className="mt-5 break-all border border-[var(--rule-strong)] bg-[var(--bg)] px-4 py-3 font-mono text-xs text-[var(--brand)]">
+              {trdc}
             </div>
-          </address>
-          <div className="rounded-md border border-border bg-muted/30 p-3">
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">
-              Package reference
-            </div>
-            <div className="mt-1 font-mono text-sm">TRDC #{shorten(trdc, 8, 6)}</div>
           </div>
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Status</CardTitle>
-        </CardHeader>
-        <CardContent className="flex items-center gap-3">
-          <span
-            className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent"
-            aria-hidden
-          />
-          <span className="text-sm">Waiting for custody confirmation…</span>
-        </CardContent>
-      </Card>
+          <div className="border border-[var(--rule)] bg-[var(--bg-elev-1)] p-6 md:p-8">
+            <span className="eyebrow">Ship your watch to</span>
+            <address className="mt-5 not-italic leading-relaxed">
+              <div className="font-display text-xl text-[var(--ink)]">Vaulx Custody</div>
+              <div className="mt-2 font-sans text-sm text-[var(--ink-dim)]">
+                42 Paulista Ave
+                <br />
+                São Paulo, SP 01310-100
+                <br />
+                Brazil
+              </div>
+            </address>
+            <div className="mt-6 border-t border-[var(--rule)] pt-5">
+              <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--ink-muted)]">
+                Package reference · place inside box
+              </div>
+              <div className="mt-3 font-mono text-lg text-[var(--brand)]">
+                TRDC #{shorten(trdc, 8, 6)}
+              </div>
+            </div>
+          </div>
 
-      {crumb && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Loan details</CardTitle>
-            <CardDescription>From your minted TRDC</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <dl className="grid grid-cols-[auto,1fr] gap-x-4 gap-y-1.5 text-sm">
-              <dt className="text-muted-foreground">Appraisal</dt>
-              <dd className="tabular-nums">{fmtUsdc(crumb.appraisal)}</dd>
-              <dt className="text-muted-foreground">Loan amount</dt>
-              <dd className="tabular-nums">{fmtUsdc(crumb.loanAmount)}</dd>
-              <dt className="text-muted-foreground">Term</dt>
-              <dd>{crumb.termDays} days</dd>
-              <dt className="text-muted-foreground">Due date</dt>
-              <dd className="tabular-nums">{toIsoDate(crumb.dueTs)}</dd>
-              <dt className="text-muted-foreground">Asset hint (CCB hash)</dt>
-              <dd className="break-all font-mono text-xs">0x{crumb.ccbHash}</dd>
-            </dl>
-          </CardContent>
-        </Card>
-      )}
+          <div className="border border-[var(--rule)] bg-[var(--bg-elev-1)] p-6 md:p-8">
+            <span className="eyebrow">Status</span>
+            <div className="mt-5 flex items-center gap-3">
+              <span
+                className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-[var(--brand)] border-t-transparent"
+                aria-hidden
+              />
+              <span className="font-mono text-sm text-[var(--ink)]">
+                Waiting for custody confirmation…
+              </span>
+            </div>
+          </div>
 
-      {pollReason === "supabase_not_configured" && (
-        <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
-          Indexer/Supabase env not wired — polling is a no-op. The page will
-          advance once <code>SUPABASE_SERVICE_ROLE_KEY</code> is set and the
-          indexer is running.
+          {pollReason === "supabase_not_configured" && (
+            <div className="border border-[var(--signal-warn)] bg-[var(--bg-elev-1)] p-4 font-mono text-xs text-[var(--signal-warn)]">
+              Indexer/Supabase env not wired — polling is a no-op. The page will advance once{" "}
+              <code>SUPABASE_SERVICE_ROLE_KEY</code> is set and the indexer is running.
+            </div>
+          )}
+
+          {DEV_SHORTCUTS && crumb && (
+            <div>
+              <Link
+                href={`/custodian/intake/${trdc}?hash=${crumb.ccbHash}`}
+                className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--ink-muted)] underline underline-offset-4 transition-colors hover:text-[var(--brand)]"
+              >
+                Open custodian intake →
+              </Link>
+            </div>
+          )}
         </div>
-      )}
 
-      {DEV_SHORTCUTS && crumb && (
-        <div className="text-xs">
-          <Link
-            href={`/custodian/intake/${trdc}?hash=${crumb.ccbHash}`}
-            className="text-muted-foreground underline underline-offset-4 hover:text-foreground"
-          >
-            Open custodian intake →
-          </Link>
-        </div>
-      )}
+        {/* RIGHT: loan details */}
+        <aside className="md:col-span-5">
+          {crumb && (
+            <div className="border border-[var(--rule)] bg-[var(--bg-elev-1)] p-6 md:p-8">
+              <span className="eyebrow">Loan details</span>
+              <dl className="mt-6 grid grid-cols-[auto_1fr] gap-x-6 gap-y-4 font-mono text-xs">
+                <Row k="Appraisal" v={fmtUsdc(crumb.appraisal)} />
+                <Row k="Principal" v={fmtUsdc(crumb.loanAmount)} />
+                <Row k="Term" v={`${crumb.termDays} days`} />
+                <Row k="Due" v={toIsoDate(crumb.dueTs)} />
+                <dt className="text-[10px] uppercase tracking-[0.18em] text-[var(--ink-muted)]">
+                  CCB hash
+                </dt>
+                <dd className="break-all text-[var(--ink-dim)] tabnums">
+                  0x{crumb.ccbHash}
+                </dd>
+              </dl>
+            </div>
+          )}
+        </aside>
+      </div>
+    </>
+  );
+}
+
+function Row({ k, v }: { k: string; v: string }) {
+  return (
+    <>
+      <dt className="text-[10px] uppercase tracking-[0.18em] text-[var(--ink-muted)]">
+        {k}
+      </dt>
+      <dd className="text-[var(--ink)] tabnums">{v}</dd>
     </>
   );
 }
@@ -231,49 +235,50 @@ function AwaitingView({
 function CustodyConfirmedView({ trdc }: { trdc: string }) {
   const router = useRouter();
   return (
-    <>
-      <header className="flex flex-col items-center text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2.5}
-            className="h-6 w-6"
-            aria-hidden
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M5 13l4 4L19 7"
-            />
-          </svg>
-        </div>
-        <h1 className="mt-4 font-heading text-3xl font-semibold tracking-tight text-foreground">
-          Custody confirmed
+    <div className="mx-auto flex max-w-3xl flex-col items-center gap-8 text-center">
+      <div className="flex h-16 w-16 items-center justify-center border border-[var(--signal-good)] text-[var(--signal-good)]">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          className="h-8 w-8"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+      </div>
+      <div>
+        <span className="eyebrow">Custody confirmed</span>
+        <h1
+          className="mt-5 font-display font-extrabold leading-[1.05] tracking-[-0.02em] text-[var(--ink)]"
+          style={{
+            fontSize: "clamp(2.25rem, 5vw, 4rem)",
+            fontVariationSettings: '"opsz" 144'
+          }}
+        >
+          Your asset is secured.
         </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Your watch is secured. Proceed to disbursement.
+        <p className="mt-6 font-sans text-base leading-[1.65] text-[var(--ink-dim)]">
+          Proceed to disbursement.
         </p>
-      </header>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>TRDC</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="inline-flex rounded-full border border-border bg-muted/40 px-3 py-1 font-mono text-xs">
-            {trdc}
-          </div>
-        </CardContent>
-      </Card>
+      <div className="w-full max-w-md border border-[var(--rule)] bg-[var(--bg-elev-1)] p-6">
+        <span className="eyebrow">TRDC</span>
+        <div className="mt-4 break-all font-mono text-xs text-[var(--brand)]">
+          {trdc}
+        </div>
+      </div>
 
-      <Button
-        className="bg-brand-gold text-brand-blue hover:bg-brand-gold/90"
+      <button
         onClick={() => router.push(`/borrow/loans/${trdc}/disburse`)}
+        className="btn-gold"
       >
         Continue to disbursement
-      </Button>
-    </>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4">
+          <path strokeLinecap="round" d="M5 12h14M13 5l7 7-7 7" />
+        </svg>
+      </button>
+    </div>
   );
 }
