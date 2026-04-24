@@ -1,6 +1,6 @@
 # Vaulx — Build Status
 
-**Last updated:** 2026-04-24 (Phase 2 complete — all 12 tasks landed)
+**Last updated:** 2026-04-24 (Phase 2 complete + editorial design pass landed — commit `a0e0ba5`)
 **Plan:** [docs/plans/2026-04-23-vaulx-build-plan.md](docs/plans/2026-04-23-vaulx-build-plan.md)
 **Phase 1 plan:** [docs/plans/2026-04-25-vaulx-phase-1-core-programs.md](docs/plans/2026-04-25-vaulx-phase-1-core-programs.md)
 **Phase 2 plan:** [docs/plans/2026-04-29-vaulx-phase-2-disburse-and-wizard.md](docs/plans/2026-04-29-vaulx-phase-2-disburse-and-wizard.md)
