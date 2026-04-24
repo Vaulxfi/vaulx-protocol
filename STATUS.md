@@ -1,6 +1,6 @@
 # Vaulx — Build Status
 
-**Last updated:** 2026-04-24 (Phase 3 in progress — 3.0 complete, 3.1 starting)
+**Last updated:** 2026-04-24 (Phase 3 in progress — 3.0+3.1 complete, 3.2 starting)
 **Plan:** [docs/plans/2026-04-23-vaulx-build-plan.md](docs/plans/2026-04-23-vaulx-build-plan.md)
 **Phase 1 plan:** [docs/plans/2026-04-25-vaulx-phase-1-core-programs.md](docs/plans/2026-04-25-vaulx-phase-1-core-programs.md)
 **Phase 2 plan:** [docs/plans/2026-04-29-vaulx-phase-2-disburse-and-wizard.md](docs/plans/2026-04-29-vaulx-phase-2-disburse-and-wizard.md)
@@ -19,8 +19,8 @@
 | # | Task | Status | Notes |
 |---|---|---|---|
 | 3.0 | Civic Pass KYC operational close-out (CAPTCHA) | completed | All 6 `TODO(civic-sdk-verify)` markers closed. **Critical fix:** Borsh parser in `programs/{vault,loan}/src/civic.rs` rewritten to include the previously-skipped `owner_identity: Option<Pubkey>` field (prior parser would have rejected every real Civic token). Canonical gateway program id corrected to `gatem74V238djXdzWnJf94Wo1DcnuGkfijbf3AuBhfs`. Anchor.toml clones Civic from mainnet-beta at test start. 35/35 anchor tests green (33 baseline + `test_civic_gate_allows_with_valid_token` + `test_civic_gate_rejects_after_revoke`). `scripts/dev/init-civic-configs.ts` + `pnpm init:civic --custodian <pk>` helper. README "Civic Pass KYC" section. Commit `67e7120`. |
-| 3.1 | Loan pay_installment + repay_ccb + renew_ccb + terms math | in_progress | Full math in `@vaulx/terms`; 4 named tests |
-| 3.2 | Auction program + `execute_af_default` | pending | New crate; CPI from loan; 4 named tests |
+| 3.1 | Loan pay_installment + repay_ccb + renew_ccb + terms math | completed | **39/39 anchor tests green** (35 baseline + 4 new). `@vaulx/terms` +3 modules (rate/interest/renewal) with 12 new vitest cases. TRDCState gains `principal_remaining` + `rate_bps`; create_ccb_trdc takes new `rate_bps` param. New loan ixs: `pay_installment`, `repay_ccb`, `renew_ccb`; new events `installmentPaid`/`ccbRepaid`/`ccbRenewed`. **Architectural fix:** TRDCState is owned by trdc so all state mutations moved into dedicated trdc CPI ixs (`apply_installment`, `transition_active_to_repaid`, `transition_renew`). New `vault::record_inflow` with same 2-layer gate as `disburse` lets loan program credit `total_assets` on repayments. `programs/loan/src/math.rs` mirrors TS formulas u128-exact, unit-tested vs JS goldens. FE `lib/chain/loan.ts` intentionally stale — Task 3.3 updates it. Commit `41fbf9c`. |
+| 3.2 | Auction program + `execute_af_default` | in_progress | New crate; CPI from loan; 4 named tests |
 | 3.3 | Borrower loan routes `/borrow/loans/[trdc]/{pay,renew,repay}` | pending | |
 | 3.4 | I3 Solana Pay QR | pending | `@solana/pay` transfer-request + QR |
 | 3.5 | Lender auction routes + indexer extension | pending | `/lend/auctions*` |
