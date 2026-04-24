@@ -1,6 +1,6 @@
 # Vaulx — Build Status
 
-**Last updated:** 2026-04-24 (Phase 3 in progress — 3.0–3.6 complete, 3.7–3.9 queued)
+**Last updated:** 2026-04-24 (Phase 3 in progress — 3.0–3.8 complete, 3.9 starting)
 **Plan:** [docs/plans/2026-04-23-vaulx-build-plan.md](docs/plans/2026-04-23-vaulx-build-plan.md)
 **Phase 1 plan:** [docs/plans/2026-04-25-vaulx-phase-1-core-programs.md](docs/plans/2026-04-25-vaulx-phase-1-core-programs.md)
 **Phase 2 plan:** [docs/plans/2026-04-29-vaulx-phase-2-disburse-and-wizard.md](docs/plans/2026-04-29-vaulx-phase-2-disburse-and-wizard.md)
@@ -26,8 +26,8 @@
 | 3.5 | Lender auction routes + indexer extension | completed | Indexer extended to auction program (`buildSubscription("auction")`); lowercased events `auctionCreated`/`bidPlaced`/`auctionClosed`/`auctionClosedNoBids` land in `onchain_events`. Two new API routes `GET /api/auctions` + `GET /api/auctions/[id]/bids` (graceful Supabase fallback). `lib/chain/auction.ts`: `useAuctionList`/`useAuction`/`useAuctionBids`/`usePlaceBid`/`useCloseAuction`. `<AuctionCard>` component with live 1s countdown. `/lend/auctions` operator table ("The Foreclosure Floor") + stat tiles. `/lend/auctions/[id]` 7/5 split with bid history + min-bid-aware form + permissionless close button. `/lend` sidebar link added. Web + indexer typecheck + build green. Commit `669dd86`. |
 | 3.6 | `/admin/tests` SSE runner | completed | `GET /api/admin/tests/stream` (Node runtime) spawns `anchor test --skip-build` from repo root, SSE events `started`/`line`/`exit`/`error`, kills child on abort. `<TestStream>` client component w/ ANSI→Tailwind colour mapper, HTML-escaped input, smart auto-scroll, Run/Abort pill. Editorial page at `/admin/tests`. Env-gated admin via cookie/header when `NEXT_PUBLIC_VAULX_ADMIN_PUBKEY` set. Documented local-only + Vercel 30/300s limit caveats in README + operator note. Commit `97db615`. |
 | 3.7 | Fallback demo video scaffold | completed | `apps/web/public/demo/` dir + README with 3 capture paths (QuickTime / asciinema+agg / full walkthrough). `.gitignore` for mp4/gif/cast artifacts. `<video>` fallback panel on `/admin/tests` with graceful missing-file state. Commit `0042d54`. User records actual video pre-submission. |
-| 3.8 | Demo cockpit `/admin/demo` | in_progress | 6 buttons + reset + time-accelerate toggle |
-| 3.9 | Moments 5–9 E2E harness | pending | Mirror moments-2-3-4 pattern |
+| 3.8 | Demo cockpit `/admin/demo` | completed | Editorial cockpit page + 6 big buttons (3×2 grid) + accelerate-time toggle + status log. 7 admin API routes (seed-pool/mint-trdc/confirm-custody/disburse/repay/default-and-auction/reset). Shared `lib/admin/demo.ts` with `loadDemoEnv`/`DemoEnvError`/`checkAdminAuth`. Moment 06 (default+auction) does the full sequence in ~10s with `fast=true`. SiteFooter gains "Ops" column linking to `/admin/tests` + `/admin/demo`. Vercel-hostile by design (reads `~/.config/solana/id.json`); env-gated admin auth. Web build + typecheck green. Commit `f1c0f91`. |
+| 3.9 | Moments 5–9 E2E harness | in_progress | Mirror moments-2-3-4 pattern |
 | 3.10 | STATUS/CHANGELOG close-out + tag `phase-3-done` | pending | |
 
 ## Phase 2 tasks
