@@ -1,17 +1,19 @@
 import "dotenv/config";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { BorshCoder, EventParser, type Idl } from "@coral-xyz/anchor";
-import { vaultIdl, loanIdl } from "@vaulx/idls";
+import { vaultIdl, loanIdl, auctionIdl } from "@vaulx/idls";
 import { insertEvent } from "./supabase.js";
 
-// Phase 2 scope (Task 2.9): subscribe to vault + loan logs. trdc / auction
-// come later.
+// Phase 3 scope (Task 3.5): subscribe to vault + loan + auction logs. trdc
+// remains indirect (its events arrive through the programs that CPI into it).
 //
 // Anchor 0.30.1 EventParser gotcha (discovered in Task 1.9): the runtime
 // parser emits `ev.name` with the first letter LOWERCASED — e.g. our
 // `#[event] pub struct Deposited {...}` arrives as `ev.name === "deposited"`.
-// Same applies to loan: `CustodyConfirmed` → `custodyConfirmed`. We store
-// the name exactly as emitted; downstream consumers must match lowercased.
+// Same applies to loan: `CustodyConfirmed` → `custodyConfirmed`, and auction:
+// `AuctionCreated` → `auctionCreated`, `BidPlaced` → `bidPlaced`, etc. We
+// store the name exactly as emitted; downstream consumers must match
+// lowercased.
 //
 // To run locally you must populate apps/indexer/.env.local with:
 //   SUPABASE_URL=...
@@ -38,6 +40,7 @@ async function main(): Promise<void> {
   const subs: Subscription[] = [
     buildSubscription("vault", vaultIdl),
     buildSubscription("loan", loanIdl),
+    buildSubscription("auction", auctionIdl),
   ];
 
   for (const sub of subs) {

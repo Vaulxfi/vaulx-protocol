@@ -231,6 +231,22 @@ export default function LendLandingPage() {
                 </div>
 
                 <div>
+                  <span className="eyebrow">Foreclosure floor</span>
+                  <div className="mt-6 border border-[var(--rule)] bg-[var(--bg-elev-1)] p-6">
+                    <p className="font-sans text-sm leading-[1.6] text-[var(--ink-dim)]">
+                      Defaulted loans surface as open auctions. Bid on
+                      collateral; proceeds return to the pool.
+                    </p>
+                    <Link
+                      href="/lend/auctions"
+                      className="btn-gold-outline mt-6 w-full justify-center"
+                    >
+                      Open auctions
+                    </Link>
+                  </div>
+                </div>
+
+                <div>
                   <span className="eyebrow">Recent settlements</span>
                   <ul className="mt-6 flex flex-col gap-0 border border-[var(--rule)]">
                     {[
