@@ -1,9 +1,10 @@
 use anchor_lang::prelude::*;
 
-/// 7-state enum — mirrors `packages/types/src/index.ts` `TRDCStatus`.
+/// 8-state enum — mirrors `packages/types/src/index.ts` `TRDCStatus`.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Status {
     PendingCustody,
+    ActiveInCustody,
     Active,
     Renewed,
     Repaid,
@@ -22,12 +23,13 @@ pub struct TRDCState {
     pub bump: u8,
     pub asset_id: Pubkey,
     pub created_at: i64,
-    pub _reserved: [u8; 64],
+    pub doc_hash: [u8; 32],
+    pub _reserved: [u8; 32],
 }
 
 impl TRDCState {
-    pub const SIZE: usize = 8 + 32 + 2 + 8 + 8 + 8 + 1 + 32 + 8 + 64;
-                          //  disc + loan_id + status + apraisal + loan_amt + due_ts + bump + asset_id + created_at + reserved
+    pub const SIZE: usize = 8 + 32 + 2 + 8 + 8 + 8 + 1 + 32 + 8 + 32 + 32;
+                          //  disc + loan_id + status + apraisal + loan_amt + due_ts + bump + asset_id + created_at + doc_hash + reserved
     pub const SEED: &'static [u8] = b"trdc_state";
 
     pub fn transition(&mut self, next: Status) -> Result<()> {
@@ -45,7 +47,8 @@ impl Status {
         use Status::*;
         matches!(
             (self, next),
-            (PendingCustody, Active)
+            (PendingCustody, ActiveInCustody)
+                | (ActiveInCustody, Active)
                 | (Active, Renewed)
                 | (Active, Repaid)
                 | (Active, Overdue)

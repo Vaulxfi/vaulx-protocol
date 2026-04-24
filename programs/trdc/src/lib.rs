@@ -28,7 +28,8 @@ pub mod trdc {
         s.bump = ctx.bumps.trdc_state;
         s.asset_id = Pubkey::default();
         s.created_at = clock.unix_timestamp;
-        s._reserved = [0u8; 64];
+        s.doc_hash = [0u8; 32];
+        s._reserved = [0u8; 32];
 
         emit!(TrdcStateInitialized {
             trdc_state: s.key(),
@@ -49,6 +50,28 @@ pub mod trdc {
             trdc_state: ctx.accounts.trdc_state.key(),
             from,
             to,
+            ts: Clock::get()?.unix_timestamp,
+        });
+        Ok(())
+    }
+
+    pub fn confirm_custody_transition(
+        ctx: Context<ConfirmCustodyTransition>,
+        doc_hash: [u8; 32],
+    ) -> Result<()> {
+        // PHASE_2_TASK_2_2_TODO: tighten to loan-program-only (CPI-only gate).
+        let s = &mut ctx.accounts.trdc_state;
+        require!(
+            s.status == Status::PendingCustody,
+            crate::errors::TrdcError::InvalidStateTransition
+        );
+        let from = s.status;
+        s.doc_hash = doc_hash;
+        s.transition(Status::ActiveInCustody)?;
+        emit!(TrdcTransitioned {
+            trdc_state: s.key(),
+            from,
+            to: s.status,
             ts: Clock::get()?.unix_timestamp,
         });
         Ok(())
@@ -93,6 +116,13 @@ pub struct TestTransition<'info> {
 
 #[derive(Accounts)]
 pub struct MintTrdcCnft<'info> {
+    #[account(mut)]
+    pub trdc_state: Account<'info, TRDCState>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct ConfirmCustodyTransition<'info> {
     #[account(mut)]
     pub trdc_state: Account<'info, TRDCState>,
     pub authority: Signer<'info>,

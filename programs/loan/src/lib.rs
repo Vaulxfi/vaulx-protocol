@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
-use trdc::cpi::accounts::{InitializeTrdcState, MintTrdcCnft};
+use trdc::cpi::accounts::{ConfirmCustodyTransition, InitializeTrdcState, MintTrdcCnft};
 use trdc::program::Trdc;
+use trdc::state::TRDCState;
 
 pub mod errors;
 use errors::{LoanError, MAX_LTV_BPS};
@@ -13,6 +14,17 @@ pub mod loan {
 
     pub fn ping(_ctx: Context<Ping>) -> Result<()> {
         msg!("loan ping");
+        Ok(())
+    }
+
+    pub fn initialize_loan_config(
+        ctx: Context<InitializeLoanConfig>,
+        custodian: Pubkey,
+    ) -> Result<()> {
+        let cfg = &mut ctx.accounts.loan_config;
+        cfg.admin = ctx.accounts.admin.key();
+        cfg.custodian = custodian;
+        cfg.bump = ctx.bumps.loan_config;
         Ok(())
     }
 
@@ -60,6 +72,35 @@ pub mod loan {
         });
         Ok(())
     }
+
+    pub fn confirm_custody(
+        ctx: Context<ConfirmCustody>,
+        doc_hash: [u8; 32],
+    ) -> Result<()> {
+        require!(
+            ctx.accounts.custodian.key() == ctx.accounts.loan_config.custodian,
+            LoanError::UnauthorizedCustodian
+        );
+
+        trdc::cpi::confirm_custody_transition(
+            CpiContext::new(
+                ctx.accounts.trdc_program.to_account_info(),
+                ConfirmCustodyTransition {
+                    trdc_state: ctx.accounts.trdc_state.to_account_info(),
+                    authority: ctx.accounts.custodian.to_account_info(),
+                },
+            ),
+            doc_hash,
+        )?;
+
+        emit!(CustodyConfirmed {
+            trdc_state: ctx.accounts.trdc_state.key(),
+            doc_hash,
+            custodian: ctx.accounts.custodian.key(),
+            ts: Clock::get()?.unix_timestamp,
+        });
+        Ok(())
+    }
 }
 
 #[event]
@@ -72,9 +113,44 @@ pub struct CcbTrdcCreated {
     pub ts: i64,
 }
 
+#[event]
+pub struct CustodyConfirmed {
+    pub trdc_state: Pubkey,
+    pub doc_hash: [u8; 32],
+    pub custodian: Pubkey,
+    pub ts: i64,
+}
+
+#[account]
+pub struct LoanConfig {
+    pub admin: Pubkey,
+    pub custodian: Pubkey,
+    pub bump: u8,
+}
+
+impl LoanConfig {
+    pub const SIZE: usize = 8 + 32 + 32 + 1;
+    pub const SEED: &'static [u8] = b"loan_config";
+}
+
 #[derive(Accounts)]
 pub struct Ping<'info> {
     pub signer: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeLoanConfig<'info> {
+    #[account(
+        init,
+        payer = admin,
+        space = LoanConfig::SIZE,
+        seeds = [LoanConfig::SEED],
+        bump,
+    )]
+    pub loan_config: Account<'info, LoanConfig>,
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
@@ -85,4 +161,17 @@ pub struct CreateCcbTrdc<'info> {
     pub trdc_program: Program<'info, Trdc>,
     #[account(mut)] pub payer: Signer<'info>,
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct ConfirmCustody<'info> {
+    #[account(mut)]
+    pub trdc_state: Account<'info, TRDCState>,
+    #[account(
+        seeds = [LoanConfig::SEED],
+        bump = loan_config.bump,
+    )]
+    pub loan_config: Account<'info, LoanConfig>,
+    pub trdc_program: Program<'info, Trdc>,
+    pub custodian: Signer<'info>,
 }

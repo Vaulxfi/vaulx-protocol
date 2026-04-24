@@ -7,6 +7,40 @@
   },
   "instructions": [
     {
+      "name": "confirm_custody_transition",
+      "discriminator": [
+        208,
+        3,
+        128,
+        186,
+        93,
+        253,
+        112,
+        114
+      ],
+      "accounts": [
+        {
+          "name": "trdc_state",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "doc_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "initialize_trdc_state",
       "discriminator": [
         162,
@@ -158,6 +192,34 @@
       ]
     }
   ],
+  "events": [
+    {
+      "name": "TrdcStateInitialized",
+      "discriminator": [
+        43,
+        130,
+        185,
+        56,
+        101,
+        110,
+        210,
+        78
+      ]
+    },
+    {
+      "name": "TrdcTransitioned",
+      "discriminator": [
+        51,
+        120,
+        98,
+        221,
+        169,
+        39,
+        9,
+        100
+      ]
+    }
+  ],
   "errors": [
     {
       "code": 6000,
@@ -174,13 +236,16 @@
     {
       "name": "Status",
       "docs": [
-        "7-state enum — mirrors `packages/types/src/index.ts` `TRDCStatus`."
+        "8-state enum — mirrors `packages/types/src/index.ts` `TRDCStatus`."
       ],
       "type": {
         "kind": "enum",
         "variants": [
           {
             "name": "PendingCustody"
+          },
+          {
+            "name": "ActiveInCustody"
           },
           {
             "name": "Active"
@@ -245,13 +310,86 @@
             "type": "i64"
           },
           {
+            "name": "doc_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
             "name": "_reserved",
             "type": {
               "array": [
                 "u8",
-                64
+                32
               ]
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "TrdcStateInitialized",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "trdc_state",
+            "type": "pubkey"
+          },
+          {
+            "name": "loan_id",
+            "type": "pubkey"
+          },
+          {
+            "name": "appraisal_value",
+            "type": "u64"
+          },
+          {
+            "name": "loan_amount",
+            "type": "u64"
+          },
+          {
+            "name": "due_ts",
+            "type": "i64"
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TrdcTransitioned",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "trdc_state",
+            "type": "pubkey"
+          },
+          {
+            "name": "from",
+            "type": {
+              "defined": {
+                "name": "Status"
+              }
+            }
+          },
+          {
+            "name": "to",
+            "type": {
+              "defined": {
+                "name": "Status"
+              }
+            }
+          },
+          {
+            "name": "ts",
+            "type": "i64"
           }
         ]
       }

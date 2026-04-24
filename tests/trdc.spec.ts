@@ -60,6 +60,7 @@ describe("trdc / transitions", () => {
 
   type StateKey =
     | "pendingCustody"
+    | "activeInCustody"
     | "active"
     | "renewed"
     | "repaid"
@@ -69,6 +70,7 @@ describe("trdc / transitions", () => {
 
   const ALL_STATES: StateKey[] = [
     "pendingCustody",
+    "activeInCustody",
     "active",
     "renewed",
     "repaid",
@@ -77,9 +79,10 @@ describe("trdc / transitions", () => {
     "liquidated",
   ];
 
-  // Exactly 10 legal edges.
+  // Exactly 11 legal edges.
   const legal: Array<[StateKey, StateKey]> = [
-    ["pendingCustody", "active"],
+    ["pendingCustody", "activeInCustody"],
+    ["activeInCustody", "active"],
     ["active", "renewed"],
     ["active", "repaid"],
     ["active", "overdue"],
@@ -96,12 +99,13 @@ describe("trdc / transitions", () => {
   // Shortest legal walk from pendingCustody to any reachable state.
   const walks: Record<StateKey, StateKey[]> = {
     pendingCustody: [],
-    active: ["active"],
-    renewed: ["active", "renewed"],
-    repaid: ["active", "repaid"],
-    overdue: ["active", "overdue"],
-    defaulted: ["active", "overdue", "defaulted"],
-    liquidated: ["active", "overdue", "defaulted", "liquidated"],
+    activeInCustody: ["activeInCustody"],
+    active: ["activeInCustody", "active"],
+    renewed: ["activeInCustody", "active", "renewed"],
+    repaid: ["activeInCustody", "active", "repaid"],
+    overdue: ["activeInCustody", "active", "overdue"],
+    defaulted: ["activeInCustody", "active", "overdue", "defaulted"],
+    liquidated: ["activeInCustody", "active", "overdue", "defaulted", "liquidated"],
   };
 
   async function freshPda(): Promise<PublicKey> {

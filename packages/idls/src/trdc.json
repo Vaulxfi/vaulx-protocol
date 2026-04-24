@@ -7,6 +7,40 @@
   },
   "instructions": [
     {
+      "name": "confirm_custody_transition",
+      "discriminator": [
+        208,
+        3,
+        128,
+        186,
+        93,
+        253,
+        112,
+        114
+      ],
+      "accounts": [
+        {
+          "name": "trdc_state",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "doc_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "initialize_trdc_state",
       "discriminator": [
         162,
@@ -202,13 +236,16 @@
     {
       "name": "Status",
       "docs": [
-        "7-state enum — mirrors `packages/types/src/index.ts` `TRDCStatus`."
+        "8-state enum — mirrors `packages/types/src/index.ts` `TRDCStatus`."
       ],
       "type": {
         "kind": "enum",
         "variants": [
           {
             "name": "PendingCustody"
+          },
+          {
+            "name": "ActiveInCustody"
           },
           {
             "name": "Active"
@@ -273,11 +310,20 @@
             "type": "i64"
           },
           {
+            "name": "doc_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
             "name": "_reserved",
             "type": {
               "array": [
                 "u8",
-                64
+                32
               ]
             }
           }

@@ -7,4 +7,6 @@ pub enum LoanError {
     #[msg("Loan amount exceeds maximum LTV (60%)")] LtvTooHigh,
     #[msg("Zero amount")] ZeroAmount,
     #[msg("Math overflow")] MathOverflow,
+    #[msg("Unauthorized custodian")] UnauthorizedCustodian,
+    #[msg("Unauthorized admin")] UnauthorizedAdmin,
 }

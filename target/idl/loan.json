@@ -7,6 +7,180 @@
   },
   "instructions": [
     {
+      "name": "confirm_custody",
+      "discriminator": [
+        87,
+        103,
+        87,
+        9,
+        190,
+        94,
+        18,
+        126
+      ],
+      "accounts": [
+        {
+          "name": "trdc_state",
+          "writable": true
+        },
+        {
+          "name": "loan_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  97,
+                  110,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "trdc_program",
+          "address": "FcDPvRaixjAz7LeC64h9xkXPzvHT7dusbNmg83eJfr7R"
+        },
+        {
+          "name": "custodian",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "doc_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "create_ccb_trdc",
+      "discriminator": [
+        190,
+        115,
+        67,
+        159,
+        200,
+        74,
+        33,
+        42
+      ],
+      "accounts": [
+        {
+          "name": "trdc_state",
+          "writable": true
+        },
+        {
+          "name": "trdc_program",
+          "address": "FcDPvRaixjAz7LeC64h9xkXPzvHT7dusbNmg83eJfr7R"
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "loan_id",
+          "type": "pubkey"
+        },
+        {
+          "name": "appraisal_value",
+          "type": "u64"
+        },
+        {
+          "name": "loan_amount",
+          "type": "u64"
+        },
+        {
+          "name": "due_ts",
+          "type": "i64"
+        },
+        {
+          "name": "asset_hint",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "initialize_loan_config",
+      "discriminator": [
+        164,
+        160,
+        170,
+        75,
+        198,
+        132,
+        254,
+        66
+      ],
+      "accounts": [
+        {
+          "name": "loan_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  97,
+                  110,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "custodian",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
       "name": "ping",
       "discriminator": [
         173,
@@ -25,6 +199,269 @@
         }
       ],
       "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "LoanConfig",
+      "discriminator": [
+        123,
+        130,
+        235,
+        54,
+        45,
+        187,
+        118,
+        220
+      ]
+    },
+    {
+      "name": "TRDCState",
+      "discriminator": [
+        180,
+        245,
+        164,
+        25,
+        221,
+        228,
+        245,
+        236
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "CcbTrdcCreated",
+      "discriminator": [
+        115,
+        29,
+        240,
+        212,
+        53,
+        195,
+        174,
+        63
+      ]
+    },
+    {
+      "name": "CustodyConfirmed",
+      "discriminator": [
+        52,
+        34,
+        49,
+        139,
+        234,
+        60,
+        177,
+        85
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "LtvTooHigh",
+      "msg": "Loan amount exceeds maximum LTV (60%)"
+    },
+    {
+      "code": 6001,
+      "name": "ZeroAmount",
+      "msg": "Zero amount"
+    },
+    {
+      "code": 6002,
+      "name": "MathOverflow",
+      "msg": "Math overflow"
+    },
+    {
+      "code": 6003,
+      "name": "UnauthorizedCustodian",
+      "msg": "Unauthorized custodian"
+    },
+    {
+      "code": 6004,
+      "name": "UnauthorizedAdmin",
+      "msg": "Unauthorized admin"
+    }
+  ],
+  "types": [
+    {
+      "name": "CcbTrdcCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "trdc_state",
+            "type": "pubkey"
+          },
+          {
+            "name": "loan_id",
+            "type": "pubkey"
+          },
+          {
+            "name": "appraisal_value",
+            "type": "u64"
+          },
+          {
+            "name": "loan_amount",
+            "type": "u64"
+          },
+          {
+            "name": "due_ts",
+            "type": "i64"
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CustodyConfirmed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "trdc_state",
+            "type": "pubkey"
+          },
+          {
+            "name": "doc_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "custodian",
+            "type": "pubkey"
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LoanConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "custodian",
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Status",
+      "docs": [
+        "8-state enum — mirrors `packages/types/src/index.ts` `TRDCStatus`."
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "PendingCustody"
+          },
+          {
+            "name": "ActiveInCustody"
+          },
+          {
+            "name": "Active"
+          },
+          {
+            "name": "Renewed"
+          },
+          {
+            "name": "Repaid"
+          },
+          {
+            "name": "Overdue"
+          },
+          {
+            "name": "Defaulted"
+          },
+          {
+            "name": "Liquidated"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TRDCState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "loan_id",
+            "type": "pubkey"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "Status"
+              }
+            }
+          },
+          {
+            "name": "appraisal_value",
+            "type": "u64"
+          },
+          {
+            "name": "loan_amount",
+            "type": "u64"
+          },
+          {
+            "name": "due_ts",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "asset_id",
+            "type": "pubkey"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "doc_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "_reserved",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
     }
   ]
 }
