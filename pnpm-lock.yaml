@@ -17,6 +17,9 @@ importers:
       '@solana/web3.js':
         specifier: ^1.98.4
         version: 1.98.4(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)
+      '@supabase/supabase-js':
+        specifier: ^2.104.1
+        version: 2.104.1(bufferutil@4.1.0)(utf-8-validate@6.0.6)
       '@types/chai':
         specifier: ^5.2.3
         version: 5.2.3
@@ -29,6 +32,9 @@ importers:
       chai:
         specifier: ^6.2.2
         version: 6.2.2
+      dotenv:
+        specifier: ^16.6.1
+        version: 16.6.1
       mocha:
         specifier: ^11.7.5
         version: 11.7.5
