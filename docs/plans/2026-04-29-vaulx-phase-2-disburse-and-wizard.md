@@ -77,6 +77,25 @@ Each is a small spec-level additive test. Green in one batch, committed as `test
 - Rate-limit + 10s timeout per source; if any fail, return with `source: "fallback"` and a warning surfaced in the UI.
 - Test: `pnpm --filter web test` with mocked fetches; golden snapshot for 2 reference watches (Rolex Submariner 116610LN, Patek Nautilus 5711).
 
+**2.6.5 — I4 REAL: Civic Pass on-chain gate + SDK swap**
+
+Promotes I4 from the Phase 1 hardcoded mock to a real Civic Pass integration.
+
+- **On-chain gate** on instructions that must be KYC-gated:
+  - `vault.deposit` — lender must hold a valid Civic Pass gateway token.
+  - `loan.create_ccb_trdc` — borrower must hold a valid Civic Pass gateway token.
+  - `loan.confirm_custody` — custodian is whitelist-gated (not Civic); no change.
+  - Implementation: add a `gateway_token: UncheckedAccount<'info>` to the relevant accounts structs, validate via `solana_gateway::Gateway::verify_gateway_token_account_info(...)` or equivalent manual PDA derivation against the Civic gatekeeper network pubkey for Devnet. Document the network pubkey constant (e.g. `ignREusXmGrscGNUesoU9mxfds9AiYTezUKex2PsZV6` for Devnet uniqueness; use the CIVIC_PASS network — agent must verify via Context7/Civic docs).
+  - New errors: `NoValidGatewayToken` (vault + loan).
+  - New tests: `test_deposit_rejects_without_civic_pass`, `test_ccb_create_rejects_without_civic_pass`, happy-path variants of existing tests pass a real (or mock-program-derived) gateway token.
+- **FE SDK swap:**
+  - Install `@civic/solana-gateway-react` + `@identity.com/solana-gateway-ts`.
+  - Wrap the wallet provider tree with `<GatewayProvider gatekeeperNetwork={...} cluster="devnet">`.
+  - Delete (or deprecate) `apps/web/src/components/vaulx/kyc-mock-modal.tsx` — replace with a `<CivicPassGate>` wrapper that blocks the `Deposit` + `Borrow` actions until `gatewayStatus === "ACTIVE"`.
+  - Lender `/lend/vaults/[id]` deposit form + borrower wizard entry both sit behind `<CivicPassGate>`.
+  - When passing the on-chain deposit/create_ccb_trdc instruction, include the user's gateway token PDA: derived via `@identity.com/solana-gateway-ts`'s `findGatewayToken(owner, gatekeeperNetwork)`.
+- **Update STATUS "Integration scope"** to reflect I4 is now real.
+
 **2.7 — I2: Gov.br mocked ID flow**
 - `apps/web/src/app/borrow/verify-id/page.tsx` — page that mimics gov.br's OAuth handshake.
 - 3-step visual: "Redirecting to gov.br" → fake login screen with CPF field (validates Brazilian CPF check-digit) → success → returns to borrower wizard with `localStorage.vaulx_govbr_verified = { cpf, name, verified_at }`.
