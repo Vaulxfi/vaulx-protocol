@@ -55,6 +55,30 @@ export default function AdminTestsPage() {
                 run locally for the full demo.
               </p>
             </aside>
+
+            <aside className="mt-6 rounded-md border border-[var(--rule)] bg-[var(--bg-elev-1)] p-6">
+              <div className="flex items-center justify-between">
+                <div className="eyebrow text-[var(--ink-muted)]">Fallback · pre-recorded test run</div>
+                <a
+                  href="/demo/test-run.mp4"
+                  className="font-mono text-xs text-[var(--ink-muted)] hover:text-[var(--brand)]"
+                >
+                  open →
+                </a>
+              </div>
+              <video
+                className="mt-4 w-full rounded border border-[var(--rule)]"
+                controls
+                preload="metadata"
+                poster="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 9'%3E%3Crect width='16' height='9' fill='%23111317'/%3E%3C/svg%3E"
+              >
+                <source src="/demo/test-run.mp4" type="video/mp4" />
+              </video>
+              <p className="mt-3 font-sans text-xs leading-[1.65] text-[var(--ink-muted)]">
+                Served statically from <span className="font-mono">/public/demo/test-run.mp4</span>.
+                Not yet recorded in this checkout — see <span className="font-mono">apps/web/public/demo/README.md</span> for capture instructions.
+              </p>
+            </aside>
           </div>
         </section>
       </main>

@@ -1,0 +1,7 @@
+*.mp4
+*.gif
+*.cast
+*.mov
+# keep the README
+!README.md
+!.gitignore
