@@ -20,3 +20,4 @@ anchor-lang = { workspace = true }
 anchor-spl  = { workspace = true, features = ["token"] }
 trdc = { path = "../trdc", features = ["cpi"] }
 vault = { path = "../vault", features = ["cpi"] }
+auction = { path = "../auction", features = ["cpi"] }

@@ -19,6 +19,15 @@ pub const LOAN_PROGRAM_ID: Pubkey = Pubkey::new_from_array([
 ]);
 pub const LOAN_AUTHORITY_SEED: &[u8] = b"loan_authority";
 
+/// Hardcoded auction program id — mirrors `auction::declare_id!`. We hardcode
+/// to avoid a circular crate dep (auction depends on vault for inflow).
+// base58("8FRBHN14CsA2y21hMeJJ2oxbEXNRXicVKMEDHRGyGefj") decoded to bytes.
+pub const AUCTION_PROGRAM_ID: Pubkey = Pubkey::new_from_array([
+    107, 179, 70, 243, 19, 62, 41, 240, 53, 64, 226, 106, 64, 237, 137, 50, 216, 97, 100, 7, 220,
+    124, 85, 242, 171, 15, 5, 165, 25, 114, 19, 50,
+]);
+pub const AUCTION_AUTHORITY_SEED: &[u8] = b"auction_authority";
+
 #[program]
 pub mod vault {
     use super::*;
@@ -343,6 +352,45 @@ pub mod vault {
             .ok_or(VaultError::MathOverflow)?;
         Ok(())
     }
+
+    /// Records an auction-recovery inflow: bumps `total_assets` without minting
+    /// shares. Two-layer gate mirrors `record_inflow` but keyed to the
+    /// **auction** program's `auction_authority` PDA + top-level tx id.
+    /// Called by `auction::close_auction` when there's a winning bid.
+    pub fn record_auction_inflow(ctx: Context<RecordAuctionInflow>, amount: u64) -> Result<()> {
+        require!(amount > 0, VaultError::ZeroAmount);
+
+        // Layer 1: authority must be the auction-authority PDA and a signer.
+        let (expected_authority, _bump) =
+            Pubkey::find_program_address(&[AUCTION_AUTHORITY_SEED], &AUCTION_PROGRAM_ID);
+        require_keys_eq!(
+            ctx.accounts.auction_authority.key(),
+            expected_authority,
+            VaultError::UnauthorizedDisbursar
+        );
+        require!(
+            ctx.accounts.auction_authority.is_signer,
+            VaultError::UnauthorizedDisbursar
+        );
+
+        // Layer 2: the top-level instruction must be issued by the auction program.
+        use anchor_lang::solana_program::sysvar::instructions::load_instruction_at_checked;
+        let ix_sysvar = &ctx.accounts.instructions_sysvar.to_account_info();
+        let top_level_ix = load_instruction_at_checked(0, ix_sysvar)
+            .map_err(|_| error!(VaultError::UnauthorizedDisbursar))?;
+        require_keys_eq!(
+            top_level_ix.program_id,
+            AUCTION_PROGRAM_ID,
+            VaultError::UnauthorizedDisbursar
+        );
+
+        let v = &mut ctx.accounts.vault;
+        v.total_assets = v
+            .total_assets
+            .checked_add(amount)
+            .ok_or(VaultError::MathOverflow)?;
+        Ok(())
+    }
 }
 
 #[account]
@@ -480,6 +528,22 @@ pub struct TestDonateAssets<'info> {
     )]
     pub vault: Account<'info, Vault>,
     pub asset_mint: Account<'info, Mint>,
+}
+
+/// Accounts for `record_auction_inflow`. Mirrors `RecordInflow` but gated to
+/// the **auction** program's authority PDA + top-level program id.
+#[derive(Accounts)]
+pub struct RecordAuctionInflow<'info> {
+    #[account(mut, seeds = [Vault::SEED, asset_mint.key().as_ref()], bump = vault.bump)]
+    pub vault: Account<'info, Vault>,
+    pub asset_mint: Account<'info, Mint>,
+    /// CHECK: validated in-body — must equal `[b"auction_authority"]` PDA
+    /// owned by the auction program and must be a signer via `invoke_signed`.
+    #[account(signer)]
+    pub auction_authority: UncheckedAccount<'info>,
+    /// CHECK: address-constrained to the instructions sysvar; used by Layer 2.
+    #[account(address = anchor_lang::solana_program::sysvar::instructions::ID)]
+    pub instructions_sysvar: UncheckedAccount<'info>,
 }
 
 /// Accounts for `record_inflow`. Same layer-2 instruction sysvar gate as

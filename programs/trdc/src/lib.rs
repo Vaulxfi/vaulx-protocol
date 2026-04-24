@@ -172,6 +172,65 @@ pub mod trdc {
         Ok(())
     }
 
+    /// Moment 7 (pt 1) — `Active -> Overdue` when `now > due_ts + grace`.
+    /// Permissionless caller-wise; the loan program is the only expected CPI
+    /// source but trdc itself doesn't enforce that — the gating lives in the
+    /// loan program's `execute_af_default` ix.
+    pub fn transition_active_to_overdue(ctx: Context<TransitionAuth>) -> Result<()> {
+        let s = &mut ctx.accounts.trdc_state;
+        require!(
+            s.status == Status::Active,
+            crate::errors::TrdcError::InvalidStateTransition
+        );
+        let from = s.status;
+        s.transition(Status::Overdue)?;
+        emit!(TrdcTransitioned {
+            trdc_state: s.key(),
+            from,
+            to: s.status,
+            ts: Clock::get()?.unix_timestamp,
+        });
+        Ok(())
+    }
+
+    /// Moment 7 (pt 2) — `Overdue -> Defaulted`. Followed by an auction CPI in
+    /// the loan program's `execute_af_default`.
+    pub fn transition_overdue_to_defaulted(ctx: Context<TransitionAuth>) -> Result<()> {
+        let s = &mut ctx.accounts.trdc_state;
+        require!(
+            s.status == Status::Overdue,
+            crate::errors::TrdcError::InvalidStateTransition
+        );
+        let from = s.status;
+        s.transition(Status::Defaulted)?;
+        emit!(TrdcTransitioned {
+            trdc_state: s.key(),
+            from,
+            to: s.status,
+            ts: Clock::get()?.unix_timestamp,
+        });
+        Ok(())
+    }
+
+    /// Moment 7 (pt 3) — `Defaulted -> Liquidated`. Called from
+    /// `auction::close_auction` regardless of whether the auction had bidders.
+    pub fn transition_defaulted_to_liquidated(ctx: Context<TransitionAuth>) -> Result<()> {
+        let s = &mut ctx.accounts.trdc_state;
+        require!(
+            s.status == Status::Defaulted,
+            crate::errors::TrdcError::InvalidStateTransition
+        );
+        let from = s.status;
+        s.transition(Status::Liquidated)?;
+        emit!(TrdcTransitioned {
+            trdc_state: s.key(),
+            from,
+            to: s.status,
+            ts: Clock::get()?.unix_timestamp,
+        });
+        Ok(())
+    }
+
     pub fn mint_trdc_cnft(ctx: Context<MintTrdcCnft>, asset_hint: [u8; 32]) -> Result<()> {
         // PHASE_2_TODO: replace this stub with a real Bubblegum CPI (mpl-bubblegum
         // `mint_to_collection_v1`). Phase 1 does not need a real cNFT to ship

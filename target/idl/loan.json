@@ -276,6 +276,151 @@
       ]
     },
     {
+      "name": "execute_af_default",
+      "docs": [
+        "Moment 7 — permissionless default trigger. Anyone can call after",
+        "`due_ts + GRACE_PERIOD_SECS`. Drives TRDC through `Active -> Overdue",
+        "-> Defaulted` (via trdc CPIs) and spawns an auction at reserve =",
+        "`principal_remaining + accrued_interest` via an auction CPI using the",
+        "loan_authority PDA as the invoke_signed signer."
+      ],
+      "discriminator": [
+        234,
+        67,
+        139,
+        148,
+        73,
+        247,
+        44,
+        139
+      ],
+      "accounts": [
+        {
+          "name": "trdc_state",
+          "writable": true
+        },
+        {
+          "name": "loan_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  97,
+                  110,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "auction",
+          "docs": [
+            "PDA seeds / owner on `init`."
+          ],
+          "writable": true
+        },
+        {
+          "name": "asset_mint"
+        },
+        {
+          "name": "escrow_ata",
+          "docs": [
+            "`associated_token::*` on its own accounts struct."
+          ],
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "docs": [
+            "vault program on close."
+          ]
+        },
+        {
+          "name": "loan_authority",
+          "docs": [
+            "`invoke_signed` signer for both the trdc transitions and the auction",
+            "`create_auction` CPI. The auction program re-derives and asserts this",
+            "as the LOAN_PROGRAM_ID's PDA + signer in Layer 1."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  97,
+                  110,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "trdc_program",
+          "address": "FcDPvRaixjAz7LeC64h9xkXPzvHT7dusbNmg83eJfr7R"
+        },
+        {
+          "name": "auction_program",
+          "address": "8FRBHN14CsA2y21hMeJJ2oxbEXNRXicVKMEDHRGyGefj"
+        },
+        {
+          "name": "instructions_sysvar",
+          "docs": [
+            "auction CPI so auction's Layer 2 check can read it."
+          ],
+          "address": "Sysvar1nstructions1111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "duration_secs",
+          "type": "i64"
+        }
+      ]
+    },
+    {
       "name": "initialize_loan_config",
       "discriminator": [
         164,
@@ -690,6 +835,19 @@
   ],
   "events": [
     {
+      "name": "AfDefaultExecuted",
+      "discriminator": [
+        141,
+        97,
+        81,
+        151,
+        137,
+        56,
+        143,
+        127
+      ]
+    },
+    {
       "name": "CcbRenewed",
       "discriminator": [
         182,
@@ -803,9 +961,38 @@
       "code": 6006,
       "name": "OverPayment",
       "msg": "Installment exceeds outstanding principal"
+    },
+    {
+      "code": 6007,
+      "name": "NotYetDefaulted",
+      "msg": "Loan is not yet past the grace period"
     }
   ],
   "types": [
+    {
+      "name": "AfDefaultExecuted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "trdc_state",
+            "type": "pubkey"
+          },
+          {
+            "name": "reserve_price",
+            "type": "u64"
+          },
+          {
+            "name": "grace_period_secs",
+            "type": "i64"
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
     {
       "name": "CcbRenewed",
       "type": {

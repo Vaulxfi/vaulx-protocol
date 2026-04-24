@@ -306,6 +306,69 @@
       ]
     },
     {
+      "name": "record_auction_inflow",
+      "docs": [
+        "Records an auction-recovery inflow: bumps `total_assets` without minting",
+        "shares. Two-layer gate mirrors `record_inflow` but keyed to the",
+        "**auction** program's `auction_authority` PDA + top-level tx id.",
+        "Called by `auction::close_auction` when there's a winning bid."
+      ],
+      "discriminator": [
+        215,
+        145,
+        132,
+        188,
+        93,
+        188,
+        179,
+        231
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "asset_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "asset_mint"
+        },
+        {
+          "name": "auction_authority",
+          "docs": [
+            "owned by the auction program and must be a signer via `invoke_signed`."
+          ],
+          "signer": true
+        },
+        {
+          "name": "instructions_sysvar",
+          "address": "Sysvar1nstructions1111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "record_inflow",
       "docs": [
         "Records a loan repayment / renewal-fee inflow: bumps `total_assets`",

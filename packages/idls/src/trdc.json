@@ -216,6 +216,36 @@
       ]
     },
     {
+      "name": "transition_active_to_overdue",
+      "docs": [
+        "Moment 7 (pt 1) — `Active -> Overdue` when `now > due_ts + grace`.",
+        "Permissionless caller-wise; the loan program is the only expected CPI",
+        "source but trdc itself doesn't enforce that — the gating lives in the",
+        "loan program's `execute_af_default` ix."
+      ],
+      "discriminator": [
+        214,
+        50,
+        226,
+        44,
+        164,
+        93,
+        83,
+        133
+      ],
+      "accounts": [
+        {
+          "name": "trdc_state",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "transition_active_to_repaid",
       "docs": [
         "Flip `Active -> Repaid` and zero `principal_remaining`. CPI-friendly",
@@ -230,6 +260,62 @@
         42,
         212,
         105
+      ],
+      "accounts": [
+        {
+          "name": "trdc_state",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "transition_defaulted_to_liquidated",
+      "docs": [
+        "Moment 7 (pt 3) — `Defaulted -> Liquidated`. Called from",
+        "`auction::close_auction` regardless of whether the auction had bidders."
+      ],
+      "discriminator": [
+        207,
+        130,
+        41,
+        38,
+        23,
+        116,
+        83,
+        84
+      ],
+      "accounts": [
+        {
+          "name": "trdc_state",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "transition_overdue_to_defaulted",
+      "docs": [
+        "Moment 7 (pt 2) — `Overdue -> Defaulted`. Followed by an auction CPI in",
+        "the loan program's `execute_af_default`."
+      ],
+      "discriminator": [
+        165,
+        30,
+        203,
+        245,
+        122,
+        55,
+        75,
+        186
       ],
       "accounts": [
         {

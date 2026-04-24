@@ -1,5 +1,8 @@
 use anchor_lang::prelude::*;
+use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
+use auction::cpi::accounts::CreateAuction as AuctionCreateAuction;
+use auction::program::Auction as AuctionProgram;
 use trdc::cpi::accounts::{
     ConfirmCustodyTransition, InitializeTrdcState, MintTrdcCnft, TransitionAuth,
     TransitionToActive,
@@ -13,7 +16,7 @@ use vault::state::Vault as VaultAccount;
 pub mod civic;
 pub mod errors;
 pub mod math;
-use errors::{LoanError, MAX_LTV_BPS};
+use errors::{LoanError, GRACE_PERIOD_SECS, MAX_LTV_BPS};
 
 declare_id!("BHdxEKkfsyjERiz5XiUybDLquvoWRtF7r1zDgVCDZJow");
 
@@ -372,6 +375,107 @@ pub mod loan {
         });
         Ok(())
     }
+
+    /// Moment 7 — permissionless default trigger. Anyone can call after
+    /// `due_ts + GRACE_PERIOD_SECS`. Drives TRDC through `Active -> Overdue
+    /// -> Defaulted` (via trdc CPIs) and spawns an auction at reserve =
+    /// `principal_remaining + accrued_interest` via an auction CPI using the
+    /// loan_authority PDA as the invoke_signed signer.
+    pub fn execute_af_default(
+        ctx: Context<ExecuteAfDefault>,
+        duration_secs: i64,
+    ) -> Result<()> {
+        require!(duration_secs > 0, LoanError::ZeroAmount);
+
+        let now = Clock::get()?.unix_timestamp;
+        let trdc = &ctx.accounts.trdc_state;
+
+        // Loan can be triggered from Active or Overdue; if still Active, the
+        // caller must be past the grace window. From Overdue we skip the
+        // grace check (already crossed it to be in Overdue).
+        let (needs_active_to_overdue, needs_grace_check) = match trdc.status {
+            Status::Active => (true, true),
+            Status::Overdue => (false, false),
+            _ => return err!(trdc::errors::TrdcError::InvalidStateTransition),
+        };
+
+        if needs_grace_check {
+            let grace_deadline = trdc
+                .due_ts
+                .checked_add(GRACE_PERIOD_SECS)
+                .ok_or(LoanError::MathOverflow)?;
+            require!(now > grace_deadline, LoanError::NotYetDefaulted);
+        }
+
+        let principal = trdc.principal_remaining;
+        let rate_bps = trdc.rate_bps;
+        let created_at = trdc.created_at;
+        let reserve_price = math::compute_payoff(principal, rate_bps, created_at, now)?;
+
+        // Derive loan_authority signer seeds.
+        let (expected_authority, bump) =
+            Pubkey::find_program_address(&[LOAN_AUTHORITY_SEED], &crate::ID);
+        require_keys_eq!(
+            ctx.accounts.loan_authority.key(),
+            expected_authority,
+            LoanError::UnauthorizedAdmin
+        );
+        let seeds: &[&[u8]] = &[LOAN_AUTHORITY_SEED, &[bump]];
+        let signer_seeds: &[&[&[u8]]] = &[seeds];
+
+        if needs_active_to_overdue {
+            trdc::cpi::transition_active_to_overdue(CpiContext::new(
+                ctx.accounts.trdc_program.to_account_info(),
+                TransitionAuth {
+                    trdc_state: ctx.accounts.trdc_state.to_account_info(),
+                    authority: ctx.accounts.payer.to_account_info(),
+                },
+            ))?;
+            ctx.accounts.trdc_state.reload()?;
+        }
+
+        trdc::cpi::transition_overdue_to_defaulted(CpiContext::new(
+            ctx.accounts.trdc_program.to_account_info(),
+            TransitionAuth {
+                trdc_state: ctx.accounts.trdc_state.to_account_info(),
+                authority: ctx.accounts.payer.to_account_info(),
+            },
+        ))?;
+
+        auction::cpi::create_auction(
+            CpiContext::new_with_signer(
+                ctx.accounts.auction_program.to_account_info(),
+                AuctionCreateAuction {
+                    auction: ctx.accounts.auction.to_account_info(),
+                    trdc_state: ctx.accounts.trdc_state.to_account_info(),
+                    asset_mint: ctx.accounts.asset_mint.to_account_info(),
+                    escrow_ata: ctx.accounts.escrow_ata.to_account_info(),
+                    vault: ctx.accounts.vault.to_account_info(),
+                    auction_authority: ctx.accounts.loan_authority.to_account_info(),
+                    instructions_sysvar: ctx.accounts.instructions_sysvar.to_account_info(),
+                    payer: ctx.accounts.payer.to_account_info(),
+                    token_program: ctx.accounts.token_program.to_account_info(),
+                    associated_token_program: ctx
+                        .accounts
+                        .associated_token_program
+                        .to_account_info(),
+                    system_program: ctx.accounts.system_program.to_account_info(),
+                    rent: ctx.accounts.rent.to_account_info(),
+                },
+                signer_seeds,
+            ),
+            reserve_price,
+            duration_secs,
+        )?;
+
+        emit!(AfDefaultExecuted {
+            trdc_state: ctx.accounts.trdc_state.key(),
+            reserve_price,
+            grace_period_secs: GRACE_PERIOD_SECS,
+            ts: now,
+        });
+        Ok(())
+    }
 }
 
 /// CPI helper — calls `vault::record_inflow` with the loan_authority PDA as
@@ -460,6 +564,14 @@ pub struct DisburseRequested {
     pub trdc_state: Pubkey,
     pub borrower: Pubkey,
     pub amount: u64,
+    pub ts: i64,
+}
+
+#[event]
+pub struct AfDefaultExecuted {
+    pub trdc_state: Pubkey,
+    pub reserve_price: u64,
+    pub grace_period_secs: i64,
     pub ts: i64,
 }
 
@@ -597,4 +709,54 @@ pub struct RepaymentOp<'info> {
     /// vault CPI so vault's Layer 2 check can read it.
     #[account(address = anchor_lang::solana_program::sysvar::instructions::ID)]
     pub instructions_sysvar: UncheckedAccount<'info>,
+}
+
+/// Accounts for `execute_af_default`. Permissionless — any signer can pay.
+#[derive(Accounts)]
+pub struct ExecuteAfDefault<'info> {
+    #[account(mut)]
+    pub trdc_state: Account<'info, TRDCState>,
+    #[account(
+        seeds = [LoanConfig::SEED],
+        bump = loan_config.bump,
+    )]
+    pub loan_config: Account<'info, LoanConfig>,
+
+    /// CHECK: created via CPI by the auction program; auction program asserts
+    /// PDA seeds / owner on `init`.
+    #[account(mut)]
+    pub auction: UncheckedAccount<'info>,
+
+    pub asset_mint: Account<'info, Mint>,
+
+    /// CHECK: created / validated by the auction program via
+    /// `associated_token::*` on its own accounts struct.
+    #[account(mut)]
+    pub escrow_ata: UncheckedAccount<'info>,
+
+    /// CHECK: pass-through; stored in the auction account. Validated by the
+    /// vault program on close.
+    pub vault: UncheckedAccount<'info>,
+
+    /// CHECK: PDA `[b"loan_authority"]` owned by this program. Used as the
+    /// `invoke_signed` signer for both the trdc transitions and the auction
+    /// `create_auction` CPI. The auction program re-derives and asserts this
+    /// as the LOAN_PROGRAM_ID's PDA + signer in Layer 1.
+    #[account(seeds = [LOAN_AUTHORITY_SEED], bump)]
+    pub loan_authority: UncheckedAccount<'info>,
+
+    #[account(mut)]
+    pub payer: Signer<'info>,
+
+    pub trdc_program: Program<'info, Trdc>,
+    pub auction_program: Program<'info, AuctionProgram>,
+    /// CHECK: address-constrained to the instructions sysvar; forwarded to the
+    /// auction CPI so auction's Layer 2 check can read it.
+    #[account(address = anchor_lang::solana_program::sysvar::instructions::ID)]
+    pub instructions_sysvar: UncheckedAccount<'info>,
+
+    pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
 }
