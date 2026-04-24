@@ -28,7 +28,7 @@ Supabase: `vaulx-devnet` (project id `ctiypfxtymnszposgaky`, region `us-east-1`)
 | 1.10 | Generate `@vaulx/anchor-client` via `anchor-client-gen` | completed | anchor-client-gen 0.28.1 doesn't handle Anchor 0.30 IDLs (upstream gap). Used plan-authorized fallback: hand-rolled façade at `packages/anchor-client/src/index.ts` exposing `{idl, programId, program(provider)}` per program via `@coral-xyz/anchor`'s `Program<Idl>`. `build:client` script stays wired for when upstream catches up. typecheck 6/6 green. |
 | 1.11 | USDC mint on Devnet + demo-wallet seed script | completed | `scripts/dev/seed-usdc.ts` (idempotent) + root `pnpm seed:usdc`. Script runs; payer `2HYjytRc4oKY2ndmJfAq2XdGhPqYB7VdDPLzA18QEiAH` needs Devnet SOL before mint+seed fire (rate-limited on CLI airdrop — user must fund at faucet.solana.com). |
 | 1.12 | `/lend`, `/lend/vaults`, `/lend/vaults/[id]` frontend + I4 mock modal | in_progress | Moment 1 UI; Civic/Blockpass hardcoded-pass modal on first deposit |
-| 1.13 | Indexer worker + `onchain_events` table | pending | Node worker subscribes to Vault logs via WS; Supabase upserts |
+| 1.13 | Indexer worker + `onchain_events` table | completed | `apps/indexer` (tsx/Node) subscribes to vault program logs, parses events via Anchor `EventParser`, inserts into `public.onchain_events` on Supabase (migration `20260425000000_onchain_events.sql` applied). Not yet run live — blocked on `SUPABASE_SERVICE_ROLE_KEY`. Event names arrive lowercased (Anchor 0.30.1) — documented in `main.ts`. typecheck 7/7 green. |
 | 1.14 | Moment 1 E2E happy-path test (`test_happy_path_end_to_end` stub) | pending | Scripted Devnet E2E: connect → KYC mock → deposit → share + event visible |
 
 <details>
@@ -64,7 +64,7 @@ Supabase: `vaulx-devnet` (project id `ctiypfxtymnszposgaky`, region `us-east-1`)
 
 - **D1–D7 from design doc §9** — defaults applied per user ("proceed with defaults").
 - **Helius Devnet API key** — still open; public `api.devnet.solana.com` RPC for now (sufficient for Phase 1).
-- **`SUPABASE_SERVICE_ROLE_KEY`** — still needed for any admin/server-only Supabase writes (Phase 2+). Fetch from [dashboard API settings](https://supabase.com/dashboard/project/ctiypfxtymnszposgaky/settings/api) and paste into `apps/web/.env.local`.
+- **`SUPABASE_SERVICE_ROLE_KEY`** — **actively blocking Task 1.14 live verification.** Indexer worker (Task 1.13) is wired up but cannot connect to Supabase until this key is populated. Fetch from [dashboard API settings](https://supabase.com/dashboard/project/ctiypfxtymnszposgaky/settings/api) and paste into `apps/web/.env.local` **and** `apps/indexer/.env.local`.
 
 ## Integration scope (confirmed)
 
