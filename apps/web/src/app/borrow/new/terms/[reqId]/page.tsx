@@ -262,6 +262,7 @@ function TermsForm({
         appraisalValue: apprAtoms,
         loanAmount: loanAtoms,
         dueTs,
+        termDays,
         assetHint,
       });
 
