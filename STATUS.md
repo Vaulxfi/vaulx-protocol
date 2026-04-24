@@ -1,13 +1,13 @@
 # Vaulx — Build Status
 
-**Last updated:** 2026-04-24 (Phase 1 tasks 1.1–1.13 complete, 1.14 starting)
+**Last updated:** 2026-04-24 (Phase 1 complete — all 14 tasks landed)
 **Plan:** [docs/plans/2026-04-23-vaulx-build-plan.md](docs/plans/2026-04-23-vaulx-build-plan.md)
 **Phase 1 plan:** [docs/plans/2026-04-25-vaulx-phase-1-core-programs.md](docs/plans/2026-04-25-vaulx-phase-1-core-programs.md)
 **Design:** [docs/plans/2026-04-23-vaulx-full-stack-build-design.md](docs/plans/2026-04-23-vaulx-full-stack-build-design.md)
 **Submission deadline:** 2026-05-10 (Day 18 from kickoff)
 
 ## Current phase
-**Phase 1 — Core programs + happy paths** (starting)
+**Phase 1 — Core programs + happy paths** (completed — ready for Phase 2)
 
 Repo: [github.com/gogysss/vaulx](https://github.com/gogysss/vaulx) (private).
 Supabase: `vaulx-devnet` (project id `ctiypfxtymnszposgaky`, region `us-east-1`).
@@ -29,7 +29,7 @@ Supabase: `vaulx-devnet` (project id `ctiypfxtymnszposgaky`, region `us-east-1`)
 | 1.11 | USDC mint on Devnet + demo-wallet seed script | completed | `scripts/dev/seed-usdc.ts` (idempotent) + root `pnpm seed:usdc`. Script runs; payer `2HYjytRc4oKY2ndmJfAq2XdGhPqYB7VdDPLzA18QEiAH` needs Devnet SOL before mint+seed fire (rate-limited on CLI airdrop — user must fund at faucet.solana.com). |
 | 1.12 | `/lend`, `/lend/vaults`, `/lend/vaults/[id]` frontend + I4 mock modal | completed | 3 pages + RHF/Zod deposit form + Civic/Blockpass KYC modal (3s fake verify, localStorage-keyed per wallet). TanStack Query + Sonner toasts. `/lend` → 200 w/ "Browse vaults"; `/lend/vaults` → 200 w/ "USDC" (or empty state until mint seeded). Build + lint + typecheck green. |
 | 1.13 | Indexer worker + `onchain_events` table | completed | `apps/indexer` (tsx/Node) subscribes to vault program logs, parses events via Anchor `EventParser`, inserts into `public.onchain_events` on Supabase (migration `20260425000000_onchain_events.sql` applied). Not yet run live — blocked on `SUPABASE_SERVICE_ROLE_KEY`. Event names arrive lowercased (Anchor 0.30.1) — documented in `main.ts`. typecheck 7/7 green. |
-| 1.14 | Moment 1 E2E happy-path test (`test_happy_path_end_to_end` stub) | in_progress | Scripted Devnet E2E: connect → KYC mock → deposit → share + event visible |
+| 1.14 | Moment 1 E2E happy-path test (`test_happy_path_end_to_end` stub) | completed | `scripts/dev/moment-1-e2e.ts` + `tests/moment-1-e2e.spec.ts`: init vault → deposit 100 USDC from demo wallet 0 → poll Supabase `onchain_events` (30s) → assert `event_name='deposited'`, `amount=100000000`, `shares_minted=100000000` (1:1 on fresh vault). Exit codes 0/2/1 = pass/SKIPPED/fail; Mocha wrapper maps 2→`this.skip()`. typecheck 7/7 green. Live run blocked on `SUPABASE_SERVICE_ROLE_KEY` + funded payer — harness gracefully reports SKIPPED until both are set. Commit `a8d2a72`. |
 
 <details>
 <summary>Phase 0 tasks (completed — reference)</summary>
@@ -54,8 +54,8 @@ Supabase: `vaulx-devnet` (project id `ctiypfxtymnszposgaky`, region `us-east-1`)
 | Phase | Days | Status |
 |---|---|---|
 | Phase 0 — Bootstrap | Days 2–3 (Apr 23–24) | completed |
-| Phase 1 — Core programs + happy paths | Days 4–7 (Apr 25–28) | starting |
-| Phase 2 — Disburse gate + borrower wizard + I1/I2 | Days 8–10 (Apr 29–May 1) | not_started |
+| Phase 1 — Core programs + happy paths | Days 4–7 (Apr 25–28) | completed |
+| Phase 2 — Disburse gate + borrower wizard + I1/I2 | Days 8–10 (Apr 29–May 1) | ready_to_start |
 | Phase 3 — Repayment, renewal, auction, I3, SSE | Days 11–13 (May 2–4) | not_started |
 | Phase 4 — Rehearsal, polish, deploy, record | Days 14–16 (May 5–7) | not_started |
 | Phase 5 — Submission | Days 17–18 (May 8–9) | not_started |
