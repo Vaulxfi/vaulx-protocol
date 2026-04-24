@@ -8,6 +8,7 @@ use trdc::state::{Status, TRDCState};
 use vault::cpi::accounts::Disburse as VaultDisburse;
 use vault::program::Vault as VaultProgram;
 
+pub mod civic;
 pub mod errors;
 use errors::{LoanError, MAX_LTV_BPS};
 
@@ -27,10 +28,12 @@ pub mod loan {
     pub fn initialize_loan_config(
         ctx: Context<InitializeLoanConfig>,
         custodian: Pubkey,
+        civic_network: Pubkey,
     ) -> Result<()> {
         let cfg = &mut ctx.accounts.loan_config;
         cfg.admin = ctx.accounts.admin.key();
         cfg.custodian = custodian;
+        cfg.civic_network = civic_network;
         cfg.bump = ctx.bumps.loan_config;
         Ok(())
     }
@@ -44,6 +47,15 @@ pub mod loan {
         asset_hint: [u8; 32],
     ) -> Result<()> {
         require!(loan_amount > 0 && appraisal_value > 0, LoanError::ZeroAmount);
+
+        // Civic Pass gate — no-op when network is default.
+        if ctx.accounts.loan_config.civic_network != Pubkey::default() {
+            civic::verify_gateway_token(
+                &ctx.accounts.gateway_token.to_account_info(),
+                &ctx.accounts.payer.key(),
+                &ctx.accounts.loan_config.civic_network,
+            )?;
+        }
 
         // LTV check: loan * 10_000 <= appraisal * MAX_LTV_BPS
         let lhs = (loan_amount as u128)
@@ -195,11 +207,13 @@ pub struct DisburseRequested {
 pub struct LoanConfig {
     pub admin: Pubkey,
     pub custodian: Pubkey,
+    /// Gatekeeper network pubkey; `Pubkey::default()` disables the Civic gate.
+    pub civic_network: Pubkey,
     pub bump: u8,
 }
 
 impl LoanConfig {
-    pub const SIZE: usize = 8 + 32 + 32 + 1;
+    pub const SIZE: usize = 8 + 32 + 32 + 32 + 1;
     pub const SEED: &'static [u8] = b"loan_config";
 }
 
@@ -231,6 +245,12 @@ pub struct CreateCcbTrdc<'info> {
     pub trdc_program: Program<'info, Trdc>,
     #[account(mut)] pub payer: Signer<'info>,
     pub system_program: Program<'info, System>,
+
+    #[account(seeds = [LoanConfig::SEED], bump = loan_config.bump)]
+    pub loan_config: Account<'info, LoanConfig>,
+    /// CHECK: validated inline via `civic::verify_gateway_token` when the gate
+    /// is enabled. Pass any account when `loan_config.civic_network == default`.
+    pub gateway_token: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]

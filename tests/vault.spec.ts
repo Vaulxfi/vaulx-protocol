@@ -9,6 +9,7 @@ import {
   getAccount,
 } from "@solana/spl-token";
 import { expect } from "chai";
+import { ensureVaultConfig, vaultConfigPda } from "./_shared";
 
 describe("vault / initialize_vault", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -117,10 +118,13 @@ describe("vault / deposit", () => {
       depositorShareAta: lender.shareAta,
       depositor: lender.kp.publicKey,
       tokenProgram: TOKEN_PROGRAM_ID,
+      vaultConfig: vaultConfigPda(program.programId),
+      gatewayToken: SystemProgram.programId,
     }).signers([lender.kp]).rpc();
   }
 
   before(async () => {
+    await ensureVaultConfig(program, provider);
     assetMint = await createMint(
       provider.connection, payer, provider.publicKey, null, 6,
     );
@@ -290,6 +294,8 @@ describe("vault / withdraw", () => {
       depositorShareAta: lender.shareAta,
       depositor: lender.kp.publicKey,
       tokenProgram: TOKEN_PROGRAM_ID,
+      vaultConfig: vaultConfigPda(program.programId),
+      gatewayToken: SystemProgram.programId,
     }).signers([lender.kp]).rpc();
   }
 
@@ -307,6 +313,7 @@ describe("vault / withdraw", () => {
   }
 
   before(async () => {
+    await ensureVaultConfig(program, provider);
     assetMint = await createMint(
       provider.connection, payer, provider.publicKey, null, 6,
     );
@@ -398,6 +405,10 @@ describe("vault / events", () => {
   const provider = anchor.getProvider() as anchor.AnchorProvider;
   const payer = (provider.wallet as any).payer as Keypair;
 
+  before(async () => {
+    await ensureVaultConfig(program, provider);
+  });
+
   it("deposit emits a Deposited event", async () => {
     const assetMint = await createMint(
       provider.connection, payer, provider.publicKey, null, 6,
@@ -458,6 +469,8 @@ describe("vault / events", () => {
         depositorShareAta,
         depositor: depositor.publicKey,
         tokenProgram: TOKEN_PROGRAM_ID,
+        vaultConfig: vaultConfigPda(program.programId),
+        gatewayToken: SystemProgram.programId,
       }).signers([depositor]).rpc();
 
       await new Promise((r) => setTimeout(r, 1500));
@@ -535,6 +548,8 @@ describe("vault / events", () => {
       depositorShareAta,
       depositor: depositor.publicKey,
       tokenProgram: TOKEN_PROGRAM_ID,
+      vaultConfig: vaultConfigPda(program.programId),
+      gatewayToken: SystemProgram.programId,
     }).signers([depositor]).rpc();
     await provider.connection.confirmTransaction(sigDep, "confirmed");
 

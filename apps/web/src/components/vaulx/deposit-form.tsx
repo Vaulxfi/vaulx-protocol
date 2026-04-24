@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { PublicKey } from "@solana/web3.js";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useForm } from "react-hook-form";
@@ -11,7 +10,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useDeposit } from "@/lib/chain/vault";
-import { KycMockModal } from "@/components/vaulx/kyc-mock-modal";
+import { CivicPassGate } from "@/components/vaulx/civic-pass-gate";
 
 const schema = z.object({
   amount: z.coerce
@@ -22,17 +21,7 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-function kycKey(wallet: string) {
-  return `vaulx_kyc_${wallet}`;
-}
-
-function hasPassedKyc(wallet: string): boolean {
-  try {
-    return !!localStorage.getItem(kycKey(wallet));
-  } catch {
-    return false;
-  }
-}
+const CIVIC_PASS_ENABLED = !!process.env.NEXT_PUBLIC_CIVIC_PASS_NETWORK;
 
 export function DepositForm({ assetMint }: { assetMint: PublicKey }) {
   const { publicKey } = useWallet();
@@ -43,13 +32,10 @@ export function DepositForm({ assetMint }: { assetMint: PublicKey }) {
     handleSubmit,
     formState: { errors, isSubmitting },
     reset,
-    getValues,
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { amount: 1 },
   });
-
-  const [kycOpen, setKycOpen] = useState(false);
 
   async function submitDeposit(amount: number) {
     const atoms = BigInt(Math.round(amount * 1_000_000));
@@ -68,57 +54,40 @@ export function DepositForm({ assetMint }: { assetMint: PublicKey }) {
       toast.error("Connect your wallet first");
       return;
     }
-    const wallet = publicKey.toBase58();
-    if (!hasPassedKyc(wallet)) {
-      setKycOpen(true);
-      return;
-    }
     await submitDeposit(values.amount);
-  }
-
-  async function handleKycPass() {
-    setKycOpen(false);
-    const { amount } = getValues();
-    await submitDeposit(amount);
   }
 
   const pending = isSubmitting || mutation.isPending;
 
-  return (
-    <>
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="flex flex-col gap-3 sm:flex-row sm:items-start"
-      >
-        <div className="flex-1">
-          <Input
-            type="number"
-            step="0.000001"
-            min={1}
-            disabled={pending || !publicKey}
-            placeholder="Amount (USDC)"
-            {...register("amount")}
-          />
-          {errors.amount ? (
-            <p className="mt-1 text-xs text-destructive">
-              {errors.amount.message}
-            </p>
-          ) : null}
-        </div>
-        <Button
-          type="submit"
+  const formEl = (
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="flex flex-col gap-3 sm:flex-row sm:items-start"
+    >
+      <div className="flex-1">
+        <Input
+          type="number"
+          step="0.000001"
+          min={1}
           disabled={pending || !publicKey}
-          className="bg-brand-gold text-brand-blue hover:bg-brand-gold/90 sm:w-40"
-        >
-          {pending ? "Depositing…" : "Deposit"}
-        </Button>
-      </form>
-      <KycMockModal
-        open={kycOpen}
-        walletPubkey={publicKey?.toBase58()}
-        onOpenChange={setKycOpen}
-        onPass={handleKycPass}
-      />
-    </>
+          placeholder="Amount (USDC)"
+          {...register("amount")}
+        />
+        {errors.amount ? (
+          <p className="mt-1 text-xs text-destructive">
+            {errors.amount.message}
+          </p>
+        ) : null}
+      </div>
+      <Button
+        type="submit"
+        disabled={pending || !publicKey}
+        className="bg-brand-gold text-brand-blue hover:bg-brand-gold/90 sm:w-40"
+      >
+        {pending ? "Depositing…" : "Deposit"}
+      </Button>
+    </form>
   );
+
+  return CIVIC_PASS_ENABLED ? <CivicPassGate>{formEl}</CivicPassGate> : formEl;
 }

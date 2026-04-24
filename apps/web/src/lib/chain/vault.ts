@@ -39,6 +39,21 @@ export function deriveVaultPda(assetMint: PublicKey): PublicKey {
   return pda;
 }
 
+/** Singleton vault-config PDA: seeds = [b"vault_config"]. */
+export function deriveVaultConfigPda(): PublicKey {
+  const [pda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("vault_config")],
+    VAULT_PROGRAM_ID
+  );
+  return pda;
+}
+
+const CIVIC_PASS_NETWORK_ENV = process.env.NEXT_PUBLIC_CIVIC_PASS_NETWORK;
+const CIVIC_NETWORK =
+  CIVIC_PASS_NETWORK_ENV && CIVIC_PASS_NETWORK_ENV.length > 0
+    ? new PublicKey(CIVIC_PASS_NETWORK_ENV)
+    : null;
+
 export function useVaultPda(assetMint: PublicKey | undefined): PublicKey | undefined {
   return useMemo(
     () => (assetMint ? deriveVaultPda(assetMint) : undefined),
@@ -180,12 +195,41 @@ export function useDeposit(assetMint: PublicKey | undefined) {
       const program = vaultFacade.program(provider) as Program<Idl>;
 
       const vaultPda = deriveVaultPda(assetMint);
+      const vaultConfigPda = deriveVaultConfigPda();
 
       // Read the vault to pick up the correct share_mint.
       const vaultAcc = (await (program.account as any).vault.fetch(
         vaultPda
       )) as { shareMint: PublicKey };
       const shareMint = vaultAcc.shareMint;
+
+      // Derive the Civic gateway token PDA, if the gate is enabled client-side.
+      // When disabled (env unset), pass the SystemProgram id as a throwaway —
+      // the on-chain gate is a no-op when `vault_config.civic_network == default`.
+      let gatewayTokenKey: PublicKey = SystemProgram.programId;
+      if (CIVIC_NETWORK) {
+        try {
+          // TODO(civic-sdk-verify): confirm `findGatewayToken` signature
+          // against `@identity.com/solana-gateway-ts@0.12.x`. Expected:
+          //   findGatewayToken(connection, owner, gatekeeperNetwork) -> Promise<GatewayToken | null>
+          const { findGatewayToken } = await import(
+            "@identity.com/solana-gateway-ts"
+          );
+          const token = await findGatewayToken(
+            connection,
+            wallet.publicKey,
+            CIVIC_NETWORK
+          );
+          if (token?.publicKey) gatewayTokenKey = token.publicKey as PublicKey;
+        } catch (e) {
+          // Surface as user-facing error so they know to obtain a pass first.
+          throw new Error(
+            `Civic Pass not found. Obtain a pass before depositing. (${
+              e instanceof Error ? e.message : String(e)
+            })`
+          );
+        }
+      }
 
       const depositor = wallet.publicKey;
       const depositorAta = getAssociatedTokenAddressSync(assetMint, depositor);
@@ -236,6 +280,8 @@ export function useDeposit(assetMint: PublicKey | undefined) {
           depositorShareAta,
           depositor,
           tokenProgram: TOKEN_PROGRAM_ID,
+          vaultConfig: vaultConfigPda,
+          gatewayToken: gatewayTokenKey,
         });
 
       const sig =

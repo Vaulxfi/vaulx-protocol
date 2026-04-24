@@ -16,6 +16,10 @@ describe("loan / confirm_custody", () => {
   const provider = anchor.getProvider() as anchor.AnchorProvider;
 
   const custodian = sharedCustodian;
+  const [loanConfigPda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("loan_config")],
+    loanProgram.programId,
+  );
 
   function randomAssetHint(): number[] {
     const buf = Buffer.alloc(32);
@@ -52,6 +56,8 @@ describe("loan / confirm_custody", () => {
         trdcProgram: trdcProgram.programId,
         payer: provider.wallet.publicKey,
         systemProgram: SystemProgram.programId,
+          loanConfig: loanConfigPda,
+          gatewayToken: SystemProgram.programId,
       })
       .rpc();
     return trdcStatePda;

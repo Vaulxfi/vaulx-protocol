@@ -9,4 +9,5 @@ pub enum LoanError {
     #[msg("Math overflow")] MathOverflow,
     #[msg("Unauthorized custodian")] UnauthorizedCustodian,
     #[msg("Unauthorized admin")] UnauthorizedAdmin,
+    #[msg("No valid Civic gateway token")] NoValidGatewayToken,
 }

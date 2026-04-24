@@ -96,6 +96,35 @@
         {
           "name": "system_program",
           "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "loan_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  97,
+                  110,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "gateway_token",
+          "docs": [
+            "is enabled. Pass any account when `loan_config.civic_network == default`."
+          ]
         }
       ],
       "args": [
@@ -293,6 +322,10 @@
         {
           "name": "custodian",
           "type": "pubkey"
+        },
+        {
+          "name": "civic_network",
+          "type": "pubkey"
         }
       ]
     },
@@ -411,6 +444,11 @@
       "code": 6004,
       "name": "UnauthorizedAdmin",
       "msg": "Unauthorized admin"
+    },
+    {
+      "code": 6005,
+      "name": "NoValidGatewayToken",
+      "msg": "No valid Civic gateway token"
     }
   ],
   "types": [
@@ -510,6 +548,13 @@
           },
           {
             "name": "custodian",
+            "type": "pubkey"
+          },
+          {
+            "name": "civic_network",
+            "docs": [
+              "Gatekeeper network pubkey; `Pubkey::default()` disables the Civic gate."
+            ],
             "type": "pubkey"
           },
           {

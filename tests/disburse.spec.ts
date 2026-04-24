@@ -15,7 +15,7 @@ import {
   mintTo,
 } from "@solana/spl-token";
 import { expect } from "chai";
-import { ensureLoanConfig } from "./_shared";
+import { ensureLoanConfig, ensureVaultConfig, vaultConfigPda } from "./_shared";
 
 describe("loan / disburse_from_vault — CPI-only gate (Task 2.2)", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -44,6 +44,7 @@ describe("loan / disburse_from_vault — CPI-only gate (Task 2.2)", () => {
     const ensured = await ensureLoanConfig(loanProgram, provider);
     custodian = ensured.custodian;
     loanConfigPda = ensured.loanConfigPda;
+    await ensureVaultConfig(vaultProgram, provider);
   });
 
   // -----------------------------------------------------------------
@@ -140,6 +141,8 @@ describe("loan / disburse_from_vault — CPI-only gate (Task 2.2)", () => {
           depositorShareAta: lenderShareAta,
           depositor: lender.publicKey,
           tokenProgram: TOKEN_PROGRAM_ID,
+          vaultConfig: vaultConfigPda(vaultProgram.programId),
+          gatewayToken: SystemProgram.programId,
         })
         .signers([lender])
         .rpc();
@@ -164,6 +167,8 @@ describe("loan / disburse_from_vault — CPI-only gate (Task 2.2)", () => {
         trdcProgram: trdcProgram.programId,
         payer: provider.wallet.publicKey,
         systemProgram: SystemProgram.programId,
+        loanConfig: loanConfigPda,
+        gatewayToken: SystemProgram.programId,
       })
       .rpc();
 

@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Burn, Mint, MintTo, Token, TokenAccount, Transfer};
 
+pub mod civic;
 pub mod errors;
 pub mod state;
 
@@ -22,6 +23,21 @@ pub const LOAN_AUTHORITY_SEED: &[u8] = b"loan_authority";
 pub mod vault {
     use super::*;
 
+    /// First-writer-wins init for the global `VaultConfig` PDA. Setting
+    /// `civic_network = Pubkey::default()` disables the Civic Pass gate on
+    /// `deposit` — this is the feature flag. Set it to a gatekeeper-network
+    /// pubkey (e.g. the devnet CAPTCHA network) to turn the gate on.
+    pub fn initialize_vault_config(
+        ctx: Context<InitializeVaultConfig>,
+        civic_network: Pubkey,
+    ) -> Result<()> {
+        let cfg = &mut ctx.accounts.vault_config;
+        cfg.admin = ctx.accounts.admin.key();
+        cfg.civic_network = civic_network;
+        cfg.bump = ctx.bumps.vault_config;
+        Ok(())
+    }
+
     pub fn initialize_vault(ctx: Context<InitializeVault>) -> Result<()> {
         let v = &mut ctx.accounts.vault;
         v.asset_mint = ctx.accounts.asset_mint.key();
@@ -42,6 +58,15 @@ pub mod vault {
 
     pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
         require!(amount > 0, VaultError::ZeroAmount);
+
+        // Civic Pass gate — no-op when `civic_network == Pubkey::default()`.
+        if ctx.accounts.vault_config.civic_network != Pubkey::default() {
+            civic::verify_gateway_token(
+                &ctx.accounts.gateway_token.to_account_info(),
+                &ctx.accounts.depositor.key(),
+                &ctx.accounts.vault_config.civic_network,
+            )?;
+        }
 
         let total_assets = ctx.accounts.vault.total_assets;
         let total_shares = ctx.accounts.vault.total_shares;
@@ -280,6 +305,34 @@ pub mod vault {
     }
 }
 
+#[account]
+pub struct VaultConfig {
+    pub admin: Pubkey,
+    /// Gatekeeper network pubkey. `Pubkey::default()` disables the Civic gate.
+    pub civic_network: Pubkey,
+    pub bump: u8,
+}
+
+impl VaultConfig {
+    pub const SIZE: usize = 8 + 32 + 32 + 1;
+    pub const SEED: &'static [u8] = b"vault_config";
+}
+
+#[derive(Accounts)]
+pub struct InitializeVaultConfig<'info> {
+    #[account(
+        init,
+        payer = admin,
+        space = VaultConfig::SIZE,
+        seeds = [VaultConfig::SEED],
+        bump,
+    )]
+    pub vault_config: Account<'info, VaultConfig>,
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
 #[derive(Accounts)]
 pub struct InitializeVault<'info> {
     #[account(
@@ -322,6 +375,13 @@ pub struct Deposit<'info> {
 
     #[account(mut)] pub depositor: Signer<'info>,
     pub token_program: Program<'info, Token>,
+
+    #[account(seeds = [VaultConfig::SEED], bump = vault_config.bump)]
+    pub vault_config: Account<'info, VaultConfig>,
+    /// CHECK: validated inline via `civic::verify_gateway_token` when the gate
+    /// is enabled. Pass any account (e.g. `SystemProgram`) when
+    /// `vault_config.civic_network == Pubkey::default()`.
+    pub gateway_token: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]

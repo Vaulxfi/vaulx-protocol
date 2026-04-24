@@ -10,9 +10,16 @@ import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram } from "@solana/web
 // within a single `anchor test` run.
 export const sharedCustodian = Keypair.generate();
 
+/**
+ * Idempotently init loan_config. Defaults to the Civic gate DISABLED
+ * (`civic_network = PublicKey.default`). Pass an explicit `civicNetwork` to
+ * turn the gate on for a particular test. First-writer-wins, like the previous
+ * no-arg flavour.
+ */
 export async function ensureLoanConfig(
   loanProgram: anchor.Program<any>,
   provider: anchor.AnchorProvider,
+  civicNetwork: PublicKey = PublicKey.default,
 ): Promise<{ loanConfigPda: PublicKey; custodian: Keypair }> {
   const [loanConfigPda] = PublicKey.findProgramAddressSync(
     [Buffer.from("loan_config")],
@@ -22,7 +29,7 @@ export async function ensureLoanConfig(
   const existing = await loanProgram.account.loanConfig.fetchNullable(loanConfigPda);
   if (!existing) {
     await loanProgram.methods
-      .initializeLoanConfig(sharedCustodian.publicKey)
+      .initializeLoanConfig(sharedCustodian.publicKey, civicNetwork)
       .accounts({
         loanConfig: loanConfigPda,
         admin: provider.wallet.publicKey,
@@ -46,4 +53,42 @@ export async function ensureLoanConfig(
   await provider.connection.confirmTransaction(sig, "confirmed");
 
   return { loanConfigPda, custodian: sharedCustodian };
+}
+
+/**
+ * Idempotently init vault_config. Defaults to the Civic gate DISABLED.
+ * First-writer-wins — a later call with a non-default network is a no-op if
+ * the config already exists.
+ */
+export async function ensureVaultConfig(
+  vaultProgram: anchor.Program<any>,
+  provider: anchor.AnchorProvider,
+  civicNetwork: PublicKey = PublicKey.default,
+): Promise<{ vaultConfigPda: PublicKey }> {
+  const [vaultConfigPda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("vault_config")],
+    vaultProgram.programId,
+  );
+  const existing = await vaultProgram.account.vaultConfig.fetchNullable(
+    vaultConfigPda,
+  );
+  if (!existing) {
+    await vaultProgram.methods
+      .initializeVaultConfig(civicNetwork)
+      .accounts({
+        vaultConfig: vaultConfigPda,
+        admin: provider.wallet.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc();
+  }
+  return { vaultConfigPda };
+}
+
+/** Vault-config PDA derivation helper (no RPC). */
+export function vaultConfigPda(vaultProgramId: PublicKey): PublicKey {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("vault_config")],
+    vaultProgramId,
+  )[0];
 }

@@ -241,6 +241,25 @@ async function main(): Promise<void> {
   console.log(
     `deposit 100 USDC from ${depositor.publicKey.toBase58()} -> vault ${vaultPda.toBase58()}`,
   );
+  const [vaultConfigPda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("vault_config")],
+    program.programId,
+  );
+  const existingCfg = await (program.account as any).vaultConfig.fetchNullable(
+    vaultConfigPda,
+  );
+  if (!existingCfg) {
+    // First-writer-wins init with Civic gate disabled (default pubkey).
+    await (program.methods as any)
+      .initializeVaultConfig(PublicKey.default)
+      .accounts({
+        vaultConfig: vaultConfigPda,
+        admin: provider.wallet.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc();
+  }
+
   const sig: string = await (program.methods as any)
     .deposit(DEPOSIT_AMOUNT)
     .accounts({
@@ -252,6 +271,8 @@ async function main(): Promise<void> {
       depositorShareAta: depositorShareAta.address,
       depositor: depositor.publicKey,
       tokenProgram: TOKEN_PROGRAM_ID,
+      vaultConfig: vaultConfigPda,
+      gatewayToken: SystemProgram.programId,
     })
     .signers([depositor])
     .rpc();

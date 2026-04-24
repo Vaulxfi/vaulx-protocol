@@ -6,4 +6,5 @@ pub enum VaultError {
     #[msg("Zero amount")] ZeroAmount,
     #[msg("Insufficient vault liquidity")] InsufficientVaultLiquidity,
     #[msg("Unauthorized disbursar")] UnauthorizedDisbursar,
+    #[msg("No valid Civic gateway token")] NoValidGatewayToken,
 }

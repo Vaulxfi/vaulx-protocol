@@ -2,12 +2,19 @@ import * as anchor from "@coral-xyz/anchor";
 import { BN, Program } from "@coral-xyz/anchor";
 import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
 import { expect } from "chai";
+import { ensureLoanConfig } from "./_shared";
 
 describe("loan / create_ccb_trdc", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
   const loanProgram = anchor.workspace.Loan as Program<any>;
   const trdcProgram = anchor.workspace.Trdc as Program<any>;
   const provider = anchor.getProvider() as anchor.AnchorProvider;
+
+  let loanConfigPda: PublicKey;
+  before(async () => {
+    const ensured = await ensureLoanConfig(loanProgram, provider);
+    loanConfigPda = ensured.loanConfigPda;
+  });
 
   function randomAssetHint(): number[] {
     const buf = Buffer.alloc(32);
@@ -36,6 +43,8 @@ describe("loan / create_ccb_trdc", () => {
           trdcProgram: trdcProgram.programId,
           payer: provider.wallet.publicKey,
           systemProgram: SystemProgram.programId,
+          loanConfig: loanConfigPda,
+          gatewayToken: SystemProgram.programId,
         })
         .rpc();
     } catch (e: any) {
@@ -60,6 +69,8 @@ describe("loan / create_ccb_trdc", () => {
         trdcProgram: trdcProgram.programId,
         payer: provider.wallet.publicKey,
         systemProgram: SystemProgram.programId,
+          loanConfig: loanConfigPda,
+          gatewayToken: SystemProgram.programId,
       })
       .rpc();
 
@@ -87,6 +98,8 @@ describe("loan / create_ccb_trdc", () => {
         trdcProgram: trdcProgram.programId,
         payer: provider.wallet.publicKey,
         systemProgram: SystemProgram.programId,
+          loanConfig: loanConfigPda,
+          gatewayToken: SystemProgram.programId,
       })
       .rpc();
 
@@ -113,6 +126,8 @@ describe("loan / create_ccb_trdc", () => {
           trdcProgram: trdcProgram.programId,
           payer: provider.wallet.publicKey,
           systemProgram: SystemProgram.programId,
+          loanConfig: loanConfigPda,
+          gatewayToken: SystemProgram.programId,
         })
         .rpc();
     } catch (e: any) {

@@ -68,6 +68,37 @@
         {
           "name": "token_program",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "vault_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "gateway_token",
+          "docs": [
+            "is enabled. Pass any account (e.g. `SystemProgram`) when",
+            "`vault_config.civic_network == Pubkey::default()`."
+          ]
         }
       ],
       "args": [
@@ -214,6 +245,67 @@
       "args": []
     },
     {
+      "name": "initialize_vault_config",
+      "docs": [
+        "First-writer-wins init for the global `VaultConfig` PDA. Setting",
+        "`civic_network = Pubkey::default()` disables the Civic Pass gate on",
+        "`deposit` — this is the feature flag. Set it to a gatekeeper-network",
+        "pubkey (e.g. the devnet CAPTCHA network) to turn the gate on."
+      ],
+      "discriminator": [
+        199,
+        95,
+        61,
+        130,
+        239,
+        178,
+        88,
+        193
+      ],
+      "accounts": [
+        {
+          "name": "vault_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "civic_network",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
       "name": "test_donate_assets",
       "discriminator": [
         14,
@@ -344,6 +436,19 @@
         117,
         119
       ]
+    },
+    {
+      "name": "VaultConfig",
+      "discriminator": [
+        99,
+        86,
+        43,
+        216,
+        184,
+        102,
+        119,
+        77
+      ]
     }
   ],
   "events": [
@@ -420,6 +525,11 @@
       "code": 6003,
       "name": "UnauthorizedDisbursar",
       "msg": "Unauthorized disbursar"
+    },
+    {
+      "code": 6004,
+      "name": "NoValidGatewayToken",
+      "msg": "No valid Civic gateway token"
     }
   ],
   "types": [
@@ -520,6 +630,29 @@
                 64
               ]
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "civic_network",
+            "docs": [
+              "Gatekeeper network pubkey. `Pubkey::default()` disables the Civic gate."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
           }
         ]
       }
