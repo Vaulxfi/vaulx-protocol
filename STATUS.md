@@ -1,6 +1,6 @@
 # Vaulx — Build Status
 
-**Last updated:** 2026-04-24 (Phase 2 in progress — 2.1–2.8 complete; 2.9 custodian intake starting)
+**Last updated:** 2026-04-24 (Phase 2 in progress — 2.1–2.9 complete; 2.10 E2E harness starting)
 **Plan:** [docs/plans/2026-04-23-vaulx-build-plan.md](docs/plans/2026-04-23-vaulx-build-plan.md)
 **Phase 1 plan:** [docs/plans/2026-04-25-vaulx-phase-1-core-programs.md](docs/plans/2026-04-25-vaulx-phase-1-core-programs.md)
 **Phase 2 plan:** [docs/plans/2026-04-29-vaulx-phase-2-disburse-and-wizard.md](docs/plans/2026-04-29-vaulx-phase-2-disburse-and-wizard.md)
@@ -24,8 +24,8 @@
 | 2.6.5 | **I4 REAL: Civic Pass on-chain gate + SDK swap** | completed | 33/33 anchor tests green (29 baseline + 4 civic-gate smoke). Feature-flag gate: `vault.deposit` + `loan.create_ccb_trdc` check gateway token only when `VaultConfig.civic_network`/`LoanConfig.civic_network` ≠ `Pubkey::default()`. Manual Borsh parse + state-byte check in `programs/{vault,loan}/src/civic.rs`. FE wires `GatewayProvider` + `<CivicPassGate>` (conditional on `NEXT_PUBLIC_CIVIC_PASS_NETWORK`); mock modal + localStorage bookkeeping deleted. **6 `TODO(civic-sdk-verify)` markers remain in code for user to close after SDK install confirms exact APIs.** Commit `bc7ce5c`. |
 | 2.7 | I2 gov.br mocked ID flow | completed | 4 pages at `/borrow/verify-id/*` with gov.br blue styling + demo-mode badge. Real CPF check-digit validation; `?mock=auto` completes in ~2s. `useGovbrVerification(wallet)` hook ready for 2.8 to consume. 5/5 cpf.test.ts vitest green; web build green (routes prerendered). Commit `96e54b3`. |
 | 2.8 | Borrower wizard pages (Moment 2) | completed | 3 wizard pages + placeholder for 2.9. Asset form → `/api/appraisal` → 3-source + median display → terms (LTV slider 10–60%, 30/60/90d radio, rate table 8/10/12% APR, CCB doc-card preview with live SHA-256 + download) → Confirm derives TRDC PDA + regenerates CCB + uploads to Supabase (best-effort) + calls `create_ccb_trdc` with `asset_hint` = first 32 hash bytes → redirects to awaiting-custody. `<IdentityGates>` composes Civic + gov.br. `lib/chain/loan.ts::useCreateCcbTrdc` hook. Web build green, 11/11 vitest green. Commit `635e0e2`. |
-| 2.9 | Awaiting-custody + custodian intake UI (Moment 3) | in_progress | Polls onchain_events for custodyConfirmed |
-| 2.10 | Moments 2+3+4 E2E test | pending | Mirror moment-1-e2e.ts; SKIPPED path same |
+| 2.9 | Awaiting-custody + custodian intake UI (Moment 3) | completed | Borrower page polls `/api/onchain-events/custody-confirmed` every 3s via TanStack Query + auto-advances. Custodian intake gates by `LoanConfig.custodian` match, renders TRDC details + 5-item checklist + doc_hash field, calls `loan.confirm_custody`. Indexer extended to subscribe to both vault + loan programs. 2 placeholder pages (`/borrow/loans/[trdc]/disburse`, `/custodian/done/[trdc]`). Graceful `supabase_not_configured` fallback in poll route. Web + indexer typecheck + build green. Commit `29afbb4`. |
+| 2.10 | Moments 2+3+4 E2E test | in_progress | Mirror moment-1-e2e.ts; SKIPPED path same |
 | 2.11 | STATUS/CHANGELOG close-out | pending | Tag `phase-2-done` |
 
 Repo: [github.com/gogysss/vaulx](https://github.com/gogysss/vaulx) (private).
