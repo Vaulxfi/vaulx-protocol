@@ -1,6 +1,6 @@
 # Vaulx — Build Status
 
-**Last updated:** 2026-04-24 (Phase 1 complete; Phase 2 started — Task 2.1 in progress)
+**Last updated:** 2026-04-24 (Phase 2 in progress — 2.1 complete, 2.2 starting)
 **Plan:** [docs/plans/2026-04-23-vaulx-build-plan.md](docs/plans/2026-04-23-vaulx-build-plan.md)
 **Phase 1 plan:** [docs/plans/2026-04-25-vaulx-phase-1-core-programs.md](docs/plans/2026-04-25-vaulx-phase-1-core-programs.md)
 **Phase 2 plan:** [docs/plans/2026-04-29-vaulx-phase-2-disburse-and-wizard.md](docs/plans/2026-04-29-vaulx-phase-2-disburse-and-wizard.md)
@@ -15,8 +15,8 @@
 
 | # | Task | Status | Notes |
 |---|---|---|---|
-| 2.1 | `ActiveInCustody` state + `confirm_custody` + `doc_hash` | in_progress | TRDCState gains `doc_hash`; new state between PendingCustody and Active; custodian-signed instruction |
-| 2.2 | `vault.disburse` CPI-only gate + `loan.disburse_from_vault` wrapper | pending | Two-layer enforcement: signer PDA + instructions sysvar. Named failing tests land here. |
+| 2.1 | `ActiveInCustody` state + `confirm_custody` + `doc_hash` | completed | 19/19 anchor tests green. `LoanConfig` PDA (`[b"loan_config"]`, fields admin+custodian+bump); `initialize_loan_config` + `confirm_custody(doc_hash)` ixs; CPIs into `trdc::confirm_custody_transition`. State table updated: `PendingCustody→ActiveInCustody→Active`. `doc_hash: [u8;32]` added to TRDCState (reserved shrunk 64→32, net size unchanged). Commit `1cd3355`. |
+| 2.2 | `vault.disburse` CPI-only gate + `loan.disburse_from_vault` wrapper | in_progress | Two-layer enforcement: signer PDA + instructions sysvar. Named failing tests land here. |
 | 2.3 | Remaining 8 BRD §7 named tests | pending | Spec coverage batch |
 | 2.4 | IDL freeze + client regeneration attempt | pending | Tag `phase-2-idl-freeze` |
 | 2.5 | `@vaulx/ccb` real PDF generator + SHA-256 | pending | `pdf-lib` + `@noble/hashes` |
