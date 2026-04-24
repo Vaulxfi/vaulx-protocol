@@ -44,3 +44,18 @@ Leave `civic_network = Pubkey::default()` in `vault_config` / `loan_config` to d
 - On-chain parser: `programs/{vault,loan}/src/civic.rs` hand-rolls a Borsh decode of the Civic gateway-token account (version, parent, owner, owner_identity, gatekeeper_network, issuing_gatekeeper, state, expiry). Gate program id: `gatem74V238djXdzWnJf94Wo1DcnuGkfijbf3AuBhfs`.
 - Frontend: `<CivicPassGate>` wraps children behind the `GatewayStatus.ACTIVE` check from `@civic/solana-gateway-react`. `<GatewayProvider>` in `apps/web/src/components/providers/wallet-provider.tsx` is only wired in when `NEXT_PUBLIC_CIVIC_PASS_NETWORK` is set.
 - Runtime coverage: `tests/civic-happy-path.spec.ts` issues a real gateway token via `@identity.com/solana-gateway-ts` against a throwaway network and asserts the Borsh byte layout matches the on-chain parser (Active=0 → Revoked=2 flip).
+
+## Live QA — /admin/tests
+
+Run the Anchor test suite live in your browser:
+
+1. `pnpm --filter @vaulx/indexer dev` (optional — not needed for tests)
+2. `pnpm --filter @vaulx/web dev`
+3. Open `http://localhost:3000/admin/tests`
+4. Press "Run tests"
+
+The terminal streams stdout/stderr from `anchor test --skip-build` in real time via Server-Sent Events. Exit code `0` means all 45+ on-chain tests passed. The spawn runs on the Node.js route runtime and is killed if the client disconnects, so aborting the page tears the child process down cleanly.
+
+**Local demo only.** On Vercel, the function-duration cap (30s Hobby / 300s Pro) will cut the SSE stream before `anchor test` finishes (~3–4 min). Host deployments should serve a cached log rather than spawn live.
+
+**Auth.** If `NEXT_PUBLIC_VAULX_ADMIN_PUBKEY` is set, the stream route requires a matching `vaulx-admin` cookie or `x-vaulx-admin` header. Leave it unset during the hackathon so judges can view the run; tighten it before any public exposure.
