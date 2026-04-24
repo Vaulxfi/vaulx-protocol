@@ -1,6 +1,6 @@
 # Vaulx — Build Status
 
-**Last updated:** 2026-04-24 (Phase 2 in progress — 2.1+2.2 complete, 2.3 starting)
+**Last updated:** 2026-04-24 (Phase 2 in progress — 2.1–2.3 complete, 2.4 starting)
 **Plan:** [docs/plans/2026-04-23-vaulx-build-plan.md](docs/plans/2026-04-23-vaulx-build-plan.md)
 **Phase 1 plan:** [docs/plans/2026-04-25-vaulx-phase-1-core-programs.md](docs/plans/2026-04-25-vaulx-phase-1-core-programs.md)
 **Phase 2 plan:** [docs/plans/2026-04-29-vaulx-phase-2-disburse-and-wizard.md](docs/plans/2026-04-29-vaulx-phase-2-disburse-and-wizard.md)
@@ -17,8 +17,8 @@
 |---|---|---|---|
 | 2.1 | `ActiveInCustody` state + `confirm_custody` + `doc_hash` | completed | 19/19 anchor tests green. `LoanConfig` PDA (`[b"loan_config"]`, fields admin+custodian+bump); `initialize_loan_config` + `confirm_custody(doc_hash)` ixs; CPIs into `trdc::confirm_custody_transition`. State table updated: `PendingCustody→ActiveInCustody→Active`. `doc_hash: [u8;32]` added to TRDCState (reserved shrunk 64→32, net size unchanged). Commit `1cd3355`. |
 | 2.2 | `vault.disburse` CPI-only gate + `loan.disburse_from_vault` wrapper | completed | 21/21 anchor tests green. Two-layer gate: (1) `loan_authority` PDA (`[b"loan_authority"]` in loan) must match expected + be signer; (2) instructions sysvar asserts top-level tx programId == loan. `DisburseRequested` (loan) + `Disbursed` (vault) events. Happy path + both named failing tests (`test_disburse_fails_when_custody_not_confirmed`, `test_disburse_fails_with_unauthorized_caller`) green. `loan_authority` signs disburse CPI via `invoke_signed`. `trdc.transition_to_active` ActiveInCustody→Active. Commit `097b3a8`. |
-| 2.3 | Remaining 8 BRD §7 named tests | in_progress | Spec coverage batch |
-| 2.4 | IDL freeze + client regeneration attempt | pending | Tag `phase-2-idl-freeze` |
+| 2.3 | Remaining 8 BRD §7 named tests | completed | 29/29 anchor tests green (up from 21). All 8 named `it()` blocks land as first-class coverage: exact-limit LTV, zero/oversize amount reverts, illegal transition revert, stable asset_id hash, full deposited event field match, deterministic vault PDA derivation. Commit `f113582`. |
+| 2.4 | IDL freeze + client regeneration attempt | in_progress | Tag `phase-2-idl-freeze` |
 | 2.5 | `@vaulx/ccb` real PDF generator + SHA-256 | pending | `pdf-lib` + `@noble/hashes` |
 | 2.6 | I1 Chrono24 + WatchCharts appraisal aggregator | pending | Triangular convergence API |
 | 2.7 | I2 gov.br mocked ID flow | pending | CPF check-digit validated; wallet-keyed |
