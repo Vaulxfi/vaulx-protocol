@@ -10,6 +10,7 @@ import { EditorialSection } from "@/components/vaulx/editorial-section";
 import { LoanContextPanel } from "@/components/vaulx/loan-context-panel";
 import { SiteFooter } from "@/components/vaulx/site-footer";
 import { SiteHeader } from "@/components/vaulx/site-header";
+import { SolanaPayQr } from "@/components/vaulx/solana-pay-qr";
 import { useLoanRepay } from "@/lib/chain/loan";
 import { useLoanSummary } from "@/lib/chain/loan-summary";
 import { USDC_MINT } from "@/lib/usdc";
@@ -125,8 +126,9 @@ function RepayPanel({
   }
 
   return (
+    <div className="flex flex-col gap-6">
     <div className="border border-[var(--rule)] bg-[var(--bg-elev-1)] p-6 md:p-8">
-      <span className="eyebrow">Payoff breakdown</span>
+      <span className="eyebrow">Payoff · Desktop wallet</span>
 
       <dl className="mt-6 flex flex-col">
         <Line k="Principal remaining" v={`${fmtAtoms(principal)} USDC`} />
@@ -163,6 +165,14 @@ function RepayPanel({
           <path strokeLinecap="round" d="M5 12h14M13 5l7 7-7 7" />
         </svg>
       </button>
+    </div>
+
+    <SolanaPayQr
+      kind="repay"
+      trdc={trdc}
+      disabled={isTerminal || principal === 0n}
+      label="Pay off from mobile · Solana Pay"
+    />
     </div>
   );
 }

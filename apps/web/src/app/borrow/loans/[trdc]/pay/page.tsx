@@ -13,6 +13,7 @@ import { EditorialSection } from "@/components/vaulx/editorial-section";
 import { LoanContextPanel } from "@/components/vaulx/loan-context-panel";
 import { SiteFooter } from "@/components/vaulx/site-footer";
 import { SiteHeader } from "@/components/vaulx/site-header";
+import { SolanaPayQr } from "@/components/vaulx/solana-pay-qr";
 import { useLoanInstallment } from "@/lib/chain/loan";
 import { useLoanSummary } from "@/lib/chain/loan-summary";
 import { USDC_MINT } from "@/lib/usdc";
@@ -65,6 +66,7 @@ function PayContent() {
             {trdcPda ? (
               <PayForm
                 trdcPda={trdcPda}
+                trdcBase58={trdc}
                 principalRemainingAtoms={summary?.principalRemainingAtoms ?? 0n}
                 canPay={!!summary && summary.principalRemainingAtoms > 0n && !summary.isTerminal}
                 terminalReason={terminalReason(summary)}
@@ -101,11 +103,13 @@ type PayFormValues = z.infer<typeof PaySchema>;
 
 function PayForm({
   trdcPda,
+  trdcBase58,
   principalRemainingAtoms,
   canPay,
   terminalReason,
 }: {
   trdcPda: PublicKey;
+  trdcBase58: string;
   principalRemainingAtoms: bigint;
   canPay: boolean;
   terminalReason: string | null;
@@ -165,8 +169,9 @@ function PayForm({
   }
 
   return (
+    <div className="flex flex-col gap-6">
     <div className="border border-[var(--rule)] bg-[var(--bg-elev-1)] p-6 md:p-8">
-      <span className="eyebrow">Payment</span>
+      <span className="eyebrow">Payment · Desktop wallet</span>
 
       <form onSubmit={handleSubmit(onSubmit)} className="mt-6 flex flex-col gap-6">
         <div>
@@ -231,6 +236,15 @@ function PayForm({
           </svg>
         </button>
       </form>
+    </div>
+
+    <SolanaPayQr
+      kind="pay"
+      trdc={trdcBase58}
+      amountAtoms={amountAtoms > 0n && !overpay ? amountAtoms : undefined}
+      disabled={!canPay || amountAtoms <= 0n || overpay}
+      label="Pay from mobile · Solana Pay"
+    />
     </div>
   );
 }

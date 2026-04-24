@@ -11,6 +11,7 @@ import { EditorialSection } from "@/components/vaulx/editorial-section";
 import { LoanContextPanel } from "@/components/vaulx/loan-context-panel";
 import { SiteFooter } from "@/components/vaulx/site-footer";
 import { SiteHeader } from "@/components/vaulx/site-header";
+import { SolanaPayQr } from "@/components/vaulx/solana-pay-qr";
 import { useLoanRenew } from "@/lib/chain/loan";
 import { useLoanSummary } from "@/lib/chain/loan-summary";
 import { USDC_MINT } from "@/lib/usdc";
@@ -148,8 +149,9 @@ function RenewForm({
   }
 
   return (
+    <div className="flex flex-col gap-6">
     <div className="border border-[var(--rule)] bg-[var(--bg-elev-1)] p-6 md:p-8">
-      <span className="eyebrow">New terms</span>
+      <span className="eyebrow">New terms · Desktop wallet</span>
 
       <div className="mt-6 flex flex-col gap-6">
         <div>
@@ -224,6 +226,17 @@ function RenewForm({
           </svg>
         </button>
       </div>
+    </div>
+
+    <SolanaPayQr
+      kind="renew"
+      trdc={trdc}
+      termDays={termDays}
+      newDueTs={newDueTs}
+      newRateBps={newRateBps}
+      disabled={!canRenew}
+      label="Renew from mobile · Solana Pay"
+    />
     </div>
   );
 }

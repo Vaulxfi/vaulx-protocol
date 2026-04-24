@@ -9,59 +9,29 @@ import {
   Keypair,
   PublicKey,
   SystemProgram,
-  SYSVAR_INSTRUCTIONS_PUBKEY,
 } from "@solana/web3.js";
-import {
-  TOKEN_PROGRAM_ID,
-  getAssociatedTokenAddressSync,
-} from "@solana/spl-token";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { loan as loanFacade } from "@vaulx/anchor-client";
 import { rateForTermDays } from "@vaulx/terms";
 
-const LOAN_PROGRAM_ID = new PublicKey(loanFacade.programId);
-const TRDC_PROGRAM_ID = new PublicKey(
-  "FcDPvRaixjAz7LeC64h9xkXPzvHT7dusbNmg83eJfr7R",
-);
-const VAULT_PROGRAM_ID = new PublicKey(
-  "4PPyUvazjDBvFndGUL2rgKTwZrFbsSP1tk4a2uMhE9MS",
-);
+import {
+  LOAN_PROGRAM_ID,
+  TRDC_PROGRAM_ID,
+  buildLoanIxAccounts,
+  deriveLoanAuthorityPda,
+  deriveLoanConfigPda,
+  deriveTrdcStatePda,
+  deriveVaultPda,
+} from "./loan-accounts";
 
-/** loan_authority PDA: seeds = [b"loan_authority"]. */
-export function deriveLoanAuthorityPda(): PublicKey {
-  const [pda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("loan_authority")],
-    LOAN_PROGRAM_ID,
-  );
-  return pda;
-}
-
-/** Vault PDA derived in the vault program: seeds = [b"vault", asset_mint]. */
-export function deriveVaultPda(assetMint: PublicKey): PublicKey {
-  const [pda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("vault"), assetMint.toBuffer()],
-    VAULT_PROGRAM_ID,
-  );
-  return pda;
-}
-
-/** TRDCState PDA: seeds = [b"trdc_state", loan_id]. */
-export function deriveTrdcStatePda(loanId: PublicKey): PublicKey {
-  const [pda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("trdc_state"), loanId.toBuffer()],
-    LOAN_PROGRAM_ID,
-  );
-  return pda;
-}
-
-/** Singleton loan_config PDA: seeds = [b"loan_config"]. */
-export function deriveLoanConfigPda(): PublicKey {
-  const [pda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("loan_config")],
-    LOAN_PROGRAM_ID,
-  );
-  return pda;
-}
+export {
+  LOAN_PROGRAM_ID,
+  TRDC_PROGRAM_ID,
+  deriveLoanAuthorityPda,
+  deriveLoanConfigPda,
+  deriveTrdcStatePda,
+  deriveVaultPda,
+};
 
 const CIVIC_PASS_NETWORK_ENV = process.env.NEXT_PUBLIC_CIVIC_PASS_NETWORK;
 const CIVIC_NETWORK =
@@ -211,33 +181,15 @@ export function useLoanInstallment() {
       });
       const program = loanFacade.program(provider) as Program<Idl>;
 
-      const vaultPda = deriveVaultPda(args.assetMint);
-      const vaultAta = getAssociatedTokenAddressSync(
-        args.assetMint,
-        vaultPda,
-        true,
-      );
-      const borrowerAta = getAssociatedTokenAddressSync(
-        args.assetMint,
-        wallet.publicKey,
-      );
-      const loanAuthority = deriveLoanAuthorityPda();
+      const accounts = buildLoanIxAccounts({
+        trdcPda: args.trdcPda,
+        assetMint: args.assetMint,
+        borrower: wallet.publicKey,
+      });
 
       const sig = await (program.methods as any)
         .payInstallment(new BN(args.amount.toString()))
-        .accounts({
-          trdcState: args.trdcPda,
-          vault: vaultPda,
-          assetMint: args.assetMint,
-          vaultAta,
-          borrowerAta,
-          borrower: wallet.publicKey,
-          loanAuthority,
-          trdcProgram: TRDC_PROGRAM_ID,
-          vaultProgram: VAULT_PROGRAM_ID,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          instructionsSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
-        })
+        .accounts(accounts)
         .rpc();
 
       qc.invalidateQueries({
@@ -280,17 +232,11 @@ export function useLoanRenew() {
       });
       const program = loanFacade.program(provider) as Program<Idl>;
 
-      const vaultPda = deriveVaultPda(args.assetMint);
-      const vaultAta = getAssociatedTokenAddressSync(
-        args.assetMint,
-        vaultPda,
-        true,
-      );
-      const borrowerAta = getAssociatedTokenAddressSync(
-        args.assetMint,
-        wallet.publicKey,
-      );
-      const loanAuthority = deriveLoanAuthorityPda();
+      const accounts = buildLoanIxAccounts({
+        trdcPda: args.trdcPda,
+        assetMint: args.assetMint,
+        borrower: wallet.publicKey,
+      });
 
       const sig = await (program.methods as any)
         .renewCcb(
@@ -298,19 +244,7 @@ export function useLoanRenew() {
           new BN(args.newDueTs),
           new BN(newRateBps),
         )
-        .accounts({
-          trdcState: args.trdcPda,
-          vault: vaultPda,
-          assetMint: args.assetMint,
-          vaultAta,
-          borrowerAta,
-          borrower: wallet.publicKey,
-          loanAuthority,
-          trdcProgram: TRDC_PROGRAM_ID,
-          vaultProgram: VAULT_PROGRAM_ID,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          instructionsSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
-        })
+        .accounts(accounts)
         .rpc();
 
       qc.invalidateQueries({
@@ -348,33 +282,15 @@ export function useLoanRepay() {
       });
       const program = loanFacade.program(provider) as Program<Idl>;
 
-      const vaultPda = deriveVaultPda(args.assetMint);
-      const vaultAta = getAssociatedTokenAddressSync(
-        args.assetMint,
-        vaultPda,
-        true,
-      );
-      const borrowerAta = getAssociatedTokenAddressSync(
-        args.assetMint,
-        wallet.publicKey,
-      );
-      const loanAuthority = deriveLoanAuthorityPda();
+      const accounts = buildLoanIxAccounts({
+        trdcPda: args.trdcPda,
+        assetMint: args.assetMint,
+        borrower: wallet.publicKey,
+      });
 
       const sig = await (program.methods as any)
         .repayCcb()
-        .accounts({
-          trdcState: args.trdcPda,
-          vault: vaultPda,
-          assetMint: args.assetMint,
-          vaultAta,
-          borrowerAta,
-          borrower: wallet.publicKey,
-          loanAuthority,
-          trdcProgram: TRDC_PROGRAM_ID,
-          vaultProgram: VAULT_PROGRAM_ID,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          instructionsSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
-        })
+        .accounts(accounts)
         .rpc();
 
       qc.invalidateQueries({
