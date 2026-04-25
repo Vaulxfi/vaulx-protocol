@@ -4,60 +4,59 @@
 
 ---
 
-## Blocking live Devnet verification (Task 1.14 + Phase 2 onward)
+## ✅ Done as of 2026-04-25
 
-### 1. Fund the Devnet payer wallet
-- [ ] Open [faucet.solana.com](https://faucet.solana.com)
-- [ ] Paste address: `2HYjytRc4oKY2ndmJfAq2XdGhPqYB7VdDPLzA18QEiAH`
-- [ ] Request **≥ 5 SOL** on **Devnet**
-- [ ] Verify with: `solana balance 2HYjytRc4oKY2ndmJfAq2XdGhPqYB7VdDPLzA18QEiAH --url devnet`
-
-### 2. Seed the demo USDC mint + wallets
-After (1) is done:
-- [ ] `cd /Users/gogy/MyCODE/VAULX && pnpm seed:usdc`
-- [ ] Confirm `scripts/dev/devnet-usdc.json` + `scripts/dev/demo-wallets.json` exist (gitignored)
-- [ ] Each of the 6 demo wallets should now hold 2 SOL + 50,000 USDC
-
-### 3. Add the Supabase service role key
-- [ ] Open [Supabase dashboard → API settings](https://supabase.com/dashboard/project/ctiypfxtymnszposgaky/settings/api)
-- [ ] Copy the `service_role` key (secret — never commit)
-- [ ] Paste into **both** files as `SUPABASE_SERVICE_ROLE_KEY=...`:
-  - `apps/web/.env.local`
-  - `apps/indexer/.env.local`
-- [ ] Also ensure `SUPABASE_URL` (or `NEXT_PUBLIC_SUPABASE_URL`) is set in `apps/indexer/.env.local`:
-  `SUPABASE_URL=https://ctiypfxtymnszposgaky.supabase.co`
-
-### 4. Run the Moment 1 E2E test (proves Phase 1 wired end-to-end)
-After (1)–(3):
-- [ ] Terminal A: `pnpm --filter @vaulx/indexer dev` (leave running — subscribes to Devnet logs)
-- [ ] Terminal B: `pnpm e2e:moment-1`
-- [ ] Expect: `OK: deposited event observed; sig=... amount=100000000 shares_minted=100000000`
+- [x] Devnet payer wallet funded (`2HYjytRc4oKY2ndmJfAq2XdGhPqYB7VdDPLzA18QEiAH`, ~5.49 SOL)
+- [x] Helius API key wired into `apps/web/.env.local` + `apps/indexer/.env.local`
+- [x] Demo USDC mint created on Devnet: `Er8wmBzC1X3m7BwDF5fUcwnJPe5UEWzeFUJXXjzvNiGy`
+- [x] 6 demo wallets generated + each holds 50,000 USDC + 0.5 SOL
+- [x] `NEXT_PUBLIC_USDC_MINT` set in `apps/web/.env.local`
+- [x] Web app smoke-tested at `http://localhost:3000` — responds 200, mint visible on `/lend/vaults`
 
 ---
 
-## Optional / can wait
+## Currently blocking a live demo
 
-### 5. Civic Pass SDK verification — RESOLVED in Task 3.0
+### 1. Supabase `SUPABASE_SERVICE_ROLE_KEY`
+Supabase intentionally does not expose service-role keys via API or MCP — only via the dashboard.
 
-All 6 `TODO(civic-sdk-verify)` markers were closed out in Task 3.0:
+- [ ] Open [Supabase API settings](https://supabase.com/dashboard/project/ctiypfxtymnszposgaky/settings/api)
+- [ ] Copy the `service_role` key (under "Project API keys")
+- [ ] Paste into `apps/web/.env.local` (line 21) AND `apps/indexer/.env.local` (line 13) as `SUPABASE_SERVICE_ROLE_KEY=...`
+- [ ] Verify by running `pnpm --filter @vaulx/web dev` and hitting `http://localhost:3000/api/onchain-events/ticker` → should switch from `source: "seeded"` to `source: "live"`
 
-- Correct gateway program id (`gatem74V238djXdzWnJf94Wo1DcnuGkfijbf3AuBhfs`) verified against the installed `@identity.com/solana-gateway-ts` SDK + mainnet-beta account lookup. The earlier `...1GJU9` pad-to-32 was wrong; a typo in the prompt.
-- Borsh layout in `programs/{vault,loan}/src/civic.rs` reworked to include the previously-skipped `owner_identity: Option<Pubkey>` field and verified against `dist/lib/GatewayTokenData.js` schema.
-- FE imports (`useGateway`, `GatewayStatus.ACTIVE`, `GatewayProvider`, `findGatewayToken`) all verified against installed types.
-- Runtime happy-path test at `tests/civic-happy-path.spec.ts` mints a real gateway token, asserts the byte layout, revokes it, asserts the state byte flip (0 → 2). `anchor test` stays green at 35/35.
-- Devnet init helper: `pnpm init:civic --custodian <pubkey>` — see `scripts/dev/init-civic-configs.ts`. Idempotent; exits 2 (SKIPPED) when prerequisites are missing.
+### 2. Devnet program deployment
+The 4 Anchor programs only exist on localnet; no live cluster deployment yet.
 
-**Remaining user action to enable the gate live:**
-- [ ] Once you're ready to turn the gate ON in the UI, set `NEXT_PUBLIC_CIVIC_PASS_NETWORK=ignREusXmGrscGNUesoU9mxfds9AiYTezUKex2PsZV6` in `apps/web/.env.local` and run `pnpm init:civic --custodian <your-custodian-pubkey>` on Devnet.
+- **Estimated cost:** ~19 SOL (1.37 MB total `.so` × 2 for upgradeable × ~6.96 lamports/byte)
+- **Current payer balance:** 2.49 SOL → **need ~17 more SOL on the Devnet payer**
+- [ ] Top up `2HYjytRc4oKY2ndmJfAq2XdGhPqYB7VdDPLzA18QEiAH` to ≥ 20 SOL via [faucet.solana.com](https://faucet.solana.com)
+  - The faucet caps at 5 SOL per request; you may need to request 4× over a few hours, OR find a generous Devnet faucet (e.g. solfaucet.com, public RPC has 2 SOL cap, Helius doesn't airdrop on free tier)
+- [ ] After topping up, ping me and I'll run:
+  ```bash
+  PATH=/Users/gogy/.local/share/solana/install/active_release/bin:$PATH \
+    anchor deploy --provider.cluster devnet
+  ```
+  followed by `pnpm init:civic --custodian <demo-wallet-2-pubkey>` to wire the on-chain configs.
 
-### 6. Helius Devnet API key
-- Not needed for Phase 1 or Phase 2. Public `api.devnet.solana.com` is fine until rate-limited.
-- If/when needed: [helius.dev](https://www.helius.dev) → Devnet project → paste key into `apps/indexer/.env.local` as `HELIUS_API_KEY=...` and flip the RPC URL.
-
-### 7. Phase 2 design decisions (if any come up)
-- Flagged in `STATUS.md` → "Blockers / open decisions" as they arise. I'll ping you in-session if I hit a real ambiguity.
+### 3. Civic gate enable (after #2)
+- [ ] Once programs are deployed and configs initialized, set `NEXT_PUBLIC_CIVIC_PASS_NETWORK=ignREusXmGrscGNUesoU9mxfds9AiYTezUKex2PsZV6` in `apps/web/.env.local` to turn on the CAPTCHA Civic Pass gate in the UI.
 
 ---
 
-**Status file lives at:** [STATUS.md](STATUS.md)
-**Changelog:** [CHANGELOG.md](CHANGELOG.md)
+## Optional / nice-to-have
+
+### 4. Fallback demo video
+- [ ] Record `apps/web/public/demo/test-run.mp4` (the SSE runner page falls back to it when `anchor test` can't run live).
+  - QuickTime: New Screen Recording → terminal running `PATH=… COPYFILE_DISABLE=1 anchor test`. Trim to ~3 min. Export H.264.
+- [ ] Record `apps/web/public/demo/vaulx-demo.mp4` (the 3-min hackathon submission video — full 9-moment walkthrough).
+
+### 5. Vercel production deploy (Phase 4)
+- [ ] Connect the GitHub repo to a Vercel project
+- [ ] Set the env vars in the Vercel dashboard (mirror `apps/web/.env.local`)
+- [ ] Deploy `main`. The site at `vaulx.vercel.app` (or your custom domain) becomes the submission URL.
+- [ ] **Caveat:** `/admin/tests` (live `anchor test` SSE) and `/admin/demo` (cockpit) won't work on Vercel — they read local Solana CLI / demo wallets. They're local-only by design. Document this in the submission notes.
+
+---
+
+**Status file:** [STATUS.md](STATUS.md) · **Changelog:** [CHANGELOG.md](CHANGELOG.md)

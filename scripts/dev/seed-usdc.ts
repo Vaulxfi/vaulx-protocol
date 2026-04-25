@@ -10,8 +10,18 @@ const TARGET_SOL = 2 * LAMPORTS_PER_SOL;
 const TARGET_USDC = 50_000 * 1_000_000;
 const N_WALLETS = 6;
 
+function pickRpcUrl(): string {
+  // Prefer SOLANA_RPC_URL or HELIUS_API_KEY (Helius airdrops cleanly; the
+  // public devnet RPC 429s aggressively).
+  if (process.env.SOLANA_RPC_URL) return process.env.SOLANA_RPC_URL;
+  if (process.env.HELIUS_API_KEY) {
+    return `https://devnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY}`;
+  }
+  return clusterApiUrl("devnet");
+}
+
 async function main() {
-  const conn = new Connection(clusterApiUrl("devnet"), "confirmed");
+  const conn = new Connection(pickRpcUrl(), "confirmed");
 
   const homeKeyPath = `${process.env.HOME}/.config/solana/id.json`;
   if (!fs.existsSync(homeKeyPath)) {
