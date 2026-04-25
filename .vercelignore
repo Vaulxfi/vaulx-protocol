@@ -1,21 +1,37 @@
-# Things Vercel doesn't need to build the web app
-target/
-programs/
-tests/
-scripts/
-docs/
-vendor/
-apps/indexer/
-*.log
+# Allow-list approach: explicit "/*" denies everything at the root, then
+# !rules un-deny just what the Next.js build needs.
+/*
+
+# What Vercel needs:
+!apps
+apps/*
+!apps/web
+!packages
+!pnpm-workspace.yaml
+!pnpm-lock.yaml
+!package.json
+!turbo.json
+!tsconfig.base.json
+!vercel.json
+
+# Inside apps/web — strip dev artifacts
+apps/web/.next/
+apps/web/.turbo/
+apps/web/node_modules/
+apps/web/**/node_modules/
+
+# Inside packages — strip dev artifacts
+packages/*/node_modules/
+packages/*/.turbo/
+packages/*/dist/
+
+# Always ignore
+**/.git/
+**/.DS_Store
+**/*.log
+!apps/web/public/demo/test-run.log
 .env
 .env.*.local
-.git/
-.github/
-node_modules/
-**/node_modules/
-**/.next/
-**/dist/
-**/build/
 *.docx
 *.pdf
 *.png
