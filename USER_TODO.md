@@ -20,6 +20,12 @@
 - [x] Supabase `SUPABASE_SERVICE_ROLE_KEY` wired into both `.env.local` files
 - [x] Indexer (`pnpm --filter @vaulx/indexer dev`) verified live on Helius — subscribed to vault + loan + auction
 - [x] README upgraded for submission (commit `f0ca8d4`)
+- [x] Repo pushed to [github.com/gogysss/vaulx](https://github.com/gogysss/vaulx) (75 commits + 3 phase tags)
+- [x] Pre-captured `anchor test` 45-passing log committed at `apps/web/public/demo/test-run.log` — `/admin/tests` "Replay last run" button streams it on Vercel
+- [x] **Vercel production deploy LIVE → [vaulx.vercel.app](https://vaulx.vercel.app)** (commit `39e4c58`)
+  - All 9 env vars set in Vercel (production + preview)
+  - Project rootDir = `apps/web` with cd-up install/build for the pnpm monorepo
+  - Auto-deploys on every `git push origin main` going forward
 
 ---
 
