@@ -80,6 +80,46 @@ export function TestStream() {
     setStatus("idle");
   };
 
+  // Replay the pre-recorded `apps/web/public/demo/test-run.log` line-by-line
+  // at ~120 lines/s so judges on Vercel (where /api/admin/tests/stream cannot
+  // spawn anchor) still see a meaningful test trace.
+  const replayStatic = async () => {
+    esRef.current?.close();
+    setLines([]);
+    setExitCode(null);
+    setStatus("running");
+    try {
+      const res = await fetch("/demo/test-run.log", { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      const all = text.split("\n");
+      const last = Date.now();
+      // Push synchronously so the auto-scroll logic still works.
+      let buffered: Line[] = [];
+      for (let i = 0; i < all.length; i++) {
+        buffered.push({ source: "stdout", text: all[i] ?? "", at: last + i });
+        if (i % 8 === 0) {
+          // flush every 8 lines for smoothness
+          const snapshot = [...buffered];
+          setLines(snapshot);
+          await new Promise((r) => setTimeout(r, 16));
+        }
+      }
+      setLines(buffered);
+      setExitCode(0);
+      setStatus("done");
+    } catch (err) {
+      setStatus("error");
+      setLines([
+        {
+          source: "stderr",
+          text: `failed to load /demo/test-run.log — ${String(err)}`,
+          at: Date.now(),
+        },
+      ]);
+    }
+  };
+
   // Auto-scroll to newest line. Only nudge when the user is already near the
   // bottom so a judge scrolling up to inspect a failure doesn't get yanked.
   useEffect(() => {
@@ -118,9 +158,14 @@ export function TestStream() {
               Abort
             </button>
           ) : (
-            <button className="btn-gold text-xs" onClick={start}>
-              Run tests
-            </button>
+            <>
+              <button className="btn-ghost text-xs" onClick={replayStatic}>
+                Replay last run
+              </button>
+              <button className="btn-gold text-xs" onClick={start}>
+                Run live
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -130,12 +175,20 @@ export function TestStream() {
         className="h-[520px] overflow-y-auto rounded-md border border-[var(--rule)] bg-[var(--bg-elev-1)] p-4 font-mono text-xs leading-6"
       >
         {lines.length === 0 && status === "idle" && (
-          <div className="text-[var(--ink-muted)]">
-            Press &ldquo;Run tests&rdquo; to start{" "}
-            <span className="text-[var(--ink-dim)]">
-              anchor test --skip-build
-            </span>
-            .
+          <div className="space-y-2 text-[var(--ink-muted)]">
+            <div>
+              <span className="text-[var(--brand)]">Run live</span> spawns{" "}
+              <span className="text-[var(--ink-dim)]">
+                anchor test --skip-build
+              </span>{" "}
+              on the server. Local dev only.
+            </div>
+            <div>
+              <span className="text-[var(--ink-dim)]">Replay last run</span>{" "}
+              streams the static
+              <span className="font-mono"> /demo/test-run.log</span> recorded
+              from the latest green run (45 passing).
+            </div>
           </div>
         )}
         {lines.length === 0 && status === "running" && (

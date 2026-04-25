@@ -1,0 +1,114 @@
+
+Found a 'test' script in the Anchor.toml. Running it as a test suite!
+
+Running test suite: "/Users/gogy/MyCODE/VAULX/Anchor.toml"
+
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+
+
+  auction / default flow (Task 3.2)
+    ✔ test_default_kicks_off_auction (7683ms)
+    ✔ test_not_yet_defaulted_reverts (7156ms)
+    ✔ test_bid_monotonic (12537ms)
+    ✔ test_close_auction_liquidates_trdc (12701ms)
+    ✔ test_winning_bid_recovers_vault_capital (12108ms)
+    ✔ test_auction_close_no_bids_still_liquidates (11730ms)
+
+  bootstrap
+loan ping tx: 61473gsN1ad45RbaT81K5251etYKmqAPg2mMKkqPu4zJrpTRYS63n355gs4AbxprPoiFKEJFvcgSFwXdhK6UGZDc
+auction ping tx: SsRGzpPKwFDZeEH78S6sMXf9yFWJxSYhMjMqdLG1d3NfwEpKKSQB5W5f8REHTKr9z11YFG1k73dESpLcQCi5GGq
+    ✔ pings loan/auction programs (940ms)
+
+  civic-gate / on-chain plumbing (Task 2.6.5)
+    ✔ vault_config PDA is derivable at [b"vault_config"] and defaults to gate-off
+    ✔ loan_config carries a civic_network field (default = gate disabled) (481ms)
+
+  civic-gate / deposit path rejects invalid gateway when enabled
+    ✔ test_deposit_rejects_without_civic_pass (smoke: error code registered)
+
+  civic-gate / create_ccb_trdc path rejects invalid gateway when enabled
+    ✔ test_ccb_create_rejects_without_civic_pass (smoke: error code registered)
+
+  civic-happy-path / runtime SDK verification (Task 3.0)
+    ✔ test_civic_gate_allows_with_valid_token (1748ms)
+    ✔ test_civic_gate_rejects_after_revoke (2350ms)
+
+  loan / confirm_custody
+    ✔ test_confirm_custody_only_by_custodian — non-custodian signer reverts (920ms)
+    ✔ test_confirm_custody_writes_doc_hash — happy path writes hash + transitions to ActiveInCustody (917ms)
+
+  loan / disburse_from_vault — CPI-only gate (Task 2.2)
+    ✔ test_disburse_fails_when_custody_not_confirmed (5118ms)
+    ✔ test_disburse_fails_with_unauthorized_caller (6043ms)
+    ✔ test_disburse_happy_path — 50k of 100k vault liquidity, event emitted (6048ms)
+
+  loan / create_ccb_trdc
+    ✔ test_ltv_enforced_at_mint — 61% LTV is rejected with LtvTooHigh
+    ✔ test_create_ccb_trdc_happy_path — 59% accepted, TRDCState in PendingCustody with non-default asset_id (461ms)
+    ✔ test_ltv_exactly_at_limit_accepted — 60.00% LTV (60k/100k USDC @ 6dp) succeeds (458ms)
+    ✔ test_ccb_create_requires_nonzero_amount — loan_amount=0 reverts with ZeroAmount
+
+  moment 1 / e2e happy path
+SKIPPED: missing SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) and/or SUPABASE_SERVICE_ROLE_KEY
+npm warn Unknown env config "verify-deps-before-run". This will stop working in the next major version of npm.
+npm warn Unknown env config "manage-package-manager-versions". This will stop working in the next major version of npm.
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+    - deposit -> indexer -> Supabase
+
+  moments 2+3+4 / e2e happy path
+SKIPPED: missing SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) and/or SUPABASE_SERVICE_ROLE_KEY
+npm warn Unknown env config "verify-deps-before-run". This will stop working in the next major version of npm.
+npm warn Unknown env config "manage-package-manager-versions". This will stop working in the next major version of npm.
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+    - create_ccb_trdc -> confirm_custody -> disburse_from_vault
+
+  moments 5-9 / e2e happy path
+SKIPPED: missing SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) and/or SUPABASE_SERVICE_ROLE_KEY
+npm warn Unknown env config "verify-deps-before-run". This will stop working in the next major version of npm.
+npm warn Unknown env config "manage-package-manager-versions". This will stop working in the next major version of npm.
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+    - pay -> renew -> repay then default -> auction -> bid -> close
+
+  loan / repayment + renewal lifecycle (Task 3.1)
+    ✔ test_pay_installment_reduces_principal (7034ms)
+    ✔ test_repay_ccb_transitions_to_repaid (6993ms)
+    ✔ test_renew_ccb_extends_due_ts (7006ms)
+    ✔ test_payoff_math_matches_terms_package (6999ms)
+
+  trdc / initialize_trdc_state
+    ✔ creates a TRDCState PDA in PendingCustody (454ms)
+    ✔ rejects second initialize for same loan_id (479ms)
+
+  trdc / transitions
+    ✔ enforces the transition table (113717ms)
+    ✔ test_trdc_state_transition_rejects_illegal — PendingCustody -> Liquidated reverts with InvalidStateTransition (469ms)
+
+  trdc / mint_trdc_cnft
+    ✔ writes a deterministic non-default asset_id (1416ms)
+    ✔ test_mint_trdc_cnft_writes_stable_asset_id — asset_id equals SHA-256(loan_id || asset_hint) and is stable across calls (1452ms)
+
+  vault / initialize_vault
+    ✔ initializes vault with share_mint owned by the vault PDA (488ms)
+    ✔ cannot initialize twice for the same asset_mint
+
+  vault / deposit
+    ✔ test_first_deposit_is_one_to_one (483ms)
+    ✔ test_second_deposit_rounds_down (1442ms)
+    ✔ test_vault_share_accounting (1428ms)
+    ✔ rejects zero amount deposit
+    ✔ test_deposit_rejects_zero_amount — deposit(0) reverts with ZeroAmount
+
+  vault / withdraw
+    ✔ roundtrips deposit + withdraw within 1 lamport (2844ms)
+    ✔ withdraw more shares than owned reverts (2371ms)
+    ✔ test_withdraw_rejects_over_balance — shares > total_shares reverts with InsufficientVaultLiquidity (2379ms)
+
+  vault / events
+    ✔ deposit emits a Deposited event (5280ms)
+    ✔ test_deposited_event_fields_match — every field in the deposited event matches post-deposit state (3762ms)
+    ✔ test_vault_pda_derivation_is_deterministic — same seeds yield the same PDA, and initialized account is owned by the vault program (951ms)
+
+
+  45 passing (5m)
+  3 pending
+

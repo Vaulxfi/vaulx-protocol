@@ -2,6 +2,7 @@
 *.gif
 *.cast
 *.mov
-# keep the README
+# keep the README + log fallback
 !README.md
 !.gitignore
+!test-run.log
