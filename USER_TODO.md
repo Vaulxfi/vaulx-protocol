@@ -15,31 +15,34 @@
 
 ---
 
+## ✅ Done as of 2026-04-25 (continued)
+
+- [x] Supabase `SUPABASE_SERVICE_ROLE_KEY` wired into both `.env.local` files
+- [x] Indexer (`pnpm --filter @vaulx/indexer dev`) verified live on Helius — subscribed to vault + loan + auction
+- [x] README upgraded for submission (commit `f0ca8d4`)
+
+---
+
 ## Currently blocking a live demo
 
-### 1. Supabase `SUPABASE_SERVICE_ROLE_KEY`
-Supabase intentionally does not expose service-role keys via API or MCP — only via the dashboard.
-
-- [ ] Open [Supabase API settings](https://supabase.com/dashboard/project/ctiypfxtymnszposgaky/settings/api)
-- [ ] Copy the `service_role` key (under "Project API keys")
-- [ ] Paste into `apps/web/.env.local` (line 21) AND `apps/indexer/.env.local` (line 13) as `SUPABASE_SERVICE_ROLE_KEY=...`
-- [ ] Verify by running `pnpm --filter @vaulx/web dev` and hitting `http://localhost:3000/api/onchain-events/ticker` → should switch from `source: "seeded"` to `source: "live"`
-
-### 2. Devnet program deployment
+### 1. Devnet program deployment
 The 4 Anchor programs only exist on localnet; no live cluster deployment yet.
 
-- **Estimated cost:** ~19 SOL (1.37 MB total `.so` × 2 for upgradeable × ~6.96 lamports/byte)
-- **Current payer balance:** 2.49 SOL → **need ~17 more SOL on the Devnet payer**
-- [ ] Top up `2HYjytRc4oKY2ndmJfAq2XdGhPqYB7VdDPLzA18QEiAH` to ≥ 20 SOL via [faucet.solana.com](https://faucet.solana.com)
-  - The faucet caps at 5 SOL per request; you may need to request 4× over a few hours, OR find a generous Devnet faucet (e.g. solfaucet.com, public RPC has 2 SOL cap, Helius doesn't airdrop on free tier)
-- [ ] After topping up, ping me and I'll run:
-  ```bash
-  PATH=/Users/gogy/.local/share/solana/install/active_release/bin:$PATH \
-    anchor deploy --provider.cluster devnet
-  ```
-  followed by `pnpm init:civic --custodian <demo-wallet-2-pubkey>` to wire the on-chain configs.
+- **Cost (verified via `solana rent`):**
+  - Upgradeable: **19.09 SOL** (4 programs × buffer-doubled rent)
+  - **Final** (`--final`, non-upgradeable, recommended for hackathon): **9.55 SOL**
+  - Per-program (final): trdc 1.75 / vault 2.61 / loan 3.00 / auction 2.19
+- **Current payer balance:** 2.49 SOL → **need ≥ 8 SOL more**
+- **Faucets available:**
+  - [faucet.solana.com](https://faucet.solana.com) — 2 SOL per request, throttled
+  - [solfaucet.com](https://solfaucet.com) — 1 SOL per IP per day
+  - QuickNode Devnet faucet — 1 SOL daily
+  - Reasonable plan: claim 2 SOL/day from `faucet.solana.com` for ~4 days, OR ~1 day if you can hit 2-3 different faucets in parallel
 
-### 3. Civic gate enable (after #2)
+- [ ] Top up `2HYjytRc4oKY2ndmJfAq2XdGhPqYB7VdDPLzA18QEiAH` to **≥ 10 SOL** (gives a buffer for the deploy + future tx fees)
+- [ ] Ping me when done. I'll deploy in priority order: trdc → vault → loan → auction with `solana program deploy --final`, then run `pnpm init:civic --custodian <demo-wallet-2-pubkey>`.
+
+### 2. Civic gate enable (after #1)
 - [ ] Once programs are deployed and configs initialized, set `NEXT_PUBLIC_CIVIC_PASS_NETWORK=ignREusXmGrscGNUesoU9mxfds9AiYTezUKex2PsZV6` in `apps/web/.env.local` to turn on the CAPTCHA Civic Pass gate in the UI.
 
 ---
