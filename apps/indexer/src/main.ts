@@ -1,8 +1,25 @@
-import "dotenv/config";
+import { config as loadDotenv } from "dotenv";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+// Load `.env.local` first (developer override), then `.env` (defaults). Both
+// relative to apps/indexer/.
+const __indexerDir = path.dirname(fileURLToPath(import.meta.url));
+loadDotenv({ path: path.resolve(__indexerDir, "..", ".env.local") });
+loadDotenv({ path: path.resolve(__indexerDir, "..", ".env") });
+
 import { Connection, PublicKey } from "@solana/web3.js";
 import { BorshCoder, EventParser, type Idl } from "@coral-xyz/anchor";
-import { vaultIdl, loanIdl, auctionIdl } from "@vaulx/idls";
+import { createRequire } from "node:module";
 import { insertEvent } from "./supabase.js";
+
+// Load IDL JSONs via createRequire to sidestep a Node 24 ESM regression where
+// re-exported JSON named-exports from @vaulx/idls fail at module-instantiation
+// with "does not provide an export named 'auctionIdl'". This bypasses the
+// barrel and reads the JSONs directly from the workspace package.
+const require = createRequire(import.meta.url);
+const vaultIdl = require("@vaulx/idls/src/vault.json");
+const loanIdl = require("@vaulx/idls/src/loan.json");
+const auctionIdl = require("@vaulx/idls/src/auction.json");
 
 // Phase 3 scope (Task 3.5): subscribe to vault + loan + auction logs. trdc
 // remains indirect (its events arrive through the programs that CPI into it).
