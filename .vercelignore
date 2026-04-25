@@ -1,0 +1,43 @@
+# Things Vercel doesn't need to build the web app
+target/
+programs/
+tests/
+scripts/
+docs/
+vendor/
+apps/indexer/
+*.log
+.env
+.env.*.local
+.git/
+.github/
+node_modules/
+**/node_modules/
+**/.next/
+**/dist/
+**/build/
+*.docx
+*.pdf
+*.png
+*.html
+00_*.md
+01_*.md
+02_*.md
+03_*.md
+GarantiFi*
+LINEAR*
+REPORT*
+VAULX_*.md
+VAULX_*.pdf
+Vaulx*.docx
+"Action Plan to be.md"
+"garantifi meeting 1.md"
+"vaulx-brand-vote*"
+final_merged.csv
+"Gemini_Generated*"
+business-model*
+edson_technical_brief*
+garantifi-business*
+garantifi-deck*
+garantifi-spec*
+"vaulx - logo simple.png"
