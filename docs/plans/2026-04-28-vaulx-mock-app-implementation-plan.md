@@ -958,30 +958,63 @@ git commit -m "feat(demo): single-CTA Crossmint wallet (Civic + Crossmint as the
 - Create: `apps/web/src/app/demo/borrow/register/page.tsx`
 
 **Step 1:** Implement page (RHF + Zod, mirror existing `/borrow/new/asset` pattern). Key behavior:
-- Make/model/ref/year/condition fields
-- Up to 3 photo upload via FileReader → data-URL → store in `session.watch.photos`
-- "Continue" advances to `/demo/borrow/appraisal`
+- Make (select w/ presets + "Other" → free-text) / model / ref / year (1950..now) / condition (radio: mint/excellent/very_good/good)
+- 3-slot photo upload via `FileReader.readAsDataURL` → store data URLs in `session.watch.photos`
+- Read/write session via the post-fix `useDemoSession()` shape: `const { session, patch } = useDemoSession()` where `session: DemoSession | null` and `patch((prev) => DemoSession)` is a functional updater
+- On submit: `patch` watch info into session, then `router.push("/demo/borrow/appraisal/" + crypto.randomUUID())`
+- Wrap in `<DemoShell formFactor="phone">`; eyebrow "Step 5 / 14 · Asset" + "Register your watch."
 
 **Step 2:** Build + commit:
 ```bash
 pnpm --filter @vaulx/web build 2>&1 | tail -3
 git add apps/web/src/app/demo/borrow/register/
-git commit -m "feat(demo): /demo/borrow/register — watch + photos form"
+git commit -m "feat(demo): /demo/borrow/register — watch form + 3-photo upload"
 ```
 
-### Task 2.2: `/demo/borrow/appraisal` triangulation reveal
+### Task 2.2: `/demo/borrow/appraisal/[reqId]` triangulation reveal
 
 **Files:**
-- Create: `apps/web/src/app/demo/borrow/appraisal/page.tsx`
+- Create: `apps/web/src/app/demo/borrow/appraisal/[reqId]/page.tsx`
 
-**Step 1:** Page reads `session.watch`, calls `POST /api/appraisal`, animates a sequential reveal: Chrono24 → WatchCharts → Vaulx Model → median (200ms stagger).
+**Step 1:** Page reads `session.watch` via `useDemoSession()` (redirect to `/demo/borrow/register` if missing), calls `POST /api/appraisal` with `{make, model, ref, year, condition}`, animates a sequential reveal: Chrono24 (t=0) → WatchCharts (t=200ms) → Vaulx Model (t=400ms) → median card with scale-bump (t=700ms). Each source card shows source name, mono-formatted value, status pill (`LIVE` / `FALLBACK` / `ERROR`).
 
-**Step 2:** Persist `watch.appraisal` + generate `watch.priceHistory` (24-point random walk from median).
+**Step 2:** Persist via `patch`:
+- `session.watch.appraisal = { chrono24, watchcharts, internal, median }` (numbers only — pull `.value` off each `SourceResult`, falling back to median if a source failed)
+- `session.watch.priceHistory` = 24-point random walk seeded from `session.sessionId` (deterministic mulberry32 PRNG so refreshes are stable). Walk parameters: ±2% per hour, clamped to ±8% over 24h. First element = median.
 
-**Step 3:** Build + commit:
+```ts
+function priceHistoryFrom(median: number, sessionId: string): number[] {
+  let seed = 0;
+  for (let i = 0; i < sessionId.length; i++) {
+    seed = (seed * 31 + sessionId.charCodeAt(i)) >>> 0;
+  }
+  const rand = () => {
+    seed = (seed + 0x6d2b79f5) >>> 0;
+    let t = seed;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const points: number[] = [median];
+  let lastFactor = 1;
+  for (let i = 1; i < 24; i++) {
+    const step = (rand() - 0.5) * 0.04;            // ±2% step
+    let nextFactor = lastFactor + step;
+    nextFactor = Math.max(0.92, Math.min(1.08, nextFactor)); // clamp ±8%
+    points.push(Math.round(median * nextFactor));
+    lastFactor = nextFactor;
+  }
+  return points;
+}
+```
+
+**Step 3:** "Continue with this appraisal" routes to `/demo/borrow/loan-offer/<reqId>` — note this route does not exist until Phase 3 Task 3.2 builds it. Until then the link 404s; that's acceptable. "Start over" routes back to `/demo/borrow/register`. Eyebrow "Step 6 / 14 · Appraisal" + "Three sources. One number."
+
+**Step 4:** Build + commit:
 ```bash
+pnpm --filter @vaulx/web build 2>&1 | tail -3
 git add apps/web/src/app/demo/borrow/appraisal/
-git commit -m "feat(demo): /demo/borrow/appraisal — triangulation reveal + price history seed"
+git commit -m "feat(demo): /demo/borrow/appraisal/[reqId] — triangulation reveal + 24h price history seed"
 ```
 
 ---
