@@ -1336,62 +1336,44 @@ Both wrapped in `<DemoShell formFactor="phone">`. Editorial pattern (eyebrow + d
 
 ## Phase 7 — Lender side (Day 8, May 5)
 
-### Task 7.1: `/demo/lend` operator dashboard
+### Task 7.1: `/demo/lend` operator dashboard — SHIPPED
 
 **Files:**
-- Create: `apps/web/src/app/demo/lend/page.tsx`
-- Create: `apps/web/src/app/demo/_fixtures/kamino-tranches.ts`
+- `apps/web/src/app/demo/lend/page.tsx`
+- `apps/web/src/app/demo/_fixtures/vault-tranches.ts`
 
-**Step 1:** 4 tranche tiles: Inst-USDC, Inst-BRL, Retail-FIDC-USDC, Retail-FIDC-BRL. Each with TVL, APY, current LTV health, "Deposit" CTA.
+Desktop `<DemoShell formFactor="desktop">`. Eyebrow `VAULX · LENDER PROTOCOL`. Fraunces hero `Four vaults. Two currencies. One credit thesis.` Lead paragraph contrasts BR rate spread (Selic 7%+ → formal-sector 40%+ → Vaulx 26% / 11%) — uses generic "TradFi physical-collateral lenders", not Caixa Penhor. Stat strip (Total TVL, Active TRDCs 47, Avg LTV 47.3%, Avg Borrower APR 26%). 2×2 tranche grid linking to `/demo/lend/vaults/[id]`. Secondary CTAs: `/demo/lend/onboard`, `/demo/lend/liquidity`.
 
-**Step 2:** Commit.
-
-### Task 7.2: `/demo/lend/onboard` Tokeny ERC-3643 mock
+### Task 7.2: `/demo/lend/onboard` accredited LP KYB — SHIPPED
 
 **Files:**
-- Create: `apps/web/src/app/demo/lend/onboard/page.tsx`
+- `apps/web/src/app/demo/lend/onboard/page.tsx`
 
-**Step 1:** Multi-step KYB form for accredited LP onboarding. Fully mocked.
+4-step Tokeny ERC-3643 mock. Step 1 entity (5 options); step 2 jurisdiction (BR/EU/US/Cayman/Singapore/Other); step 3 AUM range; step 4 confirm + submit (2s spinner → pre-approval). 640px column inside desktop shell. `<MockBadge partner="Tokeny ERC-3643" />`. Footer disclosure on FIDC retail wrapper vs ERC-3643 institutional path.
 
-**Step 2:** Commit.
-
-### Task 7.3: `/demo/lend/vaults/[id]` detail
+### Task 7.3: `/demo/lend/vaults/[id]` detail — SHIPPED
 
 **Files:**
-- Create: `apps/web/src/app/demo/lend/vaults/[id]/page.tsx`
+- `apps/web/src/app/demo/lend/vaults/[id]/page.tsx`
 
-**Step 1:** Vault detail: TVL chart, APY history, current LTV health gauge, deposit form (mock submit).
+Editorial 7/5 split. Left: tranche name (Fraunces), big APY + TVL numerals, deterministic 60-point sparkline (seeded by id), 4-stat strip (30D Flow, Active loans, Avg LTV, Reserve), 5 pseudonymized recent events (`vaulx-lp-NN`). Right: deposit form with amount input, estimated APY, 2s spinner → toast confirmation. `<MockBadge partner="Vault deposit" />`. `notFound()` on unknown id.
 
-**Step 2:** Commit.
-
-### Task 7.4: `/demo/lend/liquidity` — 3-tier liquidity stack visualization
+### Task 7.4: `/demo/lend/liquidity` — 3-tier liquidity stack — SHIPPED
 
 **Files:**
-- Create: `apps/web/src/app/demo/lend/liquidity/page.tsx`
+- `apps/web/src/app/demo/lend/liquidity/page.tsx`
 
-**Framing (drop the old "Kamino + Plume side-by-side" treatment):** Render a 3-tier liquidity stack that puts anchor capital relationships in the foreground and infrastructure rails in the background.
+Hero: `VAULX · LIQUIDITY ROUTING` eyebrow + Fraunces heading `Liquidity does not come from protocols. It comes from relationships.` Lead paragraph frames Kamino V2 + Plume Nest as infrastructure rails, not capital sources, and Vaulx bootstrapping via 2-3 anchor relationships toward $5–10M TVL.
 
-**Caption at top of page:**
-> "$5–10M target launch TVL — closed manually via 2-3 anchor relationships. Kamino V2 + Plume Nest = infrastructure rails, not capital sources."
+Stat strip: `$5–10M` target launch TVL · `2–3` anchor relationships · `3 tiers` liquidity stack.
 
-**Tier 1 (foreground — 3 anchor capital relationship tiles, large, P1 status):**
-- Re7 Labs — vault curator (accessed via Kamino V2)
-- MEV Capital — vault curator (accessed via Kamino V2)
-- Mercado Bitcoin OR Transfero — BR institutional anchor lender
+**Tier 1 (foreground, brass-bordered):** four anchor capital tiles — Re7 Labs, MEV Capital (each with `via Kamino V2` subscript), Mercado Bitcoin, Transfero. Each renders an inline `MOCK · <partner> · agreement pending` chip.
 
-**Tier 2 (middle — 1 tile, P1):**
-- Crypto-native credit facility (TBD specific name)
+**Tier 2 (middle, brass-bordered, narrower 52% column):** TBD crypto-native credit facility tile.
 
-**Tier 3 (background — INFRASTRUCTURE substrate, smaller tiles, dashed connection lines linking back to Tier 1 curators):**
-- Kamino V2 — curator marketplace where Re7 + MEV deploy capital
-- Plume Nest — later-stage institutional issuance, post-launch
+**Tier 3 (background, dashed `--rule-strong` borders, ~70% opacity):** Kamino V2 (LIVE INFRASTRUCTURE) and Plume Nest (LATER-STAGE pill).
 
-**Tier 3 caption beneath the tiles:**
-> "Kamino V2 — curator marketplace where Re7 + MEV deploy capital. Plume Nest — later-stage institutional issuance, post-launch."
-
-**Step 1:** Build the 3-tier layout described above. Hover any node → tooltip with role + status (P1 / P2 / infrastructure). Re7 + MEV tiles include a small "via Kamino V2" subscript with a dashed line drawn to the Kamino V2 substrate tile in Tier 3.
-
-**Step 2:** Commit.
+Footer note reinforces: rails provide market venues + curator frameworks; Vaulx closes capital relationships manually then connects them to these rails.
 
 ---
 
