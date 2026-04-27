@@ -1019,86 +1019,99 @@ git commit -m "feat(demo): /demo/borrow/appraisal/[reqId] — triangulation reve
 
 ---
 
-## Phase 3 — Loan offer + Custody (Day 4, May 1)
+## Phase 3 — Loan offer + Custody (Day 4, May 1) — SHIPPED
 
-### Task 3.1: `<CcbDocument>` with signature pad
+### Task 3.1: `<CcbDocument>` with signature pad ✅
 
 **Files:**
-- Create: `apps/web/src/app/demo/_components/ccb-document.tsx`
-- Test: `apps/web/src/app/demo/_components/__tests__/ccb-document.test.ts`
+- Created: `apps/web/src/app/demo/_components/ccb-document.tsx`
 
-**Step 1:** Write a test that the signature pad produces a non-empty data-URL on `getSignature()`.
+**As shipped:** stylized HTML document card (NOT inline PDF preview) showing borrower / asset / terms / live SHA-256, an inline `<canvas width=300 height=120>` signature pad driven by `pointer*` events (mouse + touch), and a "Sign and continue" button that returns:
 
-**Step 2:** Implement:
-- Use existing `@vaulx/ccb`'s `generateCcbPdf` for the PDF
-- Add a `<canvas width=300 height=120>` for signature
-- On submit: hash the signature image bytes, append to PDF Keywords metadata, regenerate PDF
-- Return `{ pdfBytes, signatureDataUrl, ccbHashHex }`
+```ts
+type SignedResult = {
+  pdfBytes: Uint8Array;
+  signatureDataUrl: string;  // canvas.toDataURL("image/png")
+  ccbHashHex: string;        // hashCcb(pdfBytes).hex
+};
+```
 
-**Step 3:** Run test, verify pass.
+PDF is generated via `generateCcbPdf` from `@vaulx/ccb`; preview hash is computed on every `ccb` change so the user can see the digest update as they tweak terms. No appended-keywords step beyond what `@vaulx/ccb` already does.
 
-**Step 4:** Commit:
 ```bash
-git add apps/web/src/app/demo/_components/ccb-document.tsx apps/web/src/app/demo/_components/__tests__/
 git commit -m "feat(demo): <CcbDocument> — PDF + canvas signature pad"
 ```
 
-### Task 3.2: `/demo/borrow/loan-offer` page
+### Task 3.2: `/demo/borrow/loan-offer/[reqId]` page ✅
 
 **Files:**
-- Create: `apps/web/src/app/demo/borrow/loan-offer/page.tsx`
+- Created: `apps/web/src/app/demo/borrow/loan-offer/[reqId]/page.tsx`
 
-**Step 1:** Page:
-- LTV slider 10-60%, term radio 30/60/90d, computed rate from `@vaulx/terms::rateForTermDays`
-- Embeds `<CcbDocument>`; on submit persists `session.loan` with all fields
+**As shipped:** dynamic route (matches the `[reqId]` produced by the appraisal page). Reads `session.watch.appraisal.median`; redirects to `/demo/borrow/register` if missing. LTV slider 10–60% (default 50), term radios 30/60/90d, rate via `rateForTermDays(termDays)`. Editorial 5/7 grid: terms form left, `<CcbDocument>` right.
 
-**Step 2:** Commit:
-```bash
-git add apps/web/src/app/demo/borrow/loan-offer/
-git commit -m "feat(demo): /demo/borrow/loan-offer — LTV/term/rate + CCB e-sign"
-```
+`CcbInput` is built with `BigInt(...)` for atom fields. `issuedAtTs` is captured once per page mount so the preview hash matches the signed-PDF hash. On `onSigned` we persist:
 
-### Task 3.3: `/demo/borrow/custody` calendar mock
-
-**Files:**
-- Create: `apps/web/src/app/demo/borrow/custody/page.tsx`
-- Create: `apps/web/src/app/demo/_fixtures/custodian-slots.ts`
-
-**Step 1:** Fixtures:
 ```ts
-// custodian-slots.ts
-export const CUSTODIANS = [
-  { id: "brinks", name: "Brinks SP", address: "Av. Paulista 1234, São Paulo" },
-  { id: "prosegur", name: "Prosegur SP", address: "R. da Consolação 56, São Paulo" },
-  { id: "loomis", name: "Loomis SP", address: "Av. Brigadeiro 789, São Paulo" },
-];
+patch((s) => ({
+  ...s,
+  loan: {
+    loanId: crypto.randomUUID(),
+    principalAtoms: loanAmountAtoms.toString(),
+    rateBps, termDays, dueTs,
+    ccbHashHex, signatureDataUrl,
+    custody: { provider: "brinks" }, // overwritten on next page
+    inAppBalanceAtoms: "0",
+  },
+}));
+router.push("/demo/borrow/custody");
+```
 
+```bash
+git commit -m "feat(demo): /demo/borrow/loan-offer/[reqId] — LTV/term/rate + CCB e-sign"
+```
+
+### Task 3.3: `/demo/borrow/custody` calendar mock ✅
+
+**Files:**
+- Created: `apps/web/src/app/demo/borrow/custody/page.tsx`
+- Created: `apps/web/src/app/demo/_fixtures/custodian-slots.ts`
+
+**Fixtures (as shipped):**
+```ts
+export const CUSTODIANS = [
+  { id: "brinks",   name: "Brinks",   city: "São Paulo", blurb: "Class III vault · armored transit · 24/7 IoT." },
+  { id: "prosegur", name: "Prosegur", city: "São Paulo", blurb: "Tier-1 logistics · biometric vault access." },
+  { id: "loomis",   name: "Loomis",   city: "São Paulo", blurb: "Insured high-value transit · CCTV mirror feed." },
+];
 export const SLOTS = [
-  "Tomorrow 09:00", "Tomorrow 14:30", "Tomorrow 17:00",
-  "Day after 10:00", "Day after 15:30",
+  "Tomorrow · 09:00", "Tomorrow · 11:30", "Tomorrow · 14:30",
+  "Tomorrow · 16:00", "Day after · 10:00",
 ];
 ```
 
-**Step 2:** Page: pick custodian + slot → persist `loan.custody.{provider, bookedSlot}` → advance.
+Two-step picker (custodian tile → slot grid). On submit: persists `loan.custody.{provider, bookedSlot}` and pushes to `/demo/borrow/awaiting-custody/<crypto.randomUUID()>` (the placeholder TRDC PDA).
 
-**Step 3:** Commit:
 ```bash
-git add apps/web/src/app/demo/borrow/custody/ apps/web/src/app/demo/_fixtures/custodian-slots.ts
 git commit -m "feat(demo): /demo/borrow/custody — custodian + slot picker"
 ```
 
-### Task 3.4: `/demo/borrow/awaiting-custody` with IoT loop
+### Task 3.4: `/demo/borrow/awaiting-custody/[trdc]` with IoT placeholder ✅
 
 **Files:**
-- Create: `apps/web/src/app/demo/borrow/awaiting-custody/page.tsx`
-- Asset: `apps/web/public/demo/iot-feed.mp4` (royalty-free 4-sec vault loop, ≤2MB; user provides or scaffold a placeholder)
+- Created: `apps/web/src/app/demo/borrow/awaiting-custody/[trdc]/page.tsx`
+- Created: `apps/web/public/demo/iot-feed-placeholder.svg` (animated SVG vault interior with scanline + watch silhouette)
 
-**Step 1:** Page shows looping muted `<video>` with `📡 LIVE` badge. After 4 seconds (or button), simulates custodian sign → `loan.custody.confirmedAt = Date.now()` → enables "Continue" link to disburse.
+**Deviation from original plan:** real `iot-feed.mp4` was not available, so we ship an animated SVG placeholder instead. USER_TODO has an item to swap in a 4-second royalty-free vault video at `apps/web/public/demo/iot-feed.mp4` later.
 
-**Step 2:** Commit:
+**Auto-progression timing (3 stages, total ~3s):**
+- 0ms — `inspecting` ("Custodian inspecting…")
+- 1500ms — `signing` ("Custodian signing…")
+- 3000ms — `confirmed` ("Custody confirmed") → persists `loan.custody.confirmedAt = Date.now()`
+
+User can also click "Skip wait" to jump to `confirmed`. On confirm, the CTA flips to a "Continue → Disburse" link pointing at `/demo/borrow/disburse` (Phase 4 Task 4.1, doesn't exist yet — link 404s until that lands).
+
 ```bash
-git add apps/web/src/app/demo/borrow/awaiting-custody/ apps/web/public/demo/iot-feed.mp4
-git commit -m "feat(demo): /demo/borrow/awaiting-custody — IoT feed loop + sign"
+git commit -m "feat(demo): /demo/borrow/awaiting-custody/[trdc] — IoT feed placeholder + auto custody flip"
 ```
 
 ---

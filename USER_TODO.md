@@ -84,6 +84,10 @@ The 4 Anchor programs only exist on localnet; no live cluster deployment yet.
   - QuickTime: New Screen Recording → terminal running `PATH=… COPYFILE_DISABLE=1 anchor test`. Trim to ~3 min. Export H.264.
 - [ ] Record `apps/web/public/demo/vaulx-demo.mp4` (the 3-min hackathon submission video — full 9-moment walkthrough).
 
+### Demo media — IoT feed loop
+
+- [ ] Provide a 4-second royalty-free vault-interior video at `apps/web/public/demo/iot-feed.mp4` (≤ 2MB H.264). Demo currently uses an SVG/CSS placeholder at `apps/web/public/demo/iot-feed-placeholder.svg`.
+
 ### 5. Vercel production deploy (Phase 4)
 - [ ] Connect the GitHub repo to a Vercel project
 - [ ] Set the env vars in the Vercel dashboard (mirror `apps/web/.env.local`)
