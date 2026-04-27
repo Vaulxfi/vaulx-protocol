@@ -62,15 +62,10 @@ The 4 Anchor programs only exist on localnet; no live cluster deployment yet.
   - Upgradeable: **19.09 SOL** (4 programs × buffer-doubled rent)
   - **Final** (`--final`, non-upgradeable, recommended for hackathon): **9.55 SOL**
   - Per-program (final): trdc 1.75 / vault 2.61 / loan 3.00 / auction 2.19
-- **Current payer balance:** 2.49 SOL → **need ≥ 8 SOL more**
-- **Faucets available:**
-  - [faucet.solana.com](https://faucet.solana.com) — 2 SOL per request, throttled
-  - [solfaucet.com](https://solfaucet.com) — 1 SOL per IP per day
-  - QuickNode Devnet faucet — 1 SOL daily
-  - Reasonable plan: claim 2 SOL/day from `faucet.solana.com` for ~4 days, OR ~1 day if you can hit 2-3 different faucets in parallel
+- **Current payer balance:** 35 SOL ✅ (sufficient for `--final` deploy with 25 SOL buffer)
 
-- [ ] Top up `2HYjytRc4oKY2ndmJfAq2XdGhPqYB7VdDPLzA18QEiAH` to **≥ 10 SOL** (gives a buffer for the deploy + future tx fees)
-- [ ] Ping me when done. I'll deploy in priority order: trdc → vault → loan → auction with `solana program deploy --final`, then run `pnpm init:civic --custodian <demo-wallet-2-pubkey>`.
+- [x] Top up `2HYjytRc4oKY2ndmJfAq2XdGhPqYB7VdDPLzA18QEiAH` to ≥ 10 SOL (you have 35)
+- [ ] **Trigger:** code-review/audit pass on the 4 Anchor programs first, then ping me to run `solana program deploy --final` for trdc → vault → loan → auction, then `pnpm init:civic --custodian <demo-wallet-2-pubkey>`. <30 min execution time.
 
 ### 2. Civic gate enable (after #1)
 - [ ] Once programs are deployed and configs initialized, set `NEXT_PUBLIC_CIVIC_PASS_NETWORK=ignREusXmGrscGNUesoU9mxfds9AiYTezUKex2PsZV6` in `apps/web/.env.local` to turn on the CAPTCHA Civic Pass gate in the UI.
@@ -79,20 +74,32 @@ The 4 Anchor programs only exist on localnet; no live cluster deployment yet.
 
 ## Optional / nice-to-have
 
-### 4. Fallback demo video
+### Fallback demo videos
 - [ ] Record `apps/web/public/demo/test-run.mp4` (the SSE runner page falls back to it when `anchor test` can't run live).
   - QuickTime: New Screen Recording → terminal running `PATH=… COPYFILE_DISABLE=1 anchor test`. Trim to ~3 min. Export H.264.
-- [ ] Record `apps/web/public/demo/vaulx-demo.mp4` (the 3-min hackathon submission video — full 9-moment walkthrough).
+- [ ] Record `apps/web/public/demo/vaulx-demo.mp4` (the 3-min hackathon submission video — full borrower + lender + auction walkthrough using the `/demo` mock app).
 
 ### Demo media — IoT feed loop
+- [ ] Provide a 4-second royalty-free vault-interior video at `apps/web/public/demo/iot-feed.mp4` (≤ 2MB H.264). Demo currently uses an SVG placeholder at `apps/web/public/demo/iot-feed-placeholder.svg`.
 
-- [ ] Provide a 4-second royalty-free vault-interior video at `apps/web/public/demo/iot-feed.mp4` (≤ 2MB H.264). Demo currently uses an SVG/CSS placeholder at `apps/web/public/demo/iot-feed-placeholder.svg`.
+### Vercel production deploy — DONE ✅
+- [x] Connected GitHub repo `gogysss/vaulx` to Vercel project
+- [x] All env vars set in production + preview
+- [x] Live at [vaulx.vercel.app](https://vaulx.vercel.app) and [vaulx.vercel.app/demo](https://vaulx.vercel.app/demo) — auto-deploys on every `git push origin main`
+- [x] Caveat documented: `/admin/tests` (live `anchor test` SSE) and `/admin/demo` (cockpit) are local-only by design (read local Solana CLI / demo wallets)
 
-### 5. Vercel production deploy (Phase 4)
-- [ ] Connect the GitHub repo to a Vercel project
-- [ ] Set the env vars in the Vercel dashboard (mirror `apps/web/.env.local`)
-- [ ] Deploy `main`. The site at `vaulx.vercel.app` (or your custom domain) becomes the submission URL.
-- [ ] **Caveat:** `/admin/tests` (live `anchor test` SSE) and `/admin/demo` (cockpit) won't work on Vercel — they read local Solana CLI / demo wallets. They're local-only by design. Document this in the submission notes.
+---
+
+## Post-hackathon (after May 10)
+
+### Bump Next.js 14 → 15 (or 16)
+
+- [ ] Decide whether to bump after submission. **Currently on Next 14.2.15** — locked in during Phase 0 (Apr 23) for ecosystem-stability reasons; all Civic + Crossmint + wallet-adapter SDKs peer-resolve cleanly against it. No demo-relevant feature in 15/16 is needed.
+- [ ] Migration cost when ready: ~1-2 hours
+  - Update every dynamic-segment page in `/demo/borrow/loan-offer/[reqId]`, `/demo/borrow/awaiting-custody/[trdc]`, `/demo/borrow/appraisal/[reqId]`, `/demo/lend/vaults/[id]`, `/demo/auction/[trdc]` to use `params: Promise<Params>` + `React.use(params)` (Next 15 API; the inverse of the fix we shipped at commit `3c7e55e`).
+  - Re-run peer-dep resolution for Civic + Crossmint + wallet-adapter; expect minor `pnpm.overrides` adjustments.
+  - Rebuild + retest all 22 demo routes against Vercel.
+- [ ] Trigger: pick once submission lands, when the team has time for non-demo-critical maintenance.
 
 ---
 
