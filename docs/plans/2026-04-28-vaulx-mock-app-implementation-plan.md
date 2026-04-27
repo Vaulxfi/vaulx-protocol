@@ -1251,76 +1251,40 @@ git commit -m "feat(demo): /demo/borrow/disburse — refuse-then-accept aha mome
 
 ---
 
-## Phase 5 — Funds + Spend rails (Day 6, May 3)
+## Phase 5 — Funds + Spend rails (Day 6, May 3) — SHIPPED
 
-### Task 5.1: `/demo/borrow/funds` hub
+### Task 5.1: `/demo/borrow/funds` hub — DONE
 
-**Files:**
-- Create: `apps/web/src/app/demo/borrow/funds/page.tsx`
+**Files shipped:**
+- `apps/web/src/app/demo/borrow/funds/page.tsx`
 
-**Step 1:** Page shows in-app USDC balance (mono numerals, big), 3 outflow CTAs:
-- "Send to Pix" → `/demo/borrow/funds/pix`
-- "Send to wallet" → `/demo/borrow/funds/wallet`
-- "Spend on card" → `/demo/borrow/funds/card`
+Eyebrow `STEP 11 / 14 · FUNDS`, heading "Your funds. Three ways out.", balance card reads `session.loan.inAppBalanceAtoms` (atoms → USDC formatted), three outflow CTAs (Pix, Solana wallet, Vaulx card). Redirects to `/demo/borrow/disburse` if `loan.disbursedAt` is missing.
 
-**Step 2:** Commit.
+### Task 5.2: `/demo/borrow/funds/pix` mock flow — DONE
 
-### Task 5.2: `/demo/borrow/funds/pix` mock flow
+**Files shipped:**
+- `apps/web/src/app/demo/borrow/funds/pix/page.tsx`
+- `apps/web/src/app/demo/_fixtures/pix-recipients.ts`
 
-**Files:**
-- Create: `apps/web/src/app/demo/borrow/funds/pix/page.tsx`
-- Create: `apps/web/src/app/demo/_fixtures/pix-recipients.ts`
+Fixtures expose `PIX_RECIPIENTS` (Banco Inter, Nubank, Itaú — masked accounts only) and a locked `USDC_BRL_RATE = 5.05`. State machine: `idle` → `submitting` (2s) → `done`. On `done`, decrements `loan.inAppBalanceAtoms` by the sent USDC atoms and links back to `/demo/borrow/funds`. `<MockBadge partner="Pix Off-Ramp" />` ribbon. Eyebrow `STEP 12 / 14 · PIX OFF-RAMP`.
 
-**Step 1:** Fixtures (no personal names — masked accounts only):
-```ts
-export const PIX_RECIPIENTS = [
-  { id: "inter", bank: "Banco Inter", masked: "••••5234" },
-  { id: "nubank", bank: "Nubank", masked: "••••8821" },
-  { id: "itau", bank: "Itaú", masked: "••••3392" },
-];
-```
+### Task 5.3: `/demo/borrow/funds/wallet` real Devnet send — DONE (with deployed-host fallback)
 
-**Step 2:** Page: pick recipient + amount → 2-second spinner → "✓ R$X received at {bank} {masked}" → debits `loan.inAppBalanceAtoms`.
+**Files shipped:**
+- `apps/web/src/app/demo/borrow/funds/wallet/page.tsx`
+- `apps/web/src/app/api/demo/devnet-send/route.ts`
 
-**Step 3:** Add `<MockBadge partner="Pix off-ramp" />`.
+**Architecture deviation from original spec:** Crossmint holds the user's secret key, so the browser cannot sign. Instead the page POSTs to a Node-runtime API route that loads the project's payer keypair from `~/.config/solana/id.json` and signs a real `SystemProgram.transfer` (0.001 SOL) on Devnet via the Helius RPC. Returns `{ ok, signature }` rendered as a Solscan-Devnet link.
 
-**Step 4:** Commit.
+**Deployed-host fallback:** when the keypair is absent on disk (e.g. Vercel), the route returns 503 with `{ kind: "payer-unavailable", reason }`. The page renders a friendly "Local demo only" info card instead of an error. `<LiveBadge partner="Solana Devnet" />` is displayed regardless.
 
-### Task 5.3: `/demo/borrow/funds/wallet` real Devnet send
+### Task 5.4: `/demo/borrow/funds/card` mock — DONE
 
-**Files:**
-- Create: `apps/web/src/app/demo/borrow/funds/wallet/page.tsx`
+**Files shipped:**
+- `apps/web/src/app/demo/borrow/funds/card/page.tsx`
+- `apps/web/src/app/demo/_fixtures/card-tx-feed.ts`
 
-**Step 1:** Form: paste destination Solana pubkey + amount. On submit, real on-chain transfer using `session.wallet.pubkey` to sign. Returns tx signature; toast it with a Solscan link.
-
-**Step 2:** If wallet not connected: link to `/demo/borrow/wallet`.
-
-**Step 3:** Add `<LiveBadge partner="Solana Devnet" />`.
-
-**Step 4:** Commit.
-
-### Task 5.4: `/demo/borrow/funds/card` mock
-
-**Files:**
-- Create: `apps/web/src/app/demo/borrow/funds/card/page.tsx`
-- Create: `apps/web/src/app/demo/_fixtures/card-tx-feed.ts`
-
-**Step 1:** Fixtures (merchant-keyed, NO personal names):
-```ts
-export const CARD_TX = [
-  { merchant: "Uber", amount: -28.40, ts: "2 min ago" },
-  { merchant: "Pão de Açúcar", amount: -142.18, ts: "12 min ago" },
-  { merchant: "iFood · Ristorante Capricciosa", amount: -89.50, ts: "1 h ago" },
-  { merchant: "Shell Posto Ipiranga", amount: -160.00, ts: "Yesterday" },
-  // ...12 total, all merchants only
-];
-```
-
-**Step 2:** Page: Apple-Pay-styled "Add Vaulx card to Wallet" + transaction feed.
-
-**Step 3:** Add `<MockBadge partner="Solflare Card" />`.
-
-**Step 4:** Commit.
+Fixture: 12 merchant-only transactions (Uber, Pão de Açúcar, iFood, Shell, Spotify, Apple Music, Mercado Livre, Amazon, Netflix, Posto Shell Av. Paulista, Drogaria São Paulo, Restaurante Fasano). Page: Vaulx debit card art + "Add Vaulx Card to Wallet" CTA (toast: "Mock — Solflare card pending issuer agreement") + recent-tx list in BRL mono. `<MockBadge partner="Solflare Card" />` ribbon. Eyebrow `STEP 11 / 14 · CARD` (no separate tour step — card is reachable from funds).
 
 ---
 
