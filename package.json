@@ -34,10 +34,5 @@
   },
   "engines": {
     "node": ">=20"
-  },
-  "pnpm": {
-    "overrides": {
-      "@solana/kit": "^5.0.0"
-    }
   }
 }

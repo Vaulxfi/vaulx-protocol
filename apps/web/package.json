@@ -16,8 +16,6 @@
     "@crossmint/client-sdk-react-ui": "^4.1.5",
     "@hookform/resolvers": "^5.2.2",
     "@identity.com/solana-gateway-ts": "^0.12.0",
-    "@lazorkit/wallet": "^2.0.1",
-    "@privy-io/react-auth": "^3.22.2",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-slot": "^1.1.0",
     "@solana/pay": "^0.2.6",
