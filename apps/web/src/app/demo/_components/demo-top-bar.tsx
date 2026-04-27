@@ -1,12 +1,13 @@
 "use client";
 import Link from "next/link";
 import { useDemoSession } from "../_lib/use-demo-session";
+import { TOUR_STEPS_TOTAL } from "../_lib/types";
 
 export function DemoTopBar() {
   const { session, patch, reset } = useDemoSession();
   const tourLabel =
     session?.tour.resumable && session.tour.step > 0
-      ? `Resume tour · ${session.tour.step}/14`
+      ? `Resume tour · ${session.tour.step}/${TOUR_STEPS_TOTAL}`
       : "Tour";
 
   return (

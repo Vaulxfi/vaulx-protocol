@@ -32,3 +32,5 @@ export type DemoSession = {
 };
 
 export const DEMO_SESSION_KEY = "vaulx_demo_session";
+
+export const TOUR_STEPS_TOTAL = 14;
