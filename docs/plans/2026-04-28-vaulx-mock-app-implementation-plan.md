@@ -123,34 +123,63 @@ git commit -m "feat(demo): scaffold /demo route tree + types"
 **Step 1:** Write the failing test:
 
 ```ts
-import { renderHook, act } from "@testing-library/react";
+import { renderHook, act, waitFor } from "@testing-library/react";
 import { describe, it, expect, beforeEach } from "vitest";
 import { useDemoSession } from "../use-demo-session";
+import { DEMO_SESSION_KEY } from "../types";
 
 describe("useDemoSession", () => {
   beforeEach(() => sessionStorage.clear());
 
-  it("creates a fresh session on first call", () => {
+  it("creates a fresh session on first call", async () => {
     const { result } = renderHook(() => useDemoSession());
-    expect(result.current.session.sessionId).toMatch(/^[0-9a-f-]{36}$/);
-    expect(result.current.session.startedAt).toBeGreaterThan(0);
+    await waitFor(() => expect(result.current.session).not.toBeNull());
+    expect(result.current.session!.sessionId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(result.current.session!.startedAt).toBeGreaterThan(0);
   });
 
-  it("persists patches across re-mounts", () => {
+  it("persists patches across re-mounts", async () => {
     const { result: first } = renderHook(() => useDemoSession());
-    act(() => first.current.patch({ govbr: { cpf: "111.444.777-35" } }));
+    await waitFor(() => expect(first.current.session).not.toBeNull());
+    act(() =>
+      first.current.patch((s) => ({ ...s, govbr: { ...s.govbr, cpf: "111.444.777-35" } })),
+    );
 
     const { result: second } = renderHook(() => useDemoSession());
-    expect(second.current.session.govbr.cpf).toBe("111.444.777-35");
+    await waitFor(() => expect(second.current.session).not.toBeNull());
+    expect(second.current.session!.govbr.cpf).toBe("111.444.777-35");
   });
 
-  it("reset clears storage and creates new session", () => {
+  it("reset clears storage and creates new session", async () => {
     const { result } = renderHook(() => useDemoSession());
-    const firstId = result.current.session.sessionId;
-    act(() => result.current.patch({ govbr: { cpf: "111.444.777-35" } }));
+    await waitFor(() => expect(result.current.session).not.toBeNull());
+    const firstId = result.current.session!.sessionId;
+    act(() =>
+      result.current.patch((s) => ({ ...s, govbr: { ...s.govbr, cpf: "111.444.777-35" } })),
+    );
     act(() => result.current.reset());
-    expect(result.current.session.sessionId).not.toBe(firstId);
-    expect(result.current.session.govbr.cpf).toBeUndefined();
+    expect(result.current.session!.sessionId).not.toBe(firstId);
+    expect(result.current.session!.govbr.cpf).toBeUndefined();
+  });
+
+  it("recovers from corrupt storage by seeding a fresh session", async () => {
+    sessionStorage.setItem(DEMO_SESSION_KEY, "{not json");
+    const { result } = renderHook(() => useDemoSession());
+    await waitFor(() => expect(result.current.session).not.toBeNull());
+    expect(result.current.session!.sessionId).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it("multi-key patches accumulate (no clobbering)", async () => {
+    const { result } = renderHook(() => useDemoSession());
+    await waitFor(() => expect(result.current.session).not.toBeNull());
+    act(() =>
+      result.current.patch((s) => ({ ...s, govbr: { ...s.govbr, cpf: "111.444.777-35" } })),
+    );
+    act(() =>
+      result.current.patch((s) => ({ ...s, civic: { ...s.civic, gatewayToken: "tok" } })),
+    );
+    expect(result.current.session!.govbr.cpf).toBe("111.444.777-35");
+    expect(result.current.session!.civic.gatewayToken).toBe("tok");
   });
 });
 ```
@@ -161,10 +190,13 @@ pnpm --filter @vaulx/web test -- use-demo-session
 ```
 Expected: FAIL — `useDemoSession is not defined`.
 
-**Step 3:** Implement:
+**Step 3:** Implement (Pattern: load-in-effect + functional updater. Avoids hydration mismatch + nested-key clobbering.):
 
 ```ts
 "use client";
+// useDemoSession is intentionally session-scoped (per-tab) — each new tab
+// starts a fresh demo. For permanent state we use the production routes,
+// not /demo.
 import { useCallback, useEffect, useState } from "react";
 import { DEMO_SESSION_KEY, type DemoSession } from "./types";
 
@@ -176,36 +208,61 @@ const initial = (): DemoSession => ({
   mocksDismissed: [],
 });
 
-const load = (): DemoSession => {
-  if (typeof window === "undefined") return initial();
+const loadFromStorage = (): DemoSession | null => {
   try {
     const raw = sessionStorage.getItem(DEMO_SESSION_KEY);
     if (raw) return JSON.parse(raw) as DemoSession;
-  } catch {}
-  const fresh = initial();
-  sessionStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(fresh));
-  return fresh;
+  } catch {
+    // corrupt JSON; ignore and return null so a fresh session is created
+  }
+  return null;
 };
 
-const save = (s: DemoSession) => sessionStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(s));
-
 export function useDemoSession() {
-  const [session, setSession] = useState<DemoSession>(load);
+  const [session, setSession] = useState<DemoSession | null>(null);
 
-  useEffect(() => save(session), [session]);
-
-  const patch = useCallback((patch: Partial<DemoSession>) => {
-    setSession((prev) => ({ ...prev, ...patch }));
+  // Populate from storage (or seed a fresh session) on mount.
+  useEffect(() => {
+    const existing = loadFromStorage();
+    if (existing) {
+      setSession(existing);
+    } else {
+      const fresh = initial();
+      sessionStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(fresh));
+      setSession(fresh);
+    }
   }, []);
+
+  // Persist any session change after load.
+  useEffect(() => {
+    if (session) sessionStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(session));
+  }, [session]);
+
+  const patch = useCallback(
+    (updater: (prev: DemoSession) => DemoSession) => {
+      setSession((prev) => (prev ? updater(prev) : prev));
+    },
+    [],
+  );
 
   const reset = useCallback(() => {
     sessionStorage.removeItem(DEMO_SESSION_KEY);
-    setSession(initial());
+    const fresh = initial();
+    sessionStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(fresh));
+    setSession(fresh);
   }, []);
 
-  return { session, patch, reset };
+  return { session, isLoading: session === null, patch, reset };
 }
 ```
+
+Callers use the functional updater to merge nested state explicitly:
+
+```ts
+patch((s) => ({ ...s, govbr: { ...s.govbr, cpf: "X" } }));
+```
+
+The returned `session` is `null` until the mount effect runs (use `isLoading` to gate UI).
 
 **Step 4:** Run test, verify pass:
 ```bash

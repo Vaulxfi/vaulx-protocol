@@ -1,4 +1,7 @@
 "use client";
+// useDemoSession is intentionally session-scoped (per-tab) — each new tab
+// starts a fresh demo. For permanent state we use the production routes,
+// not /demo.
 import { useCallback, useEffect, useState } from "react";
 import { DEMO_SESSION_KEY, type DemoSession } from "./types";
 
@@ -10,32 +13,49 @@ const initial = (): DemoSession => ({
   mocksDismissed: [],
 });
 
-const load = (): DemoSession => {
-  if (typeof window === "undefined") return initial();
+const loadFromStorage = (): DemoSession | null => {
   try {
     const raw = sessionStorage.getItem(DEMO_SESSION_KEY);
     if (raw) return JSON.parse(raw) as DemoSession;
-  } catch {}
-  const fresh = initial();
-  sessionStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(fresh));
-  return fresh;
+  } catch {
+    // corrupt JSON; ignore and return null so a fresh session is created
+  }
+  return null;
 };
 
-const save = (s: DemoSession) => sessionStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(s));
-
 export function useDemoSession() {
-  const [session, setSession] = useState<DemoSession>(load);
+  const [session, setSession] = useState<DemoSession | null>(null);
 
-  useEffect(() => save(session), [session]);
-
-  const patch = useCallback((patch: Partial<DemoSession>) => {
-    setSession((prev) => ({ ...prev, ...patch }));
+  // Populate from storage (or seed a fresh session) on mount.
+  useEffect(() => {
+    const existing = loadFromStorage();
+    if (existing) {
+      setSession(existing);
+    } else {
+      const fresh = initial();
+      sessionStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(fresh));
+      setSession(fresh);
+    }
   }, []);
+
+  // Persist any session change after load.
+  useEffect(() => {
+    if (session) sessionStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(session));
+  }, [session]);
+
+  const patch = useCallback(
+    (updater: (prev: DemoSession) => DemoSession) => {
+      setSession((prev) => (prev ? updater(prev) : prev));
+    },
+    [],
+  );
 
   const reset = useCallback(() => {
     sessionStorage.removeItem(DEMO_SESSION_KEY);
-    setSession(initial());
+    const fresh = initial();
+    sessionStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(fresh));
+    setSession(fresh);
   }, []);
 
-  return { session, patch, reset };
+  return { session, isLoading: session === null, patch, reset };
 }
