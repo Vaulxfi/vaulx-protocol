@@ -1118,10 +1118,29 @@ git commit -m "feat(demo): /demo/borrow/awaiting-custody/[trdc] — IoT feed pla
 
 ## Phase 4 — THE AHA MOMENT (Day 5, May 2)
 
-### Task 4.1: `/demo/borrow/disburse` choreography
+### Task 4.1: `/demo/borrow/disburse` choreography — DONE (2026-04-24)
 
 **Files:**
-- Create: `apps/web/src/app/demo/borrow/disburse/page.tsx`
+- Create: `apps/web/src/app/demo/borrow/disburse/page.tsx` ✓
+- Edit: `apps/web/src/app/globals.css` (added `@keyframes shake` + `.animate-shake` + reduced-motion guard) ✓
+
+**Implementation note (deviation from sketch):** the page uses a 6-state local
+state machine (`ready | refused | custodian-signing | custodian-signed |
+disbursing | done`) and **ignores `session.loan.custody.confirmedAt` until
+the user walks through the choreography**. Even though Phase 3's
+`awaiting-custody` already populated `confirmedAt`, the disburse page treats
+its own state as the source of truth so the AHA refusal always lands on first
+tap. Session is patched in parallel (custody.confirmedAt at custodian-sign,
+disbursedAt + inAppBalanceAtoms at done) for downstream pages (dashboard,
+funds). This is the "cleaner, internal-state-machine" branch from the design
+brief — no sneaky un-confirm on mount.
+
+The "Wake the custodian" CTA inside the refused panel advances to the
+`custodian-signing` step (a brass-bordered "Custodian terminal — Brinks SP"
+panel). Shake animation is keyed off `key={state}` so it retriggers on
+re-entry. Confetti was substituted with a green panel using the existing
+`vxReveal` animation — keeps the visual language consistent with the rest of
+the demo and avoids pulling in a new animation lib.
 
 **Step 1:** Implement the refuse-then-accept flow:
 
