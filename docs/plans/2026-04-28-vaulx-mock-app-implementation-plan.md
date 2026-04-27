@@ -281,21 +281,32 @@ git commit -m "feat(demo): useDemoSession hook with sessionStorage persistence"
 **Files:**
 - Create: `apps/web/src/app/demo/_components/phone-bezel.tsx`
 
+**Note:** Both `<PhoneBezel>` and `<PhoneFullBleed>` render their children unconditionally — the CSS responsive utilities only hide one visually. Stateful children mounted directly inside these primitives would run twice. Use `<DemoShell>` (Task 0.4) for any flow with state.
+
 **Step 1:** Implement (no test — pure visual component):
 
 ```tsx
+// CONSTRAINT: Both <PhoneBezel> and <PhoneFullBleed> render their children
+// unconditionally — the CSS responsive utilities (`hidden md:block` / `md:hidden`)
+// only hide one visually. Stateful children would mount twice, double-fire
+// effects, and clash on DOM IDs. Callers requiring stateful content should
+// use <DemoShell> (Task 0.4), which mounts one branch at a time.
 import type { ReactNode } from "react";
 
 export function PhoneBezel({ children }: { children: ReactNode }) {
   return (
     <div className="mx-auto my-12 hidden md:block">
-      <div className="relative w-[393px] h-[852px] rounded-[55px] border-[6px] border-[#1a1917] bg-[var(--bg)] shadow-[0_60px_120px_-30px_rgba(0,0,0,0.5)] overflow-hidden">
+      <div
+        role="img"
+        aria-label="Phone mockup"
+        className="relative w-[393px] h-[852px] rounded-[55px] border-[6px] border-[#1a1917] bg-[var(--bg)] shadow-[0_60px_120px_-30px_rgba(0,0,0,0.5)] overflow-hidden"
+      >
         {/* Dynamic island */}
         <div className="absolute left-1/2 top-2 -translate-x-1/2 z-50 h-[37px] w-[126px] rounded-full bg-black" />
         {/* Status bar */}
         <div className="absolute top-0 left-0 right-0 z-40 flex items-center justify-between px-7 py-2 text-[12px] font-semibold text-[var(--ink)]">
           <span>9:41</span>
-          <span className="opacity-0">VAULX</span>
+          <span className="opacity-0" aria-hidden="true">VAULX</span>
           <span>VAULX</span>
         </div>
         {/* Inner viewport */}
@@ -310,12 +321,11 @@ export function PhoneBezel({ children }: { children: ReactNode }) {
 }
 
 export function PhoneFullBleed({ children }: { children: ReactNode }) {
-  // mobile: full-bleed, no bezel
   return <div className="md:hidden min-h-screen">{children}</div>;
 }
 ```
 
-**Step 2:** Verify it renders by adding a quick story page at `apps/web/src/app/demo/_dev/bezel/page.tsx` (gitignored later):
+**Step 2:** Verify it renders by adding a quick story page at `apps/web/src/app/demo/dev/bezel/page.tsx` (gitignored later):
 
 ```tsx
 import { PhoneBezel, PhoneFullBleed } from "@/app/demo/_components/phone-bezel";
@@ -333,7 +343,7 @@ export default function DevBezel() {
 **Step 3:** Verify in browser:
 ```bash
 pnpm --filter @vaulx/web dev
-# open http://localhost:3000/demo/_dev/bezel
+# open http://localhost:3000/demo/dev/bezel
 ```
 Expected: visible iPhone bezel on desktop ≥ md, full-bleed below md.
 
@@ -345,7 +355,7 @@ Expected: green.
 
 **Step 5:** Commit:
 ```bash
-git add apps/web/src/app/demo/_components/phone-bezel.tsx apps/web/src/app/demo/_dev/
+git add apps/web/src/app/demo/_components/phone-bezel.tsx apps/web/src/app/demo/dev/
 git commit -m "feat(demo): <PhoneBezel> + <PhoneFullBleed> primitives"
 ```
 
