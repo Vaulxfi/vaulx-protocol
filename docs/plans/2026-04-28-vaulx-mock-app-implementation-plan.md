@@ -366,12 +366,33 @@ git commit -m "feat(demo): <PhoneBezel> + <PhoneFullBleed> primitives"
 - Create: `apps/web/src/app/demo/_components/demo-top-bar.tsx`
 - Create: `apps/web/src/app/demo/_components/demo-footer-nav.tsx`
 
-**Step 1:** Implement `<DemoShell>`:
+**Step 1:** Add a small `useMediaQuery` hook at `apps/web/src/app/demo/_lib/use-media-query.ts` (uses `useSyncExternalStore` for SSR safety; SSR fallback assumes mobile / full-bleed):
+
+```ts
+"use client";
+import { useSyncExternalStore } from "react";
+
+export function useMediaQuery(query: string): boolean {
+  return useSyncExternalStore(
+    (cb) => {
+      if (typeof window === "undefined") return () => {};
+      const mq = window.matchMedia(query);
+      mq.addEventListener("change", cb);
+      return () => mq.removeEventListener("change", cb);
+    },
+    () => (typeof window === "undefined" ? false : window.matchMedia(query).matches),
+    () => false, // SSR fallback: assume mobile (full-bleed)
+  );
+}
+```
+
+Then implement `<DemoShell>`. Resolves the double-mount caveat from Task 0.3 by picking ONE branch at runtime (children mount once):
 
 ```tsx
 "use client";
 import type { ReactNode } from "react";
 import type { DemoFormFactor } from "../_lib/types";
+import { useMediaQuery } from "../_lib/use-media-query";
 import { PhoneBezel, PhoneFullBleed } from "./phone-bezel";
 import { DemoTopBar } from "./demo-top-bar";
 import { DemoFooterNav } from "./demo-footer-nav";
@@ -383,20 +404,22 @@ export function DemoShell({
   children: ReactNode;
   formFactor: DemoFormFactor;
 }) {
+  const isDesktop = useMediaQuery("(min-width: 768px)");
   return (
     <>
       <DemoTopBar />
       {formFactor === "phone" ? (
-        <>
+        isDesktop ? (
           <PhoneBezel>
             {children}
             <DemoFooterNav />
           </PhoneBezel>
+        ) : (
           <PhoneFullBleed>
             {children}
             <DemoFooterNav />
           </PhoneFullBleed>
-        </>
+        )
       ) : (
         <main className="mx-auto max-w-[1280px] px-6 py-12 md:py-20">{children}</main>
       )}
@@ -415,7 +438,7 @@ import { useDemoSession } from "../_lib/use-demo-session";
 export function DemoTopBar() {
   const { session, patch, reset } = useDemoSession();
   const tourLabel =
-    session.tour.resumable && session.tour.step > 0
+    session?.tour.resumable && session.tour.step > 0
       ? `Resume tour · ${session.tour.step}/14`
       : "Tour";
 
@@ -427,7 +450,7 @@ export function DemoTopBar() {
       </Link>
       <div className="flex items-center gap-2">
         <button
-          onClick={() => patch({ tour: { ...session.tour, active: !session.tour.active } })}
+          onClick={() => session && patch((s) => ({ ...s, tour: { ...s.tour, active: !s.tour.active } }))}
           className="rounded-md border border-[var(--rule)] px-3 py-1.5 text-xs font-mono uppercase tracking-wide text-[var(--ink-dim)] hover:bg-[var(--bg-elev-1)]"
         >
           {tourLabel}
