@@ -6,7 +6,7 @@ export type DemoSession = {
   civic: { gatewayToken?: string; verifiedAt?: number };
   govbr: { cpf?: string; name?: string; verifiedAt?: number };
   wallet: {
-    provider?: "privy" | "crossmint" | "lazorkit";
+    provider?: "crossmint";
     pubkey?: string;
     email?: string;
   };
