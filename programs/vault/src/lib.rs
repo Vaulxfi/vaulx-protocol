@@ -1,10 +1,12 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Burn, Mint, MintTo, Token, TokenAccount, Transfer};
 
+pub mod attestation;
 pub mod civic;
 pub mod errors;
 pub mod state;
 
+use attestation::KycAttestation;
 use state::Vault;
 
 declare_id!("4PPyUvazjDBvFndGUL2rgKTwZrFbsSP1tk4a2uMhE9MS");
@@ -43,7 +45,34 @@ pub mod vault {
         let cfg = &mut ctx.accounts.vault_config;
         cfg.admin = ctx.accounts.admin.key();
         cfg.civic_network = civic_network;
+        cfg.kyc_required = false;
         cfg.bump = ctx.bumps.vault_config;
+        Ok(())
+    }
+
+    /// Admin-only: issue a KycAttestation PDA for `owner`. Caller must be
+    /// `vault_config.admin`. The PDA is `[b"kyc_attestation", owner]` so each
+    /// user has at most one outstanding attestation.
+    ///
+    /// `jwt_hash` is the SHA-256 of the Civic Auth JWT — binds the
+    /// attestation to a specific verification event so a future replay /
+    /// revocation flow can reference it.
+    pub fn issue_kyc_attestation(
+        ctx: Context<IssueKycAttestation>,
+        owner: Pubkey,
+        jwt_hash: [u8; 32],
+    ) -> Result<()> {
+        require_keys_eq!(
+            ctx.accounts.admin.key(),
+            ctx.accounts.vault_config.admin,
+            VaultError::UnauthorizedAttestor
+        );
+        let att = &mut ctx.accounts.kyc_attestation;
+        att.owner = owner;
+        att.attestor = ctx.accounts.admin.key();
+        att.attested_at = Clock::get()?.unix_timestamp;
+        att.jwt_hash = jwt_hash;
+        att.bump = ctx.bumps.kyc_attestation;
         Ok(())
     }
 
@@ -68,16 +97,32 @@ pub mod vault {
     pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
         require!(amount > 0, VaultError::ZeroAmount);
 
-        // TODO(civic-auth-attestation): replaced by KycAttestation PDA check (Task 1.4).
-        // Old call (Civic Pass, sunset):
-        // // Civic Pass gate — no-op when `civic_network == Pubkey::default()`.
-        // if ctx.accounts.vault_config.civic_network != Pubkey::default() {
-        //     civic::verify_gateway_token(
-        //         &ctx.accounts.gateway_token.to_account_info(),
-        //         &ctx.accounts.depositor.key(),
-        //         &ctx.accounts.vault_config.civic_network,
-        //     )?;
-        // }
+        // KYC gate — replaces the sunset Civic Pass check. When
+        // `vault_config.kyc_required == true` the depositor must present a
+        // valid KycAttestation PDA whose `owner == depositor` and
+        // `attestor == vault_config.admin`. Default is gate OFF.
+        if ctx.accounts.vault_config.kyc_required {
+            let att_info = &ctx.accounts.kyc_attestation;
+            require_keys_eq!(
+                *att_info.owner,
+                crate::ID,
+                VaultError::NoKycAttestation
+            );
+            let data = att_info.try_borrow_data()?;
+            let mut slice: &[u8] = &data;
+            let att = KycAttestation::try_deserialize(&mut slice)
+                .map_err(|_| error!(VaultError::NoKycAttestation))?;
+            require_keys_eq!(
+                att.owner,
+                ctx.accounts.depositor.key(),
+                VaultError::NoKycAttestation
+            );
+            require_keys_eq!(
+                att.attestor,
+                ctx.accounts.vault_config.admin,
+                VaultError::NoKycAttestation
+            );
+        }
 
         let total_assets = ctx.accounts.vault.total_assets;
         let total_shares = ctx.accounts.vault.total_shares;
@@ -398,13 +443,18 @@ pub mod vault {
 #[account]
 pub struct VaultConfig {
     pub admin: Pubkey,
-    /// Gatekeeper network pubkey. `Pubkey::default()` disables the Civic gate.
+    /// Legacy field — gatekeeper network pubkey from the Civic Pass era.
+    /// Retained for IDL stability; no longer consulted at deposit time. The
+    /// new gate is keyed off `kyc_required` + the KycAttestation PDA.
     pub civic_network: Pubkey,
+    /// When true, `deposit` requires a valid KycAttestation PDA. Default
+    /// false (gate OFF) to preserve existing test behaviour.
+    pub kyc_required: bool,
     pub bump: u8,
 }
 
 impl VaultConfig {
-    pub const SIZE: usize = 8 + 32 + 32 + 1;
+    pub const SIZE: usize = 8 + 32 + 32 + 1 + 1;
     pub const SEED: &'static [u8] = b"vault_config";
 }
 
@@ -417,6 +467,24 @@ pub struct InitializeVaultConfig<'info> {
         seeds = [VaultConfig::SEED],
         bump,
     )]
+    pub vault_config: Account<'info, VaultConfig>,
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(owner: Pubkey)]
+pub struct IssueKycAttestation<'info> {
+    #[account(
+        init,
+        payer = admin,
+        space = KycAttestation::SIZE,
+        seeds = [KycAttestation::SEED, owner.as_ref()],
+        bump,
+    )]
+    pub kyc_attestation: Account<'info, KycAttestation>,
+    #[account(seeds = [VaultConfig::SEED], bump = vault_config.bump)]
     pub vault_config: Account<'info, VaultConfig>,
     #[account(mut)]
     pub admin: Signer<'info>,
@@ -468,10 +536,10 @@ pub struct Deposit<'info> {
 
     #[account(seeds = [VaultConfig::SEED], bump = vault_config.bump)]
     pub vault_config: Account<'info, VaultConfig>,
-    /// CHECK: validated inline via `civic::verify_gateway_token` when the gate
-    /// is enabled. Pass any account (e.g. `SystemProgram`) when
-    /// `vault_config.civic_network == Pubkey::default()`.
-    pub gateway_token: UncheckedAccount<'info>,
+    /// CHECK: validated inline (deserialized + owner-checked) when
+    /// `vault_config.kyc_required == true`. When the gate is OFF, callers
+    /// may pass any account (e.g. SystemProgram).
+    pub kyc_attestation: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]

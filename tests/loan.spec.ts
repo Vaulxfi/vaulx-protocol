@@ -44,7 +44,7 @@ describe("loan / create_ccb_trdc", () => {
           payer: provider.wallet.publicKey,
           systemProgram: SystemProgram.programId,
           loanConfig: loanConfigPda,
-          gatewayToken: SystemProgram.programId,
+          kycAttestation: SystemProgram.programId,
         })
         .rpc();
     } catch (e: any) {
@@ -70,7 +70,7 @@ describe("loan / create_ccb_trdc", () => {
         payer: provider.wallet.publicKey,
         systemProgram: SystemProgram.programId,
           loanConfig: loanConfigPda,
-          gatewayToken: SystemProgram.programId,
+          kycAttestation: SystemProgram.programId,
       })
       .rpc();
 
@@ -99,7 +99,7 @@ describe("loan / create_ccb_trdc", () => {
         payer: provider.wallet.publicKey,
         systemProgram: SystemProgram.programId,
           loanConfig: loanConfigPda,
-          gatewayToken: SystemProgram.programId,
+          kycAttestation: SystemProgram.programId,
       })
       .rpc();
 
@@ -127,7 +127,7 @@ describe("loan / create_ccb_trdc", () => {
           payer: provider.wallet.publicKey,
           systemProgram: SystemProgram.programId,
           loanConfig: loanConfigPda,
-          gatewayToken: SystemProgram.programId,
+          kycAttestation: SystemProgram.programId,
         })
         .rpc();
     } catch (e: any) {

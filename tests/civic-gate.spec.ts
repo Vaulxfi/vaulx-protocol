@@ -121,7 +121,7 @@ describe("civic-gate / deposit path rejects invalid gateway when enabled", () =>
     );
     expect(depositIx, "deposit ix should be in IDL").to.not.eq(undefined);
     const names = depositIx.accounts.map((a: any) => a.name);
-    expect(names).to.include.members(["vaultConfig", "gatewayToken"]);
+    expect(names).to.include.members(["vaultConfig", "kycAttestation"]);
   });
 });
 
@@ -141,6 +141,6 @@ describe("civic-gate / create_ccb_trdc path rejects invalid gateway when enabled
     );
     expect(ccbIx, "createCcbTrdc ix should be in IDL").to.not.eq(undefined);
     const names = ccbIx.accounts.map((a: any) => a.name);
-    expect(names).to.include.members(["loanConfig", "gatewayToken"]);
+    expect(names).to.include.members(["loanConfig", "kycAttestation"]);
   });
 });

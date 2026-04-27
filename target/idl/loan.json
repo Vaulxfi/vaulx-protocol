@@ -121,9 +121,10 @@
           }
         },
         {
-          "name": "gateway_token",
+          "name": "kyc_attestation",
           "docs": [
-            "is enabled. Pass any account when `loan_config.civic_network == default`."
+            "`loan_config.kyc_required == true`. When the gate is OFF, callers may",
+            "pass any account (e.g. SystemProgram)."
           ]
         }
       ],
@@ -479,6 +480,106 @@
       ]
     },
     {
+      "name": "issue_kyc_attestation",
+      "docs": [
+        "Admin-only: issue a KycAttestation PDA for `owner`. Caller must be",
+        "`loan_config.admin`. Mirrors the vault-side issuance — the loan",
+        "program owns its own attestation namespace so each program can",
+        "enforce its gate without a cross-program account lookup."
+      ],
+      "discriminator": [
+        139,
+        82,
+        167,
+        210,
+        198,
+        144,
+        61,
+        74
+      ],
+      "accounts": [
+        {
+          "name": "kyc_attestation",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  107,
+                  121,
+                  99,
+                  95,
+                  97,
+                  116,
+                  116,
+                  101,
+                  115,
+                  116,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "loan_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  97,
+                  110,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "owner",
+          "type": "pubkey"
+        },
+        {
+          "name": "jwt_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "pay_installment",
       "docs": [
         "Moment 5 (partial) — borrower pays down principal in installments.",
@@ -807,6 +908,19 @@
   ],
   "accounts": [
     {
+      "name": "KycAttestation",
+      "discriminator": [
+        114,
+        140,
+        31,
+        243,
+        17,
+        104,
+        193,
+        72
+      ]
+    },
+    {
       "name": "LoanConfig",
       "discriminator": [
         123,
@@ -966,6 +1080,16 @@
       "code": 6007,
       "name": "NotYetDefaulted",
       "msg": "Loan is not yet past the grace period"
+    },
+    {
+      "code": 6008,
+      "name": "NoKycAttestation",
+      "msg": "No valid KYC attestation"
+    },
+    {
+      "code": 6009,
+      "name": "UnauthorizedAttestor",
+      "msg": "Unauthorized attestor"
     }
   ],
   "types": [
@@ -1179,6 +1303,49 @@
       }
     },
     {
+      "name": "KycAttestation",
+      "docs": [
+        "Vaulx KYC attestation — issued by the loan admin (loan_config.admin)",
+        "after off-chain KYC verification (Civic Auth JWT). Replaces the sunset",
+        "Civic Pass on-chain gate.",
+        "",
+        "PDA seeds: `[b\"kyc_attestation\", owner.as_ref()]`. One attestation per",
+        "(program, owner). The loan-side attestation is independent of the",
+        "vault-side one — both must be issued separately so each program can",
+        "enforce its own gate without a cross-program account lookup."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "attestor",
+            "type": "pubkey"
+          },
+          {
+            "name": "attested_at",
+            "type": "i64"
+          },
+          {
+            "name": "jwt_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
       "name": "LoanConfig",
       "type": {
         "kind": "struct",
@@ -1194,9 +1361,19 @@
           {
             "name": "civic_network",
             "docs": [
-              "Gatekeeper network pubkey; `Pubkey::default()` disables the Civic gate."
+              "Legacy field — gatekeeper network pubkey from the Civic Pass era.",
+              "Retained for IDL stability; no longer consulted at create_ccb_trdc.",
+              "The new gate is keyed off `kyc_required` + the KycAttestation PDA."
             ],
             "type": "pubkey"
+          },
+          {
+            "name": "kyc_required",
+            "docs": [
+              "When true, `create_ccb_trdc` requires a valid KycAttestation PDA.",
+              "Default false (gate OFF) to preserve existing test behaviour."
+            ],
+            "type": "bool"
           },
           {
             "name": "bump",

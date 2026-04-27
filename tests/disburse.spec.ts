@@ -142,7 +142,7 @@ describe("loan / disburse_from_vault — CPI-only gate (Task 2.2)", () => {
           depositor: lender.publicKey,
           tokenProgram: TOKEN_PROGRAM_ID,
           vaultConfig: vaultConfigPda(vaultProgram.programId),
-          gatewayToken: SystemProgram.programId,
+          kycAttestation: SystemProgram.programId,
         })
         .signers([lender])
         .rpc();
@@ -169,7 +169,7 @@ describe("loan / disburse_from_vault — CPI-only gate (Task 2.2)", () => {
         payer: provider.wallet.publicKey,
         systemProgram: SystemProgram.programId,
         loanConfig: loanConfigPda,
-        gatewayToken: SystemProgram.programId,
+        kycAttestation: SystemProgram.programId,
       })
       .rpc();
 

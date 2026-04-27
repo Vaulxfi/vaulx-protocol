@@ -13,9 +13,11 @@ use vault::cpi::accounts::{Disburse as VaultDisburse, RecordInflow as VaultRecor
 use vault::program::Vault as VaultProgram;
 use vault::state::Vault as VaultAccount;
 
+pub mod attestation;
 pub mod civic;
 pub mod errors;
 pub mod math;
+use attestation::KycAttestation;
 use errors::{LoanError, GRACE_PERIOD_SECS, MAX_LTV_BPS};
 
 declare_id!("BHdxEKkfsyjERiz5XiUybDLquvoWRtF7r1zDgVCDZJow");
@@ -40,7 +42,31 @@ pub mod loan {
         cfg.admin = ctx.accounts.admin.key();
         cfg.custodian = custodian;
         cfg.civic_network = civic_network;
+        cfg.kyc_required = false;
         cfg.bump = ctx.bumps.loan_config;
+        Ok(())
+    }
+
+    /// Admin-only: issue a KycAttestation PDA for `owner`. Caller must be
+    /// `loan_config.admin`. Mirrors the vault-side issuance — the loan
+    /// program owns its own attestation namespace so each program can
+    /// enforce its gate without a cross-program account lookup.
+    pub fn issue_kyc_attestation(
+        ctx: Context<IssueKycAttestation>,
+        owner: Pubkey,
+        jwt_hash: [u8; 32],
+    ) -> Result<()> {
+        require_keys_eq!(
+            ctx.accounts.admin.key(),
+            ctx.accounts.loan_config.admin,
+            LoanError::UnauthorizedAttestor
+        );
+        let att = &mut ctx.accounts.kyc_attestation;
+        att.owner = owner;
+        att.attestor = ctx.accounts.admin.key();
+        att.attested_at = Clock::get()?.unix_timestamp;
+        att.jwt_hash = jwt_hash;
+        att.bump = ctx.bumps.kyc_attestation;
         Ok(())
     }
 
@@ -55,16 +81,32 @@ pub mod loan {
     ) -> Result<()> {
         require!(loan_amount > 0 && appraisal_value > 0, LoanError::ZeroAmount);
 
-        // TODO(civic-auth-attestation): replaced by KycAttestation PDA check (Task 1.4).
-        // Old call (Civic Pass, sunset):
-        // // Civic Pass gate — no-op when network is default.
-        // if ctx.accounts.loan_config.civic_network != Pubkey::default() {
-        //     civic::verify_gateway_token(
-        //         &ctx.accounts.gateway_token.to_account_info(),
-        //         &ctx.accounts.payer.key(),
-        //         &ctx.accounts.loan_config.civic_network,
-        //     )?;
-        // }
+        // KYC gate — replaces the sunset Civic Pass check. When
+        // `loan_config.kyc_required == true` the payer must present a valid
+        // KycAttestation PDA (this program's PDA, owner == payer,
+        // attestor == loan_config.admin). Default is gate OFF.
+        if ctx.accounts.loan_config.kyc_required {
+            let att_info = &ctx.accounts.kyc_attestation;
+            require_keys_eq!(
+                *att_info.owner,
+                crate::ID,
+                LoanError::NoKycAttestation
+            );
+            let data = att_info.try_borrow_data()?;
+            let mut slice: &[u8] = &data;
+            let att = KycAttestation::try_deserialize(&mut slice)
+                .map_err(|_| error!(LoanError::NoKycAttestation))?;
+            require_keys_eq!(
+                att.owner,
+                ctx.accounts.payer.key(),
+                LoanError::NoKycAttestation
+            );
+            require_keys_eq!(
+                att.attestor,
+                ctx.accounts.loan_config.admin,
+                LoanError::NoKycAttestation
+            );
+        }
 
         // LTV check: loan * 10_000 <= appraisal * MAX_LTV_BPS
         let lhs = (loan_amount as u128)
@@ -581,13 +623,18 @@ pub struct AfDefaultExecuted {
 pub struct LoanConfig {
     pub admin: Pubkey,
     pub custodian: Pubkey,
-    /// Gatekeeper network pubkey; `Pubkey::default()` disables the Civic gate.
+    /// Legacy field — gatekeeper network pubkey from the Civic Pass era.
+    /// Retained for IDL stability; no longer consulted at create_ccb_trdc.
+    /// The new gate is keyed off `kyc_required` + the KycAttestation PDA.
     pub civic_network: Pubkey,
+    /// When true, `create_ccb_trdc` requires a valid KycAttestation PDA.
+    /// Default false (gate OFF) to preserve existing test behaviour.
+    pub kyc_required: bool,
     pub bump: u8,
 }
 
 impl LoanConfig {
-    pub const SIZE: usize = 8 + 32 + 32 + 32 + 1;
+    pub const SIZE: usize = 8 + 32 + 32 + 32 + 1 + 1;
     pub const SEED: &'static [u8] = b"loan_config";
 }
 
@@ -612,6 +659,24 @@ pub struct InitializeLoanConfig<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(owner: Pubkey)]
+pub struct IssueKycAttestation<'info> {
+    #[account(
+        init,
+        payer = admin,
+        space = KycAttestation::SIZE,
+        seeds = [KycAttestation::SEED, owner.as_ref()],
+        bump,
+    )]
+    pub kyc_attestation: Account<'info, KycAttestation>,
+    #[account(seeds = [LoanConfig::SEED], bump = loan_config.bump)]
+    pub loan_config: Account<'info, LoanConfig>,
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
 #[instruction(loan_id: Pubkey)]
 pub struct CreateCcbTrdc<'info> {
     /// CHECK: created via CPI into trdc; trdc program asserts PDA seeds/owner on init.
@@ -622,9 +687,10 @@ pub struct CreateCcbTrdc<'info> {
 
     #[account(seeds = [LoanConfig::SEED], bump = loan_config.bump)]
     pub loan_config: Account<'info, LoanConfig>,
-    /// CHECK: validated inline via `civic::verify_gateway_token` when the gate
-    /// is enabled. Pass any account when `loan_config.civic_network == default`.
-    pub gateway_token: UncheckedAccount<'info>,
+    /// CHECK: validated inline (deserialized + owner-checked) when
+    /// `loan_config.kyc_required == true`. When the gate is OFF, callers may
+    /// pass any account (e.g. SystemProgram).
+    pub kyc_attestation: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]

@@ -58,7 +58,7 @@ describe("loan / confirm_custody", () => {
         payer: provider.wallet.publicKey,
         systemProgram: SystemProgram.programId,
           loanConfig: loanConfigPda,
-          gatewayToken: SystemProgram.programId,
+          kycAttestation: SystemProgram.programId,
       })
       .rpc();
     return trdcStatePda;

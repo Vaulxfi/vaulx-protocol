@@ -149,7 +149,7 @@ describe("loan / repayment + renewal lifecycle (Task 3.1)", () => {
         depositor: lender.publicKey,
         tokenProgram: TOKEN_PROGRAM_ID,
         vaultConfig: vaultConfigPda(vaultProgram.programId),
-        gatewayToken: SystemProgram.programId,
+        kycAttestation: SystemProgram.programId,
       })
       .signers([lender])
       .rpc();
@@ -175,7 +175,7 @@ describe("loan / repayment + renewal lifecycle (Task 3.1)", () => {
         payer: provider.wallet.publicKey,
         systemProgram: SystemProgram.programId,
         loanConfig: loanConfigPda,
-        gatewayToken: SystemProgram.programId,
+        kycAttestation: SystemProgram.programId,
       })
       .rpc();
 

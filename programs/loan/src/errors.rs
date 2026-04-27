@@ -16,4 +16,6 @@ pub enum LoanError {
     #[msg("No valid Civic gateway token")] NoValidGatewayToken,
     #[msg("Installment exceeds outstanding principal")] OverPayment,
     #[msg("Loan is not yet past the grace period")] NotYetDefaulted,
+    #[msg("No valid KYC attestation")] NoKycAttestation,
+    #[msg("Unauthorized attestor")] UnauthorizedAttestor,
 }

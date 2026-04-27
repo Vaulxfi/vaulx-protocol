@@ -119,7 +119,7 @@ describe("vault / deposit", () => {
       depositor: lender.kp.publicKey,
       tokenProgram: TOKEN_PROGRAM_ID,
       vaultConfig: vaultConfigPda(program.programId),
-      gatewayToken: SystemProgram.programId,
+      kycAttestation: SystemProgram.programId,
     }).signers([lender.kp]).rpc();
   }
 
@@ -295,7 +295,7 @@ describe("vault / withdraw", () => {
       depositor: lender.kp.publicKey,
       tokenProgram: TOKEN_PROGRAM_ID,
       vaultConfig: vaultConfigPda(program.programId),
-      gatewayToken: SystemProgram.programId,
+      kycAttestation: SystemProgram.programId,
     }).signers([lender.kp]).rpc();
   }
 
@@ -470,7 +470,7 @@ describe("vault / events", () => {
         depositor: depositor.publicKey,
         tokenProgram: TOKEN_PROGRAM_ID,
         vaultConfig: vaultConfigPda(program.programId),
-        gatewayToken: SystemProgram.programId,
+        kycAttestation: SystemProgram.programId,
       }).signers([depositor]).rpc();
 
       await new Promise((r) => setTimeout(r, 1500));
@@ -549,7 +549,7 @@ describe("vault / events", () => {
       depositor: depositor.publicKey,
       tokenProgram: TOKEN_PROGRAM_ID,
       vaultConfig: vaultConfigPda(program.programId),
-      gatewayToken: SystemProgram.programId,
+      kycAttestation: SystemProgram.programId,
     }).signers([depositor]).rpc();
     await provider.connection.confirmTransaction(sigDep, "confirmed");
 
