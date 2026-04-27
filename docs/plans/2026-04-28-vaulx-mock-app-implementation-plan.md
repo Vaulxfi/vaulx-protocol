@@ -1377,77 +1377,54 @@ Footer note reinforces: rails provide market venues + curator frameworks; Vaulx 
 
 ---
 
-## Phase 8 — Auction + Landing + Tour (Day 9, May 6)
+## Phase 8 — Auction + Landing + Tour (Day 9, May 6) — SHIPPED
 
-### Task 8.1: `<AuctionTierTimeline>` component
-
-**Files:**
-- Create: `apps/web/src/app/demo/_components/auction-tier-timeline.tsx`
-- Test: `apps/web/src/app/demo/_components/__tests__/auction-tier-timeline.test.tsx`
-
-**Step 1:** Test: renders 3 tiers; active tier has brass left-rule; countdown displays.
-
-**Step 2:** Implement. Animated tier transition.
-
-**Step 3:** Commit.
-
-### Task 8.2: `/demo/auction` floor
+### Task 8.1: `<AuctionTierTimeline>` component — DONE
 
 **Files:**
-- Create: `apps/web/src/app/demo/auction/page.tsx`
-- Create: `apps/web/src/app/demo/_fixtures/auction-bids.ts` (pseudonymized bidders only — `vaulx-lender-04` etc.)
+- `apps/web/src/app/demo/_components/auction-tier-timeline.tsx`
+- `apps/web/src/app/demo/_components/__tests__/auction-tier-timeline.test.tsx`
 
-**Step 1:** List of ≥3 mock auctions with watch / appraisal / outstanding loan / current tier / countdown / high bid.
+3-tier waterfall card grid with active / pending / complete / no-bids states. Active tier renders brass `border-l-4` + countdown (`HH:MM:SS`) + high bid + bidders + reserve check. Pending tiers carry `opacity-60`. No-bids tiers show a rose ribbon + status pill. 4 tests cover the matrix.
 
-**Step 2:** Commit.
-
-### Task 8.3: `/demo/auction/[trdc]` detail
+### Task 8.2: `/demo/auction` floor — DONE
 
 **Files:**
-- Create: `apps/web/src/app/demo/auction/[trdc]/page.tsx`
+- `apps/web/src/app/demo/auction/page.tsx`
+- `apps/web/src/app/demo/_fixtures/auction-floor.ts`
 
-**Step 1:** Full waterfall: `<AuctionTierTimeline>` + 3 editorial copy blocks + live bid feed (replays auction-bids fixtures over 60s) + bid form.
+Hardcoded 4-row fixture (Submariner / Nautilus / 15500ST / Speedmaster). Page renders the editorial header + stat strip (open auctions / reserve notional / avg tier) + operator-grade table linking each row to `/demo/auction/[trdc]`. Pseudonymized bidders only.
 
-**Step 2:** Commit.
-
-### Task 8.4: `/demo/architecture` page
-
-**Files:**
-- Create: `apps/web/src/app/demo/architecture/page.tsx`
-
-**Source adaptation note:** When adapting `vaulx-liquidity-architecture.md` (and `VAULX_Architecture_Interactive.html`) into the React component, the source files have legacy "Garanti.fi" branding throughout. **Strip every Garanti.fi reference during the adaptation and use Vaulx exclusively.** No "Garanti.fi" string should reach the rendered React output.
-
-**Step 1:** Adapt `VAULX_Architecture_Interactive.html` into a React page. Hover-per-partner tooltips with role + status (LIVE / SDK SANDBOX / MOCK / GOV-GATED).
-
-**Step 2:** Commit.
-
-### Task 8.5: `/demo` landing (final)
+### Task 8.3: `/demo/auction/[trdc]` detail — DONE
 
 **Files:**
-- Modify: `apps/web/src/app/demo/page.tsx`
+- `apps/web/src/app/demo/auction/[trdc]/page.tsx`
+- `apps/web/src/app/demo/_fixtures/auction-bids.ts`
 
-**Copy directives:**
-- Where the value-prop framing previously contrasted Vaulx against "Caixa" — replace with the generic **"TradFi"** wording (e.g., "vs TradFi pawn lenders", "TradFi incumbents (state-bank monopoly in BR)").
-- Where any "Garanti.fi" string appears — kill it. Vaulx everywhere.
+Editorial 7/5 split: asset reveal (`📡 LIVE` IoT pill + placeholder SVG) → `<AuctionTierTimeline>` → three moat blocks (Tier 1 / Tier 2 / Tier 3 verbatim from design doc §6). Right column: live bid feed replaying 8 mock bids on a 60s loop + bid form (mock submit, validates against reserve + min-increment, fires sonner toast).
 
-**Step 1:** Replace placeholder with full hero: tagline, two big CTAs (Borrow journey, Lend dashboard), embedded architecture diagram, "Start guided tour" button.
-
-**Step 2:** Commit.
-
-### Task 8.6: driver.js guided tour
+### Task 8.4: `/demo/architecture` page — DONE
 
 **Files:**
-- Install: `pnpm --filter @vaulx/web add driver.js`
-- Create: `apps/web/src/app/demo/_components/guided-tour.tsx`
-- Create: `apps/web/src/app/demo/_lib/tour-steps.ts`
+- `apps/web/src/app/demo/architecture/page.tsx`
 
-**Step 1:** `tour-steps.ts` — array of 14 step definitions with `route` + `selector` + `headline` + `caption`.
+React-native rebuild of `VAULX_Architecture_Interactive.html` — two swimlanes (DEMAND / SUPPLY) of six step cards each, with hover tooltips per partner (role + why + status badge). Spine bar between the lanes shows `require!(custody_confirmed ∧ terms_accepted)`. Status legend at the bottom (live / SDK sandbox / build / target / mock / future). All Garanti.fi strings replaced with Vaulx; all Caixa strings replaced with "TradFi"; personal-names rule enforced.
 
-**Step 2:** `<GuidedTour>` — listens to `session.tour.active`, mounts driver.js with the current step's config, persists `step` on `next`/`prev`. Step 10 explicitly pauses (no auto-advance).
+### Task 8.5: `/demo` landing (final) — DONE
 
-**Step 3:** Mount `<GuidedTour>` inside `<DemoShell>`.
+**Files:**
+- `apps/web/src/app/demo/page.tsx`
 
-**Step 4:** Commit.
+Full hero with two CTAs (Borrow / Lend) + four-moves grid + stats strip (TVL / Avg LTV / Borrower APR / Lender APY) + three-pitch grid (asset / gate / moat) + Vaulx-vs-TradFi comparison table (6 rows) + CTA strip linking to /demo/architecture, /demo/auction, and a "Take the guided tour" button that flips `tour.active = true`.
+
+### Task 8.6: Guided tour — DONE
+
+**Files:**
+- `apps/web/src/app/demo/_lib/tour-steps.ts`
+- `apps/web/src/app/demo/_components/guided-tour.tsx`
+- `apps/web/src/app/demo/layout.tsx` (mounts `<GuidedTour>`)
+
+**Implementation note:** Built as a React-native overlay rather than driver.js — the spec explicitly authorized the simpler React approach if driver.js requires too much glue, and it ships zero new dependencies. Renders a centered popover with brass-ringed highlight, reads/writes `session.tour.{active,step,history,resumable}`, and pushes the router on advance. Step 9 (the AHA moment) explicitly pauses until `session.loan.disbursedAt` is set; the popover then unblocks with a "Continue tour" button. 14-step canonical Rolex story per design doc §5.
 
 ---
 

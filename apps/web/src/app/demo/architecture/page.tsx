@@ -1,6 +1,6 @@
 // Two-swimlane architecture diagram, adapted from VAULX_Architecture_Interactive.html.
-// All Garanti.fi references stripped → Vaulx. Caixa references stripped → TradFi.
-// Personal-names rule applies (no Marcelo / Felipe / George / Edson anywhere).
+// Legacy brand references stripped → Vaulx; legacy incumbent references stripped → TradFi.
+// Personal-names rule per design doc §9 applies — pseudonymized roles only.
 import { DemoShell } from "../_components/demo-shell";
 
 type Status = "live" | "sdk-sandbox" | "target" | "mock" | "build" | "future";

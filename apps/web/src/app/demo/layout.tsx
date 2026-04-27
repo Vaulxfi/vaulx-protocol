@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { GuidedTour } from "./_components/guided-tour";
 
 export const metadata = {
   title: "Vaulx · Mock app demo",
@@ -6,5 +7,10 @@ export const metadata = {
 };
 
 export default function DemoLayout({ children }: { children: ReactNode }) {
-  return <div className="min-h-screen bg-[var(--bg)]">{children}</div>;
+  return (
+    <div className="min-h-screen bg-[var(--bg)]">
+      {children}
+      <GuidedTour />
+    </div>
+  );
 }
