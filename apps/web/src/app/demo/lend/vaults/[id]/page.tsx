@@ -1,7 +1,7 @@
 "use client";
 // Vault tranche detail. 7/5 editorial split — left: numerals + sparkline +
 // stat strip; right: deposit form. All deposit submissions are mocked.
-import { use, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DemoShell } from "../../../_components/demo-shell";
@@ -73,9 +73,9 @@ type Params = { id: string };
 export default function VaultDetailPage({
   params,
 }: {
-  params: Promise<Params>;
+  params: Params;
 }) {
-  const { id } = use(params);
+  const { id } = params;
   const tranche = TRANCHES.find((t) => t.id === id);
   if (!tranche) {
     notFound();
