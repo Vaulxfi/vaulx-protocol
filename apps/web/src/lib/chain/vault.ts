@@ -48,8 +48,8 @@ export function deriveVaultConfigPda(): PublicKey {
   return pda;
 }
 
-/** Deterministic KYC-attestation PDA: seeds = [b"kyc_attestation", owner]. */
-export function deriveKycAttestationPda(owner: PublicKey): PublicKey {
+/** Deterministic KYC-attestation PDA for the vault program: seeds = [b"kyc_attestation", owner]. */
+export function deriveVaultKycAttestationPda(owner: PublicKey): PublicKey {
   const [pda] = PublicKey.findProgramAddressSync(
     [Buffer.from("kyc_attestation"), owner.toBuffer()],
     VAULT_PROGRAM_ID

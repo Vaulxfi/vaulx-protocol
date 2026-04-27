@@ -55,14 +55,14 @@ export function IdentityGates({ children }: { children: ReactNode }) {
         )}
       </section>
 
-      {/* Gate the children behind BOTH when Civic Auth is enabled. */}
-      {CIVIC_AUTH_ENABLED ? (
-        <CivicAuthGate>
-          <GovbrGate>{children}</GovbrGate>
-        </CivicAuthGate>
-      ) : (
+      {/*
+       * Gate children behind BOTH gates. `<CivicAuthGate>` is self-aware of
+       * the env flag — it becomes a no-op passthrough when Civic Auth is
+       * disabled, so we don't need to branch here.
+       */}
+      <CivicAuthGate>
         <GovbrGate>{children}</GovbrGate>
-      )}
+      </CivicAuthGate>
     </div>
   );
 }

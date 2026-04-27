@@ -21,8 +21,6 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-const CIVIC_AUTH_ENABLED = !!process.env.NEXT_PUBLIC_CIVIC_AUTH_CLIENT_ID;
-
 export function DepositForm({ assetMint }: { assetMint: PublicKey }) {
   const { publicKey } = useWallet();
   const mutation = useDeposit(assetMint);
@@ -89,5 +87,5 @@ export function DepositForm({ assetMint }: { assetMint: PublicKey }) {
     </form>
   );
 
-  return CIVIC_AUTH_ENABLED ? <CivicAuthGate>{formEl}</CivicAuthGate> : formEl;
+  return <CivicAuthGate>{formEl}</CivicAuthGate>;
 }

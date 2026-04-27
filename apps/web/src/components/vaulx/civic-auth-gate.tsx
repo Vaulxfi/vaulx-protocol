@@ -27,12 +27,26 @@ export function CivicAuthRoot({ children }: { children: ReactNode }) {
  * Renders `children` only when the user is signed in via Civic Auth.
  * Otherwise renders `fallback` (or a default sign-in button).
  *
- * Requires a `<CivicAuthRoot>` ancestor. When the gate is feature-flagged
- * off (no `NEXT_PUBLIC_CIVIC_AUTH_CLIENT_ID`), `<CivicAuthRoot>` becomes a
- * passthrough — at which point `useUser()` will still throw if called
- * outside a provider, so callers should also gate on the env flag.
+ * Contract: when `NEXT_PUBLIC_CIVIC_AUTH_CLIENT_ID` is unset, the gate is a
+ * no-op passthrough — it renders `children` unconditionally. This matches
+ * `<CivicAuthRoot>`'s passthrough mode (no provider mounted) and means
+ * callers do NOT need to double-gate on the env flag. When the env flag is
+ * set, a real `<CivicAuthProvider>` is required as an ancestor; this gate
+ * delegates to `useUser()` inside an inner component so the hook is only
+ * called when a provider exists.
  */
 export function CivicAuthGate({
+  children,
+  fallback,
+}: {
+  children: ReactNode;
+  fallback?: ReactNode;
+}) {
+  if (!CIVIC_CLIENT_ID) return <>{children}</>;
+  return <CivicAuthGateInner fallback={fallback}>{children}</CivicAuthGateInner>;
+}
+
+function CivicAuthGateInner({
   children,
   fallback,
 }: {

@@ -19,29 +19,33 @@ async function sha256Hex(s: string): Promise<string> {
 
 /**
  * Bridge between the live `<CivicAuthGate>` (when Civic Auth is enabled) and
- * the demo `useDemoSession` store. When `useUser()` reports a signed-in user,
- * SHA-256 the JWT and persist `session.civic.jwtHash` + `verifiedAt`.
+ * the parent's `useDemoSession` store. The bridge calls `useUser()` (only safe
+ * inside `<CivicAuthRoot>` with a real client id), SHA-256s the JWT, and
+ * forwards the hash to the parent via `onVerified`. The parent owns the
+ * `useDemoSession` write so its `civicDone` check sees the new value.
  */
-function CivicVerifiedBridge() {
+function CivicVerifiedBridge({
+  alreadyVerified,
+  onVerified,
+}: {
+  alreadyVerified: boolean;
+  onVerified: (jwtHash: string) => void;
+}) {
   const { user, idToken } = useUser();
-  const { session, patch } = useDemoSession();
 
   useEffect(() => {
     if (!user || !idToken) return;
-    if (session?.civic.verifiedAt) return;
+    if (alreadyVerified) return;
     let cancelled = false;
     void (async () => {
       const jwtHash = await sha256Hex(idToken);
       if (cancelled) return;
-      patch((s) => ({
-        ...s,
-        civic: { jwtHash, verifiedAt: Date.now() },
-      }));
+      onVerified(jwtHash);
     })();
     return () => {
       cancelled = true;
     };
-  }, [user, idToken, session?.civic.verifiedAt, patch]);
+  }, [user, idToken, alreadyVerified, onVerified]);
 
   return (
     <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 px-4 py-3 font-mono text-sm uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
@@ -80,7 +84,15 @@ export default function OnboardPage() {
         </button>
       }
     >
-      <CivicVerifiedBridge />
+      <CivicVerifiedBridge
+        alreadyVerified={civicDone}
+        onVerified={(jwtHash) =>
+          patch((s) => ({
+            ...s,
+            civic: { jwtHash, verifiedAt: Date.now() },
+          }))
+        }
+      />
     </CivicAuthGate>
   ) : (
     <button

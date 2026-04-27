@@ -33,8 +33,8 @@ export {
   deriveVaultPda,
 };
 
-/** Deterministic KYC-attestation PDA: seeds = [b"kyc_attestation", owner]. */
-export function deriveKycAttestationPda(owner: PublicKey): PublicKey {
+/** Deterministic KYC-attestation PDA for the loan program: seeds = [b"kyc_attestation", owner]. */
+export function deriveLoanKycAttestationPda(owner: PublicKey): PublicKey {
   const [pda] = PublicKey.findProgramAddressSync(
     [Buffer.from("kyc_attestation"), owner.toBuffer()],
     LOAN_PROGRAM_ID,
@@ -94,7 +94,7 @@ export function useCreateCcbTrdc() {
       const trdcPda = deriveTrdcStatePda(args.loanId);
       const loanConfigPda = deriveLoanConfigPda();
 
-      // TODO: read `loan_config.kyc_required` and pass `deriveKycAttestationPda(payer)` when set.
+      // TODO: read `loan_config.kyc_required` and pass `deriveLoanKycAttestationPda(payer)` when set.
       const kycAttestationKey: PublicKey = SystemProgram.programId;
 
       const rateBps = rateForTermDays(args.termDays);
