@@ -631,7 +631,7 @@ Expected: `200`.
 
 **Step 1:** Read the existing `<CivicPassGate>` at `apps/web/src/components/vaulx/civic-pass-gate.tsx` to understand the pattern.
 
-**Step 2:** Implement page:
+**Step 2:** Implement page (post-fix `useDemoSession` shape: `session: DemoSession | null` + functional `patch((s) => ...)` updater). The `gov.br` bridge effect reads from the production `/borrow/verify-id` flow's localStorage (keyed by wallet pubkey, with a `demo-no-wallet` fallback) when the user returns via `?via=demo`:
 
 ```tsx
 "use client";
@@ -640,16 +640,40 @@ import Link from "next/link";
 import { DemoShell } from "../../_components/demo-shell";
 import { LiveBadge, MockBadge } from "../../_components/integration-badges";
 import { useDemoSession } from "../../_lib/use-demo-session";
+import { getGovbrVerification } from "@/lib/govbr/mock-storage";
 
 export default function OnboardPage() {
   const { session, patch } = useDemoSession();
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
-    if (session.civic.verifiedAt) return;
+    if (session?.civic.verifiedAt) return;
     const t = setInterval(() => setElapsed((s) => s + 1), 1000);
     return () => clearInterval(t);
-  }, [session.civic.verifiedAt]);
+  }, [session?.civic.verifiedAt]);
+
+  // Bridge: pull gov.br verification from the production /borrow/verify-id
+  // page's localStorage (keyed by wallet pubkey, falling back to a sentinel
+  // when no wallet is set yet).
+  useEffect(() => {
+    if (!session) return;
+    if (session.govbr.verifiedAt) return;
+    const wallet = session.wallet.pubkey ?? "demo-no-wallet";
+    const v = getGovbrVerification(wallet);
+    if (v) {
+      patch((s) => ({
+        ...s,
+        govbr: { cpf: v.cpf, name: v.name, verifiedAt: v.verified_at },
+      }));
+    }
+  }, [session, patch]);
+
+  if (!session)
+    return (
+      <DemoShell formFactor="phone">
+        <div className="px-6 py-12 text-[var(--ink-muted)]">Loading…</div>
+      </DemoShell>
+    );
 
   const civicDone = !!session.civic.verifiedAt;
   const govbrDone = !!session.govbr.verifiedAt;
@@ -674,7 +698,12 @@ export default function OnboardPage() {
 
         <button
           disabled={civicDone}
-          onClick={() => patch({ civic: { gatewayToken: "demo-token", verifiedAt: Date.now() } })}
+          onClick={() =>
+            patch((s) => ({
+              ...s,
+              civic: { gatewayToken: "demo-token", verifiedAt: Date.now() },
+            }))
+          }
           className="mt-6 w-full rounded-md border border-[var(--brand)]/40 bg-[var(--brand)]/10 px-4 py-3 font-mono text-sm uppercase tracking-wider text-[var(--brand)] disabled:opacity-50"
         >
           {civicDone ? "✓ Civic Pass verified" : "Verify with Civic"}
