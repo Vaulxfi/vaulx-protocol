@@ -4,6 +4,30 @@
 
 ---
 
+## Active items as of 2026-04-27
+
+### Devnet contracts deploy — DEFERRED until code review
+
+- [ ] Payer wallet has 35 SOL on devnet (sufficient for `--final` deploy of all 4 programs ≈ 9.55 SOL).
+- [ ] When ready: code review + audit pass before deploying to devnet. Programs are immutable in `--final` mode — review costs zero, redeploy costs ~9 SOL.
+- [ ] Trigger: ping me when you want the deploy step to run; takes <30 min once authorized.
+
+### Apify (Chrono24 production scraping) — DEFER until needed
+
+- [ ] **Decision needed before production launch:** demo currently uses fallback-safe scraper at `apps/web/src/lib/appraisal/chrono24.ts` + deterministic random walk for the dashboard tick. For production, Apify's maintained Chrono24 actor is more reliable.
+- [ ] If/when ready: get an Apify API token + paste into `.env` as `APIFY_API_TOKEN=...`. Swap takes ~1 day.
+- [ ] Currently P2 — not blocking demo or first-customer flows.
+
+### Crossmint solutions team — pre-prod call (Felipe / Marcelo)
+
+- [ ] Confirm smart-wallet program audit + upgrade-authority governance (Squads V4 timelock minimum)
+- [ ] Confirm Civic Pass + gov.br ouro acceptance as Full KYC liveness gate (no duplicate check)
+- [ ] Confirm BR-resident Create User field schema (CPF? RG? CNH? employment? source of funds?)
+- [ ] Confirm per-region custom-token JWT bridge (gov.br for BR; Aadhaar for IN; eIDAS for EU)
+- [ ] Confirm MiCA CASP umbrella for Vaulx (BR entity, EU users)
+
+---
+
 ## ✅ Done as of 2026-04-25
 
 - [x] Devnet payer wallet funded (`2HYjytRc4oKY2ndmJfAq2XdGhPqYB7VdDPLzA18QEiAH`, ~5.49 SOL)
