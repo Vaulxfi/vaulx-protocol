@@ -18,7 +18,7 @@ Ship a clickable, judge-grade mock of Vaulx's full maximalist vision — onboard
 
 **Scope (β+):** Full borrower flow + full lender flow + 3-tier auction waterfall + landing + interactive architecture diagram. ~22 routes total, ~18 substantive screens. Default flow visualized via the auction surface; lender side mocks Kamino + Plume + Tokeny + FIDC routing.
 
-**Real vs mock split** (see §2 for full matrix): real for self-serve dev integrations (Privy, Crossmint, LazorKit, Civic CAPTCHA, WatchCharts, Chrono24 fallback). Mock for everything that requires commercial agreements (Privy Pix off-ramp, Solflare/lobster card, Kamino OCC, Plume Nest, Tokeny ERC-3643, gov.br official, Brinks IoT). All mocks ship with `MOCK · partnership in progress` ribbons; partnership tracking lives in `PARTNERSHIPS.md`.
+**Real vs mock split** (see §2 for full matrix): real for self-serve dev integrations (Civic CAPTCHA, Crossmint, WatchCharts, Chrono24 fallback, Devnet wallet send). Mock for everything that requires commercial agreements (Pix off-ramp, Solflare/lobster card, Kamino OCC, Plume Nest, Tokeny ERC-3643, gov.br official, Brinks IoT). All mocks ship with `MOCK · partnership in progress` ribbons; partnership tracking lives in `PARTNERSHIPS.md`.
 
 ---
 
@@ -32,7 +32,7 @@ Ship a clickable, judge-grade mock of Vaulx's full maximalist vision — onboard
                                       VAULX_Architecture_Interactive.html, themed to /demo palette.
 ─────────────── BORROWER (mobile bezel on desktop, full-bleed on mobile) ───────────────
 /demo/borrow/onboard             ── Civic CAPTCHA real + gov.br mocked. 60-sec stopwatch UI.
-/demo/borrow/wallet              ── Privy / Crossmint / LazorKit chooser (real SDKs)
+/demo/borrow/wallet              ── Single-CTA Crossmint sign-in (Google / Apple / Email)
 /demo/borrow/register            ── Watch make/model/ref/year/condition + 3-photo upload
 /demo/borrow/appraisal           ── Chrono24 + WatchCharts + internal model triangulation
                                       (existing /api/appraisal route)
@@ -42,7 +42,7 @@ Ship a clickable, judge-grade mock of Vaulx's full maximalist vision — onboard
 /demo/borrow/disburse            ── THE AHA MOMENT. Tap → CustodyNotConfirmed (red).
                                       Custodian signs (visible). Tap → green → USDC streams.
 /demo/borrow/funds               ── Vaulx in-app USDC balance + 3 outflow CTAs
-/demo/borrow/funds/pix           ── Pix off-ramp mock (Privy fiat partner)
+/demo/borrow/funds/pix           ── Pix off-ramp mock (Crossmint / fiat partner)
 /demo/borrow/funds/wallet        ── Send to external Solana wallet (real on-chain devnet)
 /demo/borrow/funds/card          ── Solflare Card / lobster.cash spend mock
 /demo/borrow/dashboard           ── Live LTV gauge, RedStone-wrapped Chrono24 sparkline,
@@ -79,23 +79,37 @@ Ship a clickable, judge-grade mock of Vaulx's full maximalist vision — onboard
 |---|---|---|---|
 | 1 | **Civic Pass (CAPTCHA)** | **REAL** — reuse existing `<CivicPassGate>` from main app | Live |
 | 2 | **gov.br** | **MOCK** — reuse existing `/borrow/verify-id/*` themed for `/demo` | Brazilian-registered entity, gov registration |
-| 3 | **Privy (auth + wallet)** | **REAL** — sandbox app id + secret | Self-serve, no contract |
-| 4 | **Crossmint** | **REAL** — sandbox dev API key | Self-serve, paid tier for prod |
-| 5 | **LazorKit** | **REAL** — open-source SDK, no key needed | Self-serve |
-| 6 | **WatchCharts API** | **REAL** — `lib/appraisal/watchcharts.ts` already wired | Free tier; paid tier for full feed |
-| 7 | **Chrono24 scrape** | **REAL fallback-safe** — `lib/appraisal/chrono24.ts` already wired | Data licensing required for prod |
-| 8 | **RedStone / Pyth** | **MOCK on `/demo/borrow/dashboard`** — `RedStone-fed` badge with simulated 60s tick | Self-serve oracle integration |
-| 9 | **Brinks / Prosegur / Loomis** | **MOCK** — calendar mock + looped IoT clip + `📡 LIVE` badge | Custody contracts (P0) |
-| 10 | **Privy Pix off-ramp** | **MOCK** — `Sending R$X to ••••5234 · Banco Inter` flow | Privy + fiat partner KYB (P1, ~1-4 weeks) |
-| 11 | **Solflare Card / lobster.cash** | **MOCK** — Apple-Pay-styled "Add to Wallet" + tx feed | Card-issuer partnership (P2) |
-| 12 | **Kamino OCC** | **MOCK** — tranche selector on `/demo/lend/liquidity` | Kamino partnership (P2) |
-| 13 | **Plume Nest** | **MOCK** — adjacent to Kamino on same screen | Plume partnership (P2) |
-| 14 | **Tokeny / ERC-3643** | **MOCK** — KYB flow on `/demo/lend/onboard` | Tokeny partnership (P2) |
-| 15 | **CCB.B3 + e-signature** | **REAL PDF + MOCK SIGNATURE** — `@vaulx/ccb` PDF + canvas signature pad, signature hash stored in PDF metadata | DocuSign / D4Sign integration (P2) |
-| 16 | **Auction PDA (3-tier waterfall)** | **MOCK with optional real Devnet bidding** — synthetic bid replay; if Devnet programs are deployed, the bid form fires real `auction.place_bid` | Real on-chain (Phase 4 deploy) |
-| 17 | **TRDC = cNFT (Bubblegum)** | **MOCK** — TRDC viewer on dashboard | Real Bubblegum CPI (Phase 4+) |
+| 3 | **Crossmint (auth + smart wallet + sanctions/PEP)** | **REAL** — sandbox dev API key | Self-serve, paid tier for prod |
+| 4 | **WatchCharts API** | **REAL** — `lib/appraisal/watchcharts.ts` already wired | Free tier; paid tier for full feed |
+| 5 | **Chrono24 scrape** | **REAL fallback-safe** — `lib/appraisal/chrono24.ts` already wired | Data licensing required for prod |
+| 6 | **RedStone / Pyth** | **MOCK on `/demo/borrow/dashboard`** — `RedStone-fed` badge with simulated 60s tick | Self-serve oracle integration |
+| 7 | **Brinks / Prosegur / Loomis** | **MOCK** — calendar mock + looped IoT clip + `📡 LIVE` badge | Custody contracts (P0) |
+| 8 | **Pix off-ramp** | **MOCK** — `Sending R$X to ••••5234 · Banco Inter` flow | Crossmint off-ramp / fiat partner KYB (P1) |
+| 9 | **Solflare Card / lobster.cash** | **MOCK** — Apple-Pay-styled "Add to Wallet" + tx feed | Card-issuer partnership (P2) |
+| 10 | **Kamino OCC** | **MOCK** — tranche selector on `/demo/lend/liquidity` | Kamino partnership (P2) |
+| 11 | **Plume Nest** | **MOCK** — adjacent to Kamino on same screen | Plume partnership (P2) |
+| 12 | **Tokeny / ERC-3643** | **MOCK** — KYB flow on `/demo/lend/onboard` | Tokeny partnership (P2) |
+| 13 | **CCB.B3 + e-signature** | **REAL PDF + MOCK SIGNATURE** — `@vaulx/ccb` PDF + canvas signature pad, signature hash stored in PDF metadata | DocuSign / D4Sign integration (P2) |
+| 14 | **Auction PDA (3-tier waterfall)** | **MOCK with optional real Devnet bidding** — synthetic bid replay; if Devnet programs are deployed, the bid form fires real `auction.place_bid` | Real on-chain (Phase 4 deploy) |
+| 15 | **TRDC = cNFT (Bubblegum)** | **MOCK** — TRDC viewer on dashboard | Real Bubblegum CPI (Phase 4+) |
+| 16 | **Devnet wallet send** | **REAL** — connected Crossmint wallet signs a real Devnet SOL/USDC transfer | Live |
 
-**Counts:** 6 real + 11 mock. The 6 real integrations are SDK-only; no commercial agreement required to ship.
+**Counts:** 5 real + 11 mock. The 5 real integrations are SDK-only or already-deployed networks; no commercial agreement required to ship.
+
+---
+
+## §2.1 — Crossmint integration architecture
+
+Crossmint is the sole wallet/auth/compliance vendor. Civic Pass is the on-chain identity gate. Production flow:
+
+1. User lands → Civic Pass CAPTCHA (Sybil resistance, on-chain gateway token)
+2. gov.br OAuth → CPF + biometric + selo prata/ouro address
+3. Vaulx backend maps gov.br + Civic outputs to Crossmint Create User schema (`{name, dob, country, idDocumentNumber, address, email}`) and POSTs
+4. Crossmint runs sanctions + PEP + ongoing monitoring → cleared status returned
+5. Crossmint provisions Solana smart-wallet PDA keyed by Vaulx-issued JWT (custom-token mode, since gov.br/Civic aren't pre-built Crossmint OIDC providers)
+6. Anchor `loan` program reads the user's Civic Pass gateway token before allowing `confirm_custody` / disburse / repay / renew
+
+The smart wallet is PDA-based: signers can rotate without moving assets, which gives the right collateral semantics for TRDC cNFTs and lets Vaulx attach on-chain policy. In `/demo/*` we skip the Create User API call (real backend integration is a P1 partnership task) and just create the local Crossmint wallet via SDK.
 
 ### `PARTNERSHIPS.md` — internal team tracker (committed alongside this doc)
 
@@ -109,9 +123,8 @@ P0 — must close before launch (May 10)
 
 P1 — close by submission for "named partner" deck mention
 - Civic full-KYC gatekeeper sub (paid)
-- Privy Pix off-ramp partner (KYB conversation)
-- Crossmint production tier confirmed
-- LazorKit joint mention / quote
+- Crossmint production tier + KYC field mapping + Civic Pass acceptance + per-region JWT bridge + MiCA CASP umbrella
+- Pix off-ramp partner (KYB conversation)
 
 P2 — close post-submission for first integrations
 - Kamino Off-Chain Collateral institutional onboarding
@@ -140,10 +153,8 @@ Format per item: `- [status emoji] [name] — [owner] — [notes]`. Each mocked 
 - `<DemoTopBar>` — slim header replacing `<SiteHeader>`. Pills: Reset demo · Tour · Exit demo.
 - `<DemoFooterNav>` — phone-only bottom-tab nav inside `<PhoneBezel>` (Home / Borrow / Spend / Dashboard / Settings).
 
-**Wallet chooser:**
-- `<PrivyLoginCard>` — real Privy embedded SDK in sandbox.
-- `<CrossmintLoginCard>` — real Crossmint embedded checkout/wallet SDK.
-- `<LazorKitFaceIDCard>` — real LazorKit SDK; iPhone passkey/FaceID.
+**Wallet:**
+- `<CrossmintWallet>` — real Crossmint embedded auth + smart-wallet SDK. Single CTA: "Sign in with Google · Apple · Email". Crossmint smart wallets natively support passkey signers (Apple Secure Enclave / WebAuthn), so the FaceID UX path lives inside Crossmint — no separate vendor needed.
 
 **Trust + integration badges:**
 - `<MockBadge>` — bottom-right brass ribbon: `MOCK · {partner-name} · agreement pending`. Dismissible per session.
@@ -163,7 +174,7 @@ Format per item: `- [status emoji] [name] — [owner] — [notes]`. Each mocked 
 | Route | Form | Key behavior |
 |---|---|---|
 | `/demo/borrow/onboard` | Phone | 60-sec onboarding stopwatch; Civic Pass + CPF stored to session |
-| `/demo/borrow/wallet` | Phone | User picks one of 3 SDKs; real call fires; resulting Solana pubkey stored |
+| `/demo/borrow/wallet` | Phone | Single Crossmint CTA; real SDK call fires; resulting Solana smart-wallet pubkey stored |
 | `/demo/borrow/appraisal` | Phone | Animated reveal of Chrono24 → WatchCharts → Vaulx Model → median in 800ms |
 | `/demo/borrow/loan-offer` | Phone | LTV slider + term + rate + signature pad → submit → state advances |
 | `/demo/borrow/disburse` | Phone | First tap → CustodyNotConfirmed (red); custodian signs (right-side phone); second tap → green → USDC streams |
@@ -189,8 +200,8 @@ type DemoSession = {
   civic: { gatewayToken?: string; verifiedAt?: number };
   govbr: { cpf?: string; name?: string; verifiedAt?: number };
   wallet: {
-    provider?: 'privy' | 'crossmint' | 'lazorkit';
-    pubkey?: string;            // real Solana pubkey from chosen SDK
+    provider?: 'crossmint';
+    pubkey?: string;            // real Solana smart-wallet pubkey from Crossmint
     email?: string;
   };
   watch?: {
@@ -222,9 +233,7 @@ type DemoSession = {
 | When | Fires | Persists to |
 |---|---|---|
 | `/demo/borrow/onboard` | Civic CAPTCHA gateway-token issuance | `civic.gatewayToken` |
-| `/demo/borrow/wallet` (Privy) | `privy.login()` | `wallet.{provider, pubkey, email}` |
-| `/demo/borrow/wallet` (Crossmint) | Crossmint embedded SDK | same shape |
-| `/demo/borrow/wallet` (LazorKit) | LazorKit `connect()` (FaceID prompt) | same shape |
+| `/demo/borrow/wallet` | Crossmint embedded auth + smart-wallet SDK (`useCrossmintAuth().login()` → `useWallet().wallet.address`) | `wallet.{provider, pubkey, email}` |
 | `/demo/borrow/appraisal` | Existing `/api/appraisal` | `watch.appraisal` |
 | `/demo/borrow/funds/wallet` | Real on-chain Devnet SOL/USDC transfer (signed by connected wallet) | tx signature in toast |
 
@@ -251,7 +260,7 @@ Server-side, deterministic, imported with JSON attributes. Lives at `apps/web/sr
 
 ### Reset
 
-`<DemoTopBar>` "Reset demo" pill clears `vaulx_demo_session` from sessionStorage and redirects to `/demo`. Real wallets created via Privy/Crossmint/LazorKit persist in their SDK's own storage; user can re-link the same wallet on a fresh run.
+`<DemoTopBar>` "Reset demo" pill clears `vaulx_demo_session` from sessionStorage and redirects to `/demo`. Real wallets created via Crossmint persist in the SDK's own storage; user can re-link the same wallet on a fresh run.
 
 ---
 
@@ -267,7 +276,7 @@ Server-side, deterministic, imported with JSON attributes. Lives at `apps/web/sr
 |---|---|---|
 | 1 | `/demo` | This is Vaulx — let's borrow against a Rolex in two minutes. |
 | 2 | `/demo/borrow/onboard` | 60-second KYC. Civic Pass real on Solana. gov.br for Brazilian PII. |
-| 3 | `/demo/borrow/wallet` | Three wallet options. Crossmint for non-crypto. LazorKit for FaceID. Privy (Stripe-acquired) for email. |
+| 3 | `/demo/borrow/wallet` | Sign in once. Email, Google, or Apple. Crossmint provisions a Solana smart wallet — passkey-ready, no seed phrase. |
 | 4 | `/demo/borrow/wallet` (post-login) | Wallet provisioned in <2 sec. No seed phrase, no extension. |
 | 5 | `/demo/borrow/register` | Register your watch. Make + model + reference + 3 photos. |
 | 6 | `/demo/borrow/appraisal` | Triangular appraisal. Chrono24 scrape. WatchCharts API. Vaulx model. |
@@ -365,7 +374,7 @@ Above the timeline: watch photo, model, year, condition, last-known location ("B
 | Day | Date | Deliverable |
 |---|---|---|
 | 1 | Apr 28 | Foundation: route tree, `<DemoShell>` / `<PhoneBezel>` / `<DemoTopBar>` / `<DemoFooterNav>`, `useDemoSession()` hook. Blank `/demo` deployed. |
-| 2 | Apr 29 | `/demo/borrow/onboard` (Civic + gov.br); `/demo/borrow/wallet` (3 real SDKs wired). |
+| 2 | Apr 29 | `/demo/borrow/onboard` (Civic + gov.br); `/demo/borrow/wallet` (single-CTA Crossmint SDK). |
 | 3 | Apr 30 | `/demo/borrow/register` (form + photos); `/demo/borrow/appraisal` (existing /api/appraisal). |
 | 4 | May 1 | `/demo/borrow/loan-offer` (`<CcbDocument>` + signature); `/demo/borrow/custody` (calendar mock); `/demo/borrow/awaiting-custody` (IoT loop). `<MockBadge>`/`<LiveBadge>`. |
 | 5 | May 2 | THE AHA MOMENT — `/demo/borrow/disburse` choreography. Step 10 tour pause/resume. |
@@ -378,17 +387,17 @@ Above the timeline: watch photo, model, year, condition, last-known location ("B
 ### Parallel team tracks (don't block dev)
 
 - SCD LOI + custodian MOU + fintech counsel
-- Civic / Privy / Crossmint / LazorKit / Kamino / Plume warm intros (each confirmed convo upgrades a `MOCK · agreement pending` ribbon to `MOCK · partner aligned` or graduates to `LIVE`)
+- Civic / Crossmint / Kamino / Plume warm intros (each confirmed convo upgrades a `MOCK · agreement pending` ribbon to `MOCK · partner aligned` or graduates to `LIVE`)
 - `PARTNERSHIPS.md` updated daily
 
 ### Risks
 
 | Risk | Mitigation |
 |---|---|
-| Privy/Crossmint/LazorKit sandbox flake on demo day | `<DegradedMockNotice>` + auto fallback; session persistence so retries don't re-trigger SDK |
+| Crossmint sandbox flake on demo day | `<DegradedMockNotice>` + auto fallback; session persistence so retries don't re-trigger SDK |
 | Devnet program deploy still blocked by SOL budget | Bid form gracefully degrades to synthetic; `MOCK · awaiting Devnet deploy` ribbon |
 | Tab refresh kills demo state mid-pitch | sessionStorage covers refresh; tab-close = reset is desired |
-| LazorKit FaceID needs HTTPS + recent iOS Safari | Vercel HTTPS in place; tour caption mentions "Best on iPhone Safari iOS 16+" |
+| Crossmint passkey signer needs HTTPS + recent iOS Safari | Vercel HTTPS in place; passkey signer added in a later phase, mocked in `/demo` |
 | Real wallet send needs SOL on user wallet | Fountain wallet drips 1-USDC airdrop on first use; falls back to mock if dry |
 | Mock data feels fake to a sharp judge | Mock badges are honest, not hidden; moat surfaces lean on real numbers |
 
@@ -413,7 +422,7 @@ Above the timeline: watch photo, model, year, condition, last-known location ("B
 7. Cross to `/demo/auction/[any]`: tier transition animates within 60s
 8. Reset demo button: clears session, real wallet still re-linkable
 9. All MOCK badges describable in one sentence per partner
-10. Real iPhone Safari: `/demo/borrow/wallet` → tap LazorKit → real FaceID prompt fires
+10. Real iPhone Safari: `/demo/borrow/wallet` → Crossmint sign-in fires; smart wallet pubkey returned in <2s
 
 ### Judge-readiness (May 9)
 - 2-min demo video records cleanly off live URL
@@ -424,7 +433,7 @@ Above the timeline: watch photo, model, year, condition, last-known location ("B
 
 ### Explicitly NOT a success criterion
 - Real Devnet program deploy (auction bids fall back to synthetic)
-- Real Privy Pix (mock tells the same story)
+- Real Pix off-ramp (mock tells the same story)
 - Real gov.br integration (mock acceptable indefinitely until BR entity exists)
 
 ---

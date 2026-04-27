@@ -4,9 +4,9 @@
 
 **Goal:** Build the Vaulx mock app at `vaulx.vercel.app/demo/*` — full borrower flow (mobile bezel) + lender flow (desktop) + 3-tier auction waterfall + landing + interactive architecture diagram + 14-step guided tour. β+ scope per the design doc.
 
-**Architecture:** New routes under `apps/web/src/app/demo/*`, embedded in the existing Next.js 14 app, sharing the editorial dark-operator design system. State persists in `sessionStorage` keyed by a session UUID. Real SDK integrations (Privy, Crossmint, LazorKit, Civic CAPTCHA, WatchCharts, Chrono24); mock UIs for everything that requires commercial agreements (Privy Pix, Solflare card, Kamino, Plume, Tokeny, gov.br, Brinks IoT). All mocks ribbon-tagged `MOCK · partnership in progress`.
+**Architecture:** New routes under `apps/web/src/app/demo/*`, embedded in the existing Next.js 14 app, sharing the editorial dark-operator design system. State persists in `sessionStorage` keyed by a session UUID. Real SDK integrations (Crossmint, Civic CAPTCHA, WatchCharts, Chrono24, Devnet wallet send); mock UIs for everything that requires commercial agreements (Pix off-ramp, Solflare card, Kamino, Plume, Tokeny, gov.br, Brinks IoT). All mocks ribbon-tagged `MOCK · partnership in progress`.
 
-**Tech Stack:** Next.js 14 App Router · Tailwind · shadcn/ui · `@privy-io/react-auth` · `@crossmint/client-sdk-react-ui` · `@lazorkit/wallet` · `driver.js` · `@vaulx/ccb` (existing PDF generator) · existing `/api/appraisal` (Chrono24 + WatchCharts + internal model).
+**Tech Stack:** Next.js 14 App Router · Tailwind · shadcn/ui · `@crossmint/client-sdk-react-ui` · `driver.js` · `@vaulx/ccb` (existing PDF generator) · existing `/api/appraisal` (Chrono24 + WatchCharts + internal model).
 
 **Source-of-truth design:** [`docs/plans/2026-04-27-vaulx-mock-app-demo-design.md`](2026-04-27-vaulx-mock-app-demo-design.md). Read it before starting Task 0.1.
 
@@ -43,7 +43,7 @@ export type DemoSession = {
   civic: { gatewayToken?: string; verifiedAt?: number };
   govbr: { cpf?: string; name?: string; verifiedAt?: number };
   wallet: {
-    provider?: "privy" | "crossmint" | "lazorkit";
+    provider?: "crossmint";
     pubkey?: string;
     email?: string;
   };
@@ -746,126 +746,43 @@ git add apps/web/src/app/demo/borrow/verify-id/ apps/web/src/app/demo/borrow/onb
 git commit -m "fix(demo): demo-specific gov.br flow under /demo/borrow/verify-id (resolves wallet-key mismatch)"
 ```
 
-### Task 1.2: Install Privy + Crossmint + LazorKit SDKs
+### Task 1.2: Install Crossmint SDK
 
 **Step 1:** Install:
 ```bash
-pnpm --filter @vaulx/web add @privy-io/react-auth @crossmint/client-sdk-react-ui @lazorkit/wallet
+pnpm --filter @vaulx/web add @crossmint/client-sdk-react-ui
 ```
 
-**Step 2:** Get sandbox API keys (assume user provides; otherwise fall back to mock UI):
-- Privy: dashboard.privy.io → create app → copy "App ID"
+**Step 2:** Get sandbox API key (assume user provides; otherwise fall back to mock UI):
 - Crossmint: crossmint.com/console → API keys → "Client API key (Production-Server)"
-- LazorKit: no key needed
 
 **Step 3:** Add to Vercel env vars (production + preview) via CLI:
 ```bash
 TOKEN=$(grep -i vercel_token .env | cut -d= -f2)
 SCOPE=team_xxnjJw6BsmOjrWZhABWgity1
-echo -n "<privy-app-id>" | vercel env add NEXT_PUBLIC_PRIVY_APP_ID production --token=$TOKEN --scope=$SCOPE --force
 echo -n "<crossmint-key>" | vercel env add NEXT_PUBLIC_CROSSMINT_API_KEY production --token=$TOKEN --scope=$SCOPE --force
 ```
 
-(If user hasn't provided keys, leave env unset; the SDK provider components must `if (!apiKey) return <PlaceholderCard />` gracefully.)
+(If user hasn't provided the key, leave env unset; the SDK provider component falls back to a mock placeholder card with a `<MockBadge partner="Crossmint" />` ribbon.)
 
 **Step 4:** Add to `.env.example` + local `.env.local`:
 ```
-NEXT_PUBLIC_PRIVY_APP_ID=
 NEXT_PUBLIC_CROSSMINT_API_KEY=
 ```
 
 **Step 5:** Commit:
 ```bash
 git add apps/web/package.json apps/web/.env.example pnpm-lock.yaml
-git commit -m "chore(demo): add Privy + Crossmint + LazorKit SDKs"
+git commit -m "chore(demo): add Crossmint SDK"
 ```
 
-### Task 1.3: `/demo/borrow/wallet` with 3 SDK cards
+### Task 1.3: `/demo/borrow/wallet` with single-CTA Crossmint wallet
 
 **Files:**
 - Create: `apps/web/src/app/demo/borrow/wallet/page.tsx`
-- Create: `apps/web/src/app/demo/_components/wallet-cards/privy-card.tsx`
-- Create: `apps/web/src/app/demo/_components/wallet-cards/crossmint-card.tsx`
-- Create: `apps/web/src/app/demo/_components/wallet-cards/lazorkit-card.tsx`
+- Create: `apps/web/src/app/demo/_components/crossmint-wallet.tsx`
 
-**Step 1:** Implement `privy-card.tsx` (post-fix `useDemoSession` shape: `session && patch((s) => ...)`). The eslint-disabled `any` casts in the original plan don't fly under the repo's eslint config — use `Record<string, unknown>` casts via `unknown` instead:
-
-```tsx
-"use client";
-import { PrivyProvider, usePrivy } from "@privy-io/react-auth";
-import { useEffect } from "react";
-import { useDemoSession } from "../../_lib/use-demo-session";
-
-const PRIVY_APP_ID = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
-
-type Loose = Record<string, unknown>;
-
-function PrivyInner({
-  onConnected,
-}: {
-  onConnected: (pubkey: string, email?: string) => void;
-}) {
-  const { login, ready, authenticated, user } = usePrivy();
-  useEffect(() => {
-    if (authenticated && user) {
-      const sol = user.linkedAccounts.find((a) => {
-        const x = a as unknown as Loose;
-        return x.type === "wallet" && x.chainType === "solana";
-      });
-      const pubkey =
-        ((sol as unknown as Loose | undefined)?.address as string | undefined) ?? user.id;
-      const email =
-        ((user.email as unknown as Loose | undefined)?.address as string | undefined) ?? undefined;
-      onConnected(pubkey, email);
-    }
-  }, [authenticated, user, onConnected]);
-
-  return (
-    <button
-      disabled={!ready}
-      onClick={() => login()}
-      className="w-full rounded-md border border-[var(--rule)] p-4 text-left hover:border-[var(--brand)]/50 disabled:opacity-50"
-    >
-      <p className="font-mono text-xs uppercase tracking-wider text-[var(--ink-muted)]">Privy</p>
-      <p className="mt-1 font-display text-lg">Email or social</p>
-      <p className="mt-1 text-xs text-[var(--ink-dim)]">Stripe-acquired. Embedded Solana wallet.</p>
-    </button>
-  );
-}
-
-export function PrivyCard() {
-  const { session, patch } = useDemoSession();
-  if (!PRIVY_APP_ID) {
-    return (
-      <button
-        onClick={() =>
-          session &&
-          patch((s) => ({
-            ...s,
-            wallet: { provider: "privy", pubkey: "MOCK11111111111111111111111111111111111111" },
-          }))
-        }
-        className="w-full rounded-md border border-[var(--rule)] p-4 text-left hover:border-[var(--brand)]/50"
-      >
-        <p className="font-mono text-xs uppercase tracking-wider text-[var(--ink-muted)]">Privy · sandbox unset</p>
-        <p className="mt-1 font-display text-lg">Email or social</p>
-        <p className="mt-1 text-xs text-[var(--ink-muted)]">MOCK — set NEXT_PUBLIC_PRIVY_APP_ID to enable real SDK.</p>
-      </button>
-    );
-  }
-  return (
-    <PrivyProvider appId={PRIVY_APP_ID} config={{ appearance: { theme: "dark" } }}>
-      <PrivyInner
-        onConnected={(pubkey, email) =>
-          session && patch((s) => ({ ...s, wallet: { provider: "privy", pubkey, email } }))
-        }
-      />
-    </PrivyProvider>
-  );
-}
-```
-
-**Step 2:** Implement `crossmint-card.tsx`. Verified against `@crossmint/client-sdk-react-ui@4.1.5`:
+**Step 1:** Implement `crossmint-wallet.tsx`. Verified against `@crossmint/client-sdk-react-ui@4.1.5`:
 - `<CrossmintProvider apiKey>` (top)
 - `<CrossmintAuthProvider>` exposes `useCrossmintAuth().{ login, status, user }`
 - `<CrossmintWalletProvider createOnLogin={...}>` exposes `useWallet().{ wallet }` with `wallet.address` as the chain-specific pubkey
@@ -881,7 +798,8 @@ import {
   useWallet,
 } from "@crossmint/client-sdk-react-ui";
 import { useEffect } from "react";
-import { useDemoSession } from "../../_lib/use-demo-session";
+import { useDemoSession } from "../_lib/use-demo-session";
+import { MockBadge } from "./integration-badges";
 
 const CROSSMINT_API_KEY = process.env.NEXT_PUBLIC_CROSSMINT_API_KEY;
 
@@ -901,30 +819,33 @@ function CrossmintInner({
   return (
     <button onClick={() => login()} className="w-full rounded-md border border-[var(--rule)] p-4 text-left hover:border-[var(--brand)]/50">
       <p className="font-mono text-xs uppercase tracking-wider text-[var(--ink-muted)]">Crossmint</p>
-      <p className="mt-1 font-display text-lg">Email login</p>
-      <p className="mt-1 text-xs text-[var(--ink-dim)]">Wallet-as-a-service. OTP-gated.</p>
+      <p className="mt-1 font-display text-lg">Sign in with Google · Apple · Email</p>
+      <p className="mt-1 text-xs text-[var(--ink-dim)]">Solana smart wallet provisioned. Passkey-ready.</p>
     </button>
   );
 }
 
-export function CrossmintCard() {
+export function CrossmintWallet() {
   const { session, patch } = useDemoSession();
   if (!CROSSMINT_API_KEY) {
     return (
-      <button
-        onClick={() =>
-          session &&
-          patch((s) => ({
-            ...s,
-            wallet: { provider: "crossmint", pubkey: "MOCK22222222222222222222222222222222222222" },
-          }))
-        }
-        className="w-full rounded-md border border-[var(--rule)] p-4 text-left hover:border-[var(--brand)]/50"
-      >
-        <p className="font-mono text-xs uppercase tracking-wider text-[var(--ink-muted)]">Crossmint · sandbox unset</p>
-        <p className="mt-1 font-display text-lg">Email login</p>
-        <p className="mt-1 text-xs text-[var(--ink-muted)]">MOCK — set NEXT_PUBLIC_CROSSMINT_API_KEY to enable real SDK.</p>
-      </button>
+      <>
+        <button
+          onClick={() =>
+            session &&
+            patch((s) => ({
+              ...s,
+              wallet: { provider: "crossmint", pubkey: "MOCK22222222222222222222222222222222222222", email: "demo@vaulx.app" },
+            }))
+          }
+          className="w-full rounded-md border border-[var(--rule)] p-4 text-left hover:border-[var(--brand)]/50"
+        >
+          <p className="font-mono text-xs uppercase tracking-wider text-[var(--ink-muted)]">Crossmint · sandbox unset</p>
+          <p className="mt-1 font-display text-lg">Sign in with Google · MOCK</p>
+          <p className="mt-1 text-xs text-[var(--ink-muted)]">Set NEXT_PUBLIC_CROSSMINT_API_KEY to enable real SDK.</p>
+        </button>
+        <MockBadge partner="Crossmint" />
+      </>
     );
   }
   return (
@@ -945,56 +866,14 @@ export function CrossmintCard() {
 }
 ```
 
-**Step 3:** Implement `lazorkit-card.tsx`. The original plan suggested `try { useWallet() } catch {}` — a hook can't be called from try-catch (rules of hooks), and dynamic-importing inside a click handler also won't work for hooks. Real shape (verified against `@lazorkit/wallet@2.0.1`) is `<LazorkitProvider>` + a child that calls `useWallet()` and triggers `await w.connect()` (returns `WalletInfo` with `smartWallet` as the on-chain pubkey).
-
-**However**, `@lazorkit/wallet@2.0.1` pulls a transitive `@solana/kora → @solana-program/token@0.9.0` chain that requires `@solana/kit@^5`. pnpm intermittently resolves a stale `kit@2.3.0` paired path that breaks webpack. Until the upstream peer is pinned cleanly, the card ships as mock-only with a `TODO(lazorkit-sdk-verify)` note. Real-SDK shape preserved in the file's comment block.
-
-Headline + subtitle are intentionally honest about the mock state — saying "FaceID / passkey" when the SDK isn't actually wired is a credibility risk on iPhone judges (tap "FaceID" → no FaceID prompt → mock pubkey written). The card also renders a `<MockBadge partner="LazorKit" />` ribbon to make the mock state visible at a glance.
-
-```tsx
-"use client";
-// TODO(lazorkit-sdk-verify): @lazorkit/wallet@2.0.1 transitive deps require
-// @solana/kit ^5; pnpm resolves a paired kit@2.3.0 from elsewhere in the
-// workspace, breaking the webpack build. Render mock-only until upstream
-// peers are pinned. Real-SDK shape: render <LazorkitProvider>, then a child
-// that calls `useWallet()` and reads `info.smartWallet` after `await w.connect()`.
-import { MockBadge } from "../integration-badges";
-import { useDemoSession } from "../../_lib/use-demo-session";
-
-export function LazorKitCard() {
-  const { session, patch } = useDemoSession();
-  return (
-    <>
-      <button
-        onClick={() =>
-          session &&
-          patch((s) => ({
-            ...s,
-            wallet: { provider: "lazorkit", pubkey: "MOCK33333333333333333333333333333333333333" },
-          }))
-        }
-        className="w-full rounded-md border border-[var(--rule)] p-4 text-left hover:border-[var(--brand)]/50"
-      >
-        <p className="font-mono text-xs uppercase tracking-wider text-[var(--ink-muted)]">LazorKit · sandbox unset</p>
-        <p className="mt-1 font-display text-lg">FaceID · mock</p>
-        <p className="mt-1 text-xs text-[var(--ink-muted)]">Real SDK pending @solana/kit ^5 alignment. Mock for now.</p>
-      </button>
-      <MockBadge partner="LazorKit" />
-    </>
-  );
-}
-```
-
-**Step 4:** Implement page `apps/web/src/app/demo/borrow/wallet/page.tsx` (post-fix shape: handle null session before reading `session.wallet`):
+**Step 2:** Implement page `apps/web/src/app/demo/borrow/wallet/page.tsx`. Single CTA, single component — no chooser, no fallback paths to choose between wallets. Civic Pass already gated this user upstream; Crossmint provisions a Solana smart wallet on a single click.
 
 ```tsx
 "use client";
 import Link from "next/link";
 import { DemoShell } from "../../_components/demo-shell";
 import { LiveBadge } from "../../_components/integration-badges";
-import { PrivyCard } from "../../_components/wallet-cards/privy-card";
-import { CrossmintCard } from "../../_components/wallet-cards/crossmint-card";
-import { LazorKitCard } from "../../_components/wallet-cards/lazorkit-card";
+import { CrossmintWallet } from "../../_components/crossmint-wallet";
 import { useDemoSession } from "../../_lib/use-demo-session";
 
 export default function WalletPage() {
@@ -1011,23 +890,26 @@ export default function WalletPage() {
     <DemoShell formFactor="phone">
       <div className="px-6 py-8">
         <p className="eyebrow">Step 3 / 14 · Wallet</p>
-        <h1 className="display-md mt-3">Pick how you sign in.</h1>
+        <h1 className="display-md mt-3">Sign in once. Solana smart wallet provisioned.</h1>
         <p className="mt-3 text-sm text-[var(--ink-dim)]">
-          No seed phrase, no extension. Three real Solana-native options.
+          Email, Google, or Apple. No seed phrase, no extension. Your wallet
+          is a Solana program-derived address — Vaulx and the borrower share
+          the keys, neither side controls alone.
         </p>
 
-        <div className="mt-6 space-y-3">
-          <PrivyCard />
-          <CrossmintCard />
-          <LazorKitCard />
+        <div className="mt-6">
+          <CrossmintWallet />
         </div>
 
         {connected && (
           <div className="mt-6 rounded-md border border-emerald-500/30 bg-emerald-500/5 p-4">
-            <LiveBadge partner={session.wallet.provider!} />
+            <LiveBadge partner="Crossmint" />
             <p className="mt-2 font-mono text-xs text-[var(--ink-dim)]">
               {session.wallet.pubkey?.slice(0, 8)}…{session.wallet.pubkey?.slice(-4)}
             </p>
+            {session.wallet.email && (
+              <p className="mt-1 font-mono text-xs text-[var(--ink-muted)]">{session.wallet.email}</p>
+            )}
           </div>
         )}
 
@@ -1047,24 +929,23 @@ export default function WalletPage() {
 }
 ```
 
-**Side effects of Task 1.3 (build dependencies):**
-- Workspace `package.json` now has `pnpm.overrides: { "@solana/kit": "^5.0.0" }` to force kit@^5 across the dep graph (Privy + Crossmint + Lazorkit transitive `@solana-program/token@0.9.0` requires `sequentialInstructionPlan`, which only exists in kit ^5).
-- `apps/web/next.config.mjs` adds a webpack `resolve.alias` stub: `"@farcaster/mini-app-solana": false` — Privy declares it as an optional peer (`peerDependenciesMeta`) but webpack still tries to import it; the `false` alias makes it a no-op stub.
+### Open SDK + integration verifications
 
-### Open SDK verifications
+- `TODO(crossmint-sdk-verify)` in `apps/web/src/app/demo/_components/crossmint-wallet.tsx` — confirm `useCrossmintAuth().login()` triggers the right flow (Google / Apple / Email vs OTP-only) when `loginMethods` defaults are in play, and that `useWallet().wallet.address` is the chain-specific pubkey for `chain: "solana"`.
+- `TODO(crossmint-program-audit)` — run `solana program show <PROGRAM_ID>` on Crossmint's smart-wallet program and check upgrade authority; if upgradeable, confirm Squads V4 multisig + timelock governance before mainnet.
+- `TODO(crossmint-kyc-fields)` — confirm Brazilian field mapping (CPF, RG, CNH, employment, source of funds) with the Crossmint solutions team. Verify gov.br ouro output covers the Create User schema.
+- `TODO(crossmint-civic-pass-acceptance)` — confirm Civic Pass gateway token (or signed attestation from our KYC pipeline) satisfies Crossmint's Full KYC liveness gate; otherwise we run a duplicate liveness flow.
+- `TODO(crossmint-region-jwt)` — gov.br / Aadhaar / Singpass / UAE Pass aren't pre-built Crossmint OIDC providers. Each region needs a custom-token JWT bridge. Confirm pricing + schema per region.
 
-- `TODO(crossmint-sdk-verify)` in `apps/web/src/app/demo/_components/wallet-cards/crossmint-card.tsx` — confirm `useCrossmintAuth().login()` does the OTP flow (not just OAuth) when `loginMethods` defaults are in play, and that `useWallet().wallet.address` is the chain-specific pubkey for `chain: "solana"`. Card compiles + renders, but the mock fallback path is the only one currently exercised (since `NEXT_PUBLIC_CROSSMINT_API_KEY` is unset).
-- `TODO(lazorkit-sdk-verify)` in `apps/web/src/app/demo/_components/wallet-cards/lazorkit-card.tsx` — re-introduce the real-SDK path once the `@solana/kit ^5` peer-dep chain stops getting paired with kit@2.3.0 (likely needs a deeper `pnpm.overrides` entry or the workspace bumping its own kit usage to v5).
-
-**Step 5:** Build + verify:
+**Step 3:** Build + verify:
 ```bash
 pnpm --filter @vaulx/web build 2>&1 | tail -5
 ```
 
-**Step 6:** Commit:
+**Step 4:** Commit:
 ```bash
-git add apps/web/src/app/demo/borrow/wallet/ apps/web/src/app/demo/_components/wallet-cards/
-git commit -m "feat(demo): /demo/borrow/wallet — Privy + Crossmint + LazorKit chooser"
+git add apps/web/src/app/demo/borrow/wallet/ apps/web/src/app/demo/_components/crossmint-wallet.tsx
+git commit -m "feat(demo): single-CTA Crossmint wallet (Civic + Crossmint as the auth duo)"
 ```
 
 ---
@@ -1336,7 +1217,7 @@ export const PIX_RECIPIENTS = [
 
 **Step 2:** Page: pick recipient + amount → 2-second spinner → "✓ R$X received at {bank} {masked}" → debits `loan.inAppBalanceAtoms`.
 
-**Step 3:** Add `<MockBadge partner="Privy Pix" />`.
+**Step 3:** Add `<MockBadge partner="Pix off-ramp" />`.
 
 **Step 4:** Commit.
 
