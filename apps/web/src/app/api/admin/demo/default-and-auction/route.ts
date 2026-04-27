@@ -166,7 +166,7 @@ export async function POST(req: Request) {
           payer: payer.publicKey,
           systemProgram: SystemProgram.programId,
           loanConfig: loanConfigPda,
-          gatewayToken: SystemProgram.programId,
+          kycAttestation: SystemProgram.programId,
         })
         .rpc({ commitment: "confirmed" });
       signatures.create = sigCreate;

@@ -51,9 +51,9 @@ describe("useDemoSession", () => {
       result.current.patch((s) => ({ ...s, govbr: { ...s.govbr, cpf: "111.444.777-35" } })),
     );
     act(() =>
-      result.current.patch((s) => ({ ...s, civic: { ...s.civic, gatewayToken: "tok" } })),
+      result.current.patch((s) => ({ ...s, civic: { ...s.civic, jwtHash: "tok" } })),
     );
     expect(result.current.session!.govbr.cpf).toBe("111.444.777-35");
-    expect(result.current.session!.civic.gatewayToken).toBe("tok");
+    expect(result.current.session!.civic.jwtHash).toBe("tok");
   });
 });

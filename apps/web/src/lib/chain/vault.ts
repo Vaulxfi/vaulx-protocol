@@ -48,11 +48,14 @@ export function deriveVaultConfigPda(): PublicKey {
   return pda;
 }
 
-const CIVIC_PASS_NETWORK_ENV = process.env.NEXT_PUBLIC_CIVIC_PASS_NETWORK;
-const CIVIC_NETWORK =
-  CIVIC_PASS_NETWORK_ENV && CIVIC_PASS_NETWORK_ENV.length > 0
-    ? new PublicKey(CIVIC_PASS_NETWORK_ENV)
-    : null;
+/** Deterministic KYC-attestation PDA: seeds = [b"kyc_attestation", owner]. */
+export function deriveKycAttestationPda(owner: PublicKey): PublicKey {
+  const [pda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("kyc_attestation"), owner.toBuffer()],
+    VAULT_PROGRAM_ID
+  );
+  return pda;
+}
 
 export function useVaultPda(assetMint: PublicKey | undefined): PublicKey | undefined {
   return useMemo(
@@ -203,33 +206,12 @@ export function useDeposit(assetMint: PublicKey | undefined) {
       )) as { shareMint: PublicKey };
       const shareMint = vaultAcc.shareMint;
 
-      // Derive the Civic gateway token PDA, if the gate is enabled client-side.
-      // When disabled (env unset), pass the SystemProgram id as a throwaway —
-      // the on-chain gate is a no-op when `vault_config.civic_network == default`.
-      let gatewayTokenKey: PublicKey = SystemProgram.programId;
-      if (CIVIC_NETWORK) {
-        try {
-          // `findGatewayToken(connection, owner, gatekeeperNetwork, includeRevoked?=false)`
-          // → `Promise<GatewayToken | null>`. Verified against
-          // `@identity.com/solana-gateway-ts@0.12.0` `dist/index.d.ts`.
-          const { findGatewayToken } = await import(
-            "@identity.com/solana-gateway-ts"
-          );
-          const token = await findGatewayToken(
-            connection,
-            wallet.publicKey,
-            CIVIC_NETWORK
-          );
-          if (token?.publicKey) gatewayTokenKey = token.publicKey as PublicKey;
-        } catch (e) {
-          // Surface as user-facing error so they know to obtain a pass first.
-          throw new Error(
-            `Civic Pass not found. Obtain a pass before depositing. (${
-              e instanceof Error ? e.message : String(e)
-            })`
-          );
-        }
-      }
+      // KYC-attestation account. Default = `SystemProgram.programId` (placeholder)
+      // since `vault_config.kyc_required` is `false` by default and the on-chain
+      // handler skips the check. When a real attestation exists the admin-issued
+      // PDA at `[b"kyc_attestation", depositor]` should be passed instead.
+      // TODO: read `vault_config.kyc_required` and pass the real PDA when set.
+      const kycAttestationKey: PublicKey = SystemProgram.programId;
 
       const depositor = wallet.publicKey;
       const depositorAta = getAssociatedTokenAddressSync(assetMint, depositor);
@@ -281,7 +263,7 @@ export function useDeposit(assetMint: PublicKey | undefined) {
           depositor,
           tokenProgram: TOKEN_PROGRAM_ID,
           vaultConfig: vaultConfigPda,
-          gatewayToken: gatewayTokenKey,
+          kycAttestation: kycAttestationKey,
         });
 
       const sig =

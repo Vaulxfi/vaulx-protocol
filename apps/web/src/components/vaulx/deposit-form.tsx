@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useDeposit } from "@/lib/chain/vault";
-import { CivicPassGate } from "@/components/vaulx/civic-pass-gate";
+import { CivicAuthGate } from "@/components/vaulx/civic-auth-gate";
 
 const schema = z.object({
   amount: z.coerce
@@ -21,7 +21,7 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-const CIVIC_PASS_ENABLED = !!process.env.NEXT_PUBLIC_CIVIC_PASS_NETWORK;
+const CIVIC_AUTH_ENABLED = !!process.env.NEXT_PUBLIC_CIVIC_AUTH_CLIENT_ID;
 
 export function DepositForm({ assetMint }: { assetMint: PublicKey }) {
   const { publicKey } = useWallet();
@@ -89,5 +89,5 @@ export function DepositForm({ assetMint }: { assetMint: PublicKey }) {
     </form>
   );
 
-  return CIVIC_PASS_ENABLED ? <CivicPassGate>{formEl}</CivicPassGate> : formEl;
+  return CIVIC_AUTH_ENABLED ? <CivicAuthGate>{formEl}</CivicAuthGate> : formEl;
 }

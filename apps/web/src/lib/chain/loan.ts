@@ -33,11 +33,14 @@ export {
   deriveVaultPda,
 };
 
-const CIVIC_PASS_NETWORK_ENV = process.env.NEXT_PUBLIC_CIVIC_PASS_NETWORK;
-const CIVIC_NETWORK =
-  CIVIC_PASS_NETWORK_ENV && CIVIC_PASS_NETWORK_ENV.length > 0
-    ? new PublicKey(CIVIC_PASS_NETWORK_ENV)
-    : null;
+/** Deterministic KYC-attestation PDA: seeds = [b"kyc_attestation", owner]. */
+export function deriveKycAttestationPda(owner: PublicKey): PublicKey {
+  const [pda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("kyc_attestation"), owner.toBuffer()],
+    LOAN_PROGRAM_ID,
+  );
+  return pda;
+}
 
 export interface CreateCcbTrdcArgs {
   /** Pre-generated loan id (Keypair.generate().publicKey). Used as TRDCState seed. */
@@ -64,10 +67,11 @@ export interface CreateCcbTrdcResult {
  * Hook: calls `loan.create_ccb_trdc` with the given loan parameters.
  *
  * Mirrors the wiring pattern from `useDeposit` in `vault.ts` — derives the
- * loan_config PDA, the TRDCState PDA, and the Civic gateway token PDA when
- * the gate is enabled client-side. When the gate is disabled (env unset),
- * passes `SystemProgram.programId` as the gateway_token account — the
- * on-chain check is a no-op when `loan_config.civic_network == default`.
+ * loan_config PDA and the TRDCState PDA. The KYC-attestation account slot
+ * defaults to `SystemProgram.programId` (placeholder) — the on-chain handler
+ * skips the check when `loan_config.kyc_required == false` (default). When a
+ * real attestation exists, pass the admin-issued PDA at
+ * `[b"kyc_attestation", payer]` instead.
  */
 export function useCreateCcbTrdc() {
   const { connection } = useConnection();
@@ -90,26 +94,8 @@ export function useCreateCcbTrdc() {
       const trdcPda = deriveTrdcStatePda(args.loanId);
       const loanConfigPda = deriveLoanConfigPda();
 
-      let gatewayTokenKey: PublicKey = SystemProgram.programId;
-      if (CIVIC_NETWORK) {
-        try {
-          const { findGatewayToken } = await import(
-            "@identity.com/solana-gateway-ts"
-          );
-          const token = await findGatewayToken(
-            connection,
-            wallet.publicKey,
-            CIVIC_NETWORK,
-          );
-          if (token?.publicKey) gatewayTokenKey = token.publicKey as PublicKey;
-        } catch (e) {
-          throw new Error(
-            `Civic Pass not found. Obtain a pass before minting a TRDC. (${
-              e instanceof Error ? e.message : String(e)
-            })`,
-          );
-        }
-      }
+      // TODO: read `loan_config.kyc_required` and pass `deriveKycAttestationPda(payer)` when set.
+      const kycAttestationKey: PublicKey = SystemProgram.programId;
 
       const rateBps = rateForTermDays(args.termDays);
 
@@ -128,7 +114,7 @@ export function useCreateCcbTrdc() {
           payer: wallet.publicKey,
           systemProgram: SystemProgram.programId,
           loanConfig: loanConfigPda,
-          gatewayToken: gatewayTokenKey,
+          kycAttestation: kycAttestationKey,
         })
         .rpc();
 

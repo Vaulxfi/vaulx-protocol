@@ -3,7 +3,7 @@ export type DemoFormFactor = "phone" | "desktop";
 export type DemoSession = {
   sessionId: string;
   startedAt: number;
-  civic: { gatewayToken?: string; verifiedAt?: number };
+  civic: { jwtHash?: string; verifiedAt?: number };
   govbr: { cpf?: string; name?: string; verifiedAt?: number };
   wallet: {
     provider?: "crossmint";
