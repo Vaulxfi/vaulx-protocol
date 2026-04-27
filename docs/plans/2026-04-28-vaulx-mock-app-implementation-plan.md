@@ -786,7 +786,7 @@ git commit -m "chore(demo): add Privy + Crossmint + LazorKit SDKs"
 - Create: `apps/web/src/app/demo/_components/wallet-cards/crossmint-card.tsx`
 - Create: `apps/web/src/app/demo/_components/wallet-cards/lazorkit-card.tsx`
 
-**Step 1:** Implement `privy-card.tsx`:
+**Step 1:** Implement `privy-card.tsx` (post-fix `useDemoSession` shape: `session && patch((s) => ...)`). The eslint-disabled `any` casts in the original plan don't fly under the repo's eslint config — use `Record<string, unknown>` casts via `unknown` instead:
 
 ```tsx
 "use client";
@@ -796,13 +796,24 @@ import { useDemoSession } from "../../_lib/use-demo-session";
 
 const PRIVY_APP_ID = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
 
-function PrivyInner({ onConnected }: { onConnected: (pubkey: string, email?: string) => void }) {
+type Loose = Record<string, unknown>;
+
+function PrivyInner({
+  onConnected,
+}: {
+  onConnected: (pubkey: string, email?: string) => void;
+}) {
   const { login, ready, authenticated, user } = usePrivy();
   useEffect(() => {
     if (authenticated && user) {
-      const sol = user.linkedAccounts.find((a) => a.type === "wallet" && a.chainType === "solana");
-      const pubkey = (sol as any)?.address ?? user.id;
-      const email = (user.email as any)?.address;
+      const sol = user.linkedAccounts.find((a) => {
+        const x = a as unknown as Loose;
+        return x.type === "wallet" && x.chainType === "solana";
+      });
+      const pubkey =
+        ((sol as unknown as Loose | undefined)?.address as string | undefined) ?? user.id;
+      const email =
+        ((user.email as unknown as Loose | undefined)?.address as string | undefined) ?? undefined;
       onConnected(pubkey, email);
     }
   }, [authenticated, user, onConnected]);
@@ -811,7 +822,7 @@ function PrivyInner({ onConnected }: { onConnected: (pubkey: string, email?: str
     <button
       disabled={!ready}
       onClick={() => login()}
-      className="w-full rounded-md border border-[var(--rule)] p-4 text-left hover:border-[var(--brand)]/50"
+      className="w-full rounded-md border border-[var(--rule)] p-4 text-left hover:border-[var(--brand)]/50 disabled:opacity-50"
     >
       <p className="font-mono text-xs uppercase tracking-wider text-[var(--ink-muted)]">Privy</p>
       <p className="mt-1 font-display text-lg">Email or social</p>
@@ -821,14 +832,16 @@ function PrivyInner({ onConnected }: { onConnected: (pubkey: string, email?: str
 }
 
 export function PrivyCard() {
-  const { patch } = useDemoSession();
+  const { session, patch } = useDemoSession();
   if (!PRIVY_APP_ID) {
     return (
       <button
         onClick={() =>
-          patch({
+          session &&
+          patch((s) => ({
+            ...s,
             wallet: { provider: "privy", pubkey: "MOCK11111111111111111111111111111111111111" },
-          })
+          }))
         }
         className="w-full rounded-md border border-[var(--rule)] p-4 text-left hover:border-[var(--brand)]/50"
       >
@@ -840,50 +853,131 @@ export function PrivyCard() {
   }
   return (
     <PrivyProvider appId={PRIVY_APP_ID} config={{ appearance: { theme: "dark" } }}>
-      <PrivyInner onConnected={(pubkey, email) => patch({ wallet: { provider: "privy", pubkey, email } })} />
+      <PrivyInner
+        onConnected={(pubkey, email) =>
+          session && patch((s) => ({ ...s, wallet: { provider: "privy", pubkey, email } }))
+        }
+      />
     </PrivyProvider>
   );
 }
 ```
 
-**Step 2:** Implement `crossmint-card.tsx` (similar shape; consult Crossmint SDK docs at `https://docs.crossmint.com` if API surface unclear).
-
-**Step 3:** Implement `lazorkit-card.tsx`:
+**Step 2:** Implement `crossmint-card.tsx`. Verified against `@crossmint/client-sdk-react-ui@4.1.5`:
+- `<CrossmintProvider apiKey>` (top)
+- `<CrossmintAuthProvider>` exposes `useCrossmintAuth().{ login, status, user }`
+- `<CrossmintWalletProvider createOnLogin={...}>` exposes `useWallet().{ wallet }` with `wallet.address` as the chain-specific pubkey
 
 ```tsx
 "use client";
+// TODO(crossmint-sdk-verify): confirm hook + provider names against installed types.
+import {
+  CrossmintProvider,
+  CrossmintAuthProvider,
+  CrossmintWalletProvider,
+  useCrossmintAuth,
+  useWallet,
+} from "@crossmint/client-sdk-react-ui";
+import { useEffect } from "react";
 import { useDemoSession } from "../../_lib/use-demo-session";
-// LazorKit's exact import surface — verify from package after install
-import { useWallet } from "@lazorkit/wallet";
+
+const CROSSMINT_API_KEY = process.env.NEXT_PUBLIC_CROSSMINT_API_KEY;
+
+function CrossmintInner({
+  onConnected,
+}: {
+  onConnected: (pubkey: string, email?: string) => void;
+}) {
+  const { login, status, user } = useCrossmintAuth();
+  const { wallet } = useWallet();
+  useEffect(() => {
+    if (status === "logged-in" && wallet?.address) {
+      const email = (user as Record<string, unknown> | undefined)?.email as string | undefined;
+      onConnected(wallet.address, email);
+    }
+  }, [status, wallet?.address, user, onConnected]);
+  return (
+    <button onClick={() => login()} className="w-full rounded-md border border-[var(--rule)] p-4 text-left hover:border-[var(--brand)]/50">
+      <p className="font-mono text-xs uppercase tracking-wider text-[var(--ink-muted)]">Crossmint</p>
+      <p className="mt-1 font-display text-lg">Email login</p>
+      <p className="mt-1 text-xs text-[var(--ink-dim)]">Wallet-as-a-service. OTP-gated.</p>
+    </button>
+  );
+}
+
+export function CrossmintCard() {
+  const { session, patch } = useDemoSession();
+  if (!CROSSMINT_API_KEY) {
+    return (
+      <button
+        onClick={() =>
+          session &&
+          patch((s) => ({
+            ...s,
+            wallet: { provider: "crossmint", pubkey: "MOCK22222222222222222222222222222222222222" },
+          }))
+        }
+        className="w-full rounded-md border border-[var(--rule)] p-4 text-left hover:border-[var(--brand)]/50"
+      >
+        <p className="font-mono text-xs uppercase tracking-wider text-[var(--ink-muted)]">Crossmint · sandbox unset</p>
+        <p className="mt-1 font-display text-lg">Email login</p>
+        <p className="mt-1 text-xs text-[var(--ink-muted)]">MOCK — set NEXT_PUBLIC_CROSSMINT_API_KEY to enable real SDK.</p>
+      </button>
+    );
+  }
+  return (
+    <CrossmintProvider apiKey={CROSSMINT_API_KEY}>
+      <CrossmintAuthProvider>
+        <CrossmintWalletProvider
+          createOnLogin={{ chain: "solana", recovery: { type: "email" }, signers: [{ type: "email" }] }}
+        >
+          <CrossmintInner
+            onConnected={(pubkey, email) =>
+              session && patch((s) => ({ ...s, wallet: { provider: "crossmint", pubkey, email } }))
+            }
+          />
+        </CrossmintWalletProvider>
+      </CrossmintAuthProvider>
+    </CrossmintProvider>
+  );
+}
+```
+
+**Step 3:** Implement `lazorkit-card.tsx`. The original plan suggested `try { useWallet() } catch {}` — a hook can't be called from try-catch (rules of hooks), and dynamic-importing inside a click handler also won't work for hooks. Real shape (verified against `@lazorkit/wallet@2.0.1`) is `<LazorkitProvider>` + a child that calls `useWallet()` and triggers `await w.connect()` (returns `WalletInfo` with `smartWallet` as the on-chain pubkey).
+
+**However**, `@lazorkit/wallet@2.0.1` pulls a transitive `@solana/kora → @solana-program/token@0.9.0` chain that requires `@solana/kit@^5`. pnpm intermittently resolves a stale `kit@2.3.0` paired path that breaks webpack. Until the upstream peer is pinned cleanly, the card ships as mock-only with a `TODO(lazorkit-sdk-verify)` note. Real-SDK shape preserved in the file's comment block.
+
+```tsx
+"use client";
+// TODO(lazorkit-sdk-verify): @lazorkit/wallet@2.0.1 transitive deps require
+// @solana/kit ^5; pnpm resolves a paired kit@2.3.0 from elsewhere in the
+// workspace, breaking the webpack build. Render mock-only until upstream
+// peers are pinned. Real-SDK shape: render <LazorkitProvider>, then a child
+// that calls `useWallet()` and reads `info.smartWallet` after `await w.connect()`.
+import { useDemoSession } from "../../_lib/use-demo-session";
 
 export function LazorKitCard() {
-  const { patch } = useDemoSession();
-  // Falls through to mock if LazorKit hook unavailable in this environment
-  let connect: () => Promise<{ publicKey: string }>;
-  try {
-    const w = useWallet();
-    connect = async () => ({ publicKey: (await w.connect()).toBase58() });
-  } catch {
-    connect = async () => ({ publicKey: "MOCK22222222222222222222222222222222222222" });
-  }
-
+  const { session, patch } = useDemoSession();
   return (
     <button
-      onClick={async () => {
-        const { publicKey } = await connect();
-        patch({ wallet: { provider: "lazorkit", pubkey: publicKey } });
-      }}
+      onClick={() =>
+        session &&
+        patch((s) => ({
+          ...s,
+          wallet: { provider: "lazorkit", pubkey: "MOCK33333333333333333333333333333333333333" },
+        }))
+      }
       className="w-full rounded-md border border-[var(--rule)] p-4 text-left hover:border-[var(--brand)]/50"
     >
-      <p className="font-mono text-xs uppercase tracking-wider text-[var(--ink-muted)]">LazorKit</p>
+      <p className="font-mono text-xs uppercase tracking-wider text-[var(--ink-muted)]">LazorKit · sandbox unset</p>
       <p className="mt-1 font-display text-lg">FaceID / passkey</p>
-      <p className="mt-1 text-xs text-[var(--ink-dim)]">Apple Secure Enclave. Strongest UX moment on iPhone.</p>
+      <p className="mt-1 text-xs text-[var(--ink-muted)]">MOCK — upstream peer-dep mismatch (@solana/kit ^5).</p>
     </button>
   );
 }
 ```
 
-**Step 4:** Implement page `apps/web/src/app/demo/borrow/wallet/page.tsx`:
+**Step 4:** Implement page `apps/web/src/app/demo/borrow/wallet/page.tsx` (post-fix shape: handle null session before reading `session.wallet`):
 
 ```tsx
 "use client";
@@ -897,6 +991,12 @@ import { useDemoSession } from "../../_lib/use-demo-session";
 
 export default function WalletPage() {
   const { session } = useDemoSession();
+  if (!session)
+    return (
+      <DemoShell formFactor="phone">
+        <div className="px-6 py-12 text-[var(--ink-muted)]">Loading…</div>
+      </DemoShell>
+    );
   const connected = !!session.wallet.pubkey;
 
   return (
@@ -938,6 +1038,15 @@ export default function WalletPage() {
   );
 }
 ```
+
+**Side effects of Task 1.3 (build dependencies):**
+- Workspace `package.json` now has `pnpm.overrides: { "@solana/kit": "^5.0.0" }` to force kit@^5 across the dep graph (Privy + Crossmint + Lazorkit transitive `@solana-program/token@0.9.0` requires `sequentialInstructionPlan`, which only exists in kit ^5).
+- `apps/web/next.config.mjs` adds a webpack `resolve.alias` stub: `"@farcaster/mini-app-solana": false` — Privy declares it as an optional peer (`peerDependenciesMeta`) but webpack still tries to import it; the `false` alias makes it a no-op stub.
+
+### Open SDK verifications
+
+- `TODO(crossmint-sdk-verify)` in `apps/web/src/app/demo/_components/wallet-cards/crossmint-card.tsx` — confirm `useCrossmintAuth().login()` does the OTP flow (not just OAuth) when `loginMethods` defaults are in play, and that `useWallet().wallet.address` is the chain-specific pubkey for `chain: "solana"`. Card compiles + renders, but the mock fallback path is the only one currently exercised (since `NEXT_PUBLIC_CROSSMINT_API_KEY` is unset).
+- `TODO(lazorkit-sdk-verify)` in `apps/web/src/app/demo/_components/wallet-cards/lazorkit-card.tsx` — re-introduce the real-SDK path once the `@solana/kit ^5` peer-dep chain stops getting paired with kit@2.3.0 (likely needs a deeper `pnpm.overrides` entry or the workspace bumping its own kit usage to v5).
 
 **Step 5:** Build + verify:
 ```bash
