@@ -30,6 +30,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Enforce no personal names rule (demo surfaces)
+        run: |
+          if grep -rE "(Felipe|Marcelo|Rodrigo|Edson|George|gogy)" \
+              apps/web/src/app/demo/ \
+              apps/web/src/components/vaulx/demo*/ 2>/dev/null; then
+            echo "::error::Personal names found in demo surfaces. See design doc §9."
+            exit 1
+          fi
+          echo "✓ no personal names in /demo"
+
       - name: Lint
         run: pnpm -w exec turbo run lint
 
