@@ -13,13 +13,64 @@ Vaulx is a Brazilian RWA lending protocol on Solana that takes luxury watches as
 
 ## Quick links
 
-- **Live demo:** _hosted URL pending Phase 4 deploy_
+- **Live demo:** **[vaulx.vercel.app/demo](https://vaulx.vercel.app/demo)** — guided 14-step Rolex story
 - **Demo video:** [`apps/web/public/demo/vaulx-demo.mp4`](apps/web/public/demo/vaulx-demo.mp4) _(record before submission)_
 - **Build plan:** [`docs/plans/2026-04-23-vaulx-build-plan.md`](docs/plans/2026-04-23-vaulx-build-plan.md)
 - **Design doc:** [`docs/plans/2026-04-23-vaulx-full-stack-build-design.md`](docs/plans/2026-04-23-vaulx-full-stack-build-design.md)
 - **Status:** [`STATUS.md`](STATUS.md)
 - **Changelog:** [`CHANGELOG.md`](CHANGELOG.md)
 - **User actions pending:** [`USER_TODO.md`](USER_TODO.md)
+
+## Live demo
+
+The Vaulx mock app is live at **[vaulx.vercel.app/demo](https://vaulx.vercel.app/demo)**. It's a self-contained tour of the borrower flow, lender flow, default auction, and architecture — session-scoped state in `sessionStorage`, no real on-chain calls except an optional Devnet USDC transfer on `/demo/borrow/funds/wallet`.
+
+### Canonical 14-step Rolex story
+
+Click "Take the guided tour" on the landing page — a React-native overlay walks you through onboarding, custody, the AHA-moment disbursal, and dashboard.
+
+[Take the guided tour →](https://vaulx.vercel.app/demo)
+
+### Borrower flow
+
+- Onboard (Civic + gov.br): [/demo/borrow/onboard](https://vaulx.vercel.app/demo/borrow/onboard)
+- Wallet (Crossmint): [/demo/borrow/wallet](https://vaulx.vercel.app/demo/borrow/wallet)
+- AHA — disburse: [/demo/borrow/disburse](https://vaulx.vercel.app/demo/borrow/disburse)
+- Active dashboard: [/demo/borrow/dashboard](https://vaulx.vercel.app/demo/borrow/dashboard)
+
+### Lender flow
+
+- 4 vaults: [/demo/lend](https://vaulx.vercel.app/demo/lend)
+- Liquidity routing (anchor relationships + 3 tiers): [/demo/lend/liquidity](https://vaulx.vercel.app/demo/lend/liquidity)
+
+### Default auction
+
+- Foreclosure floor: [/demo/auction](https://vaulx.vercel.app/demo/auction)
+- Tier-1 → Tier-2 → Tier-3 waterfall: [/demo/auction/VX-7A2F](https://vaulx.vercel.app/demo/auction/VX-7A2F)
+
+### Architecture
+
+- 2-swimlane interactive diagram: [/demo/architecture](https://vaulx.vercel.app/demo/architecture)
+
+### Screenshots
+
+| Landing | Borrower onboard |
+|---|---|
+| ![Landing](apps/web/public/demo/screenshots/landing.png) | ![Borrower onboard](apps/web/public/demo/screenshots/borrow-onboard.png) |
+
+| Disburse (the AHA moment) | Active loan dashboard |
+|---|---|
+| ![Disburse](apps/web/public/demo/screenshots/borrow-disburse.png) | ![Dashboard](apps/web/public/demo/screenshots/borrow-dashboard.png) |
+
+| Lender vaults | Liquidity routing |
+|---|---|
+| ![Lend](apps/web/public/demo/screenshots/lend.png) | ![Liquidity](apps/web/public/demo/screenshots/lend-liquidity.png) |
+
+| Auction detail | Architecture |
+|---|---|
+| ![Auction detail](apps/web/public/demo/screenshots/auction-detail.png) | ![Architecture](apps/web/public/demo/screenshots/architecture.png) |
+
+Screenshots are captured at 1280×720 from the live deploy. Re-capture with `BASE_URL=https://vaulx.vercel.app pnpm tsx scripts/dev/capture-demo-screenshots.ts`.
 
 ## The 9 demo moments
 
