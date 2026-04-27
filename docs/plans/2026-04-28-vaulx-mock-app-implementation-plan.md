@@ -1278,7 +1278,9 @@ export const CARD_TX = [
 **Files:**
 - Create: `apps/web/src/app/demo/_components/redstone-feed-card.tsx`
 
-**Step 1:** Inline SVG sparkline of `session.watch.priceHistory` (24 points). Last-tick timestamp + 3 source pills (RedStone, Pyth, Chrono24).
+**Step 1:** Inline SVG sparkline of `session.watch.priceHistory` (24 points — the 24-point random walk seeded from appraisal median in Task 2.2). Last-tick timestamp + 3 source pills (RedStone, Pyth, Chrono24).
+
+**Critical architectural note — single source of truth for the price feed:** `<RedstoneFeedCard>` and `<LtvGauge>` (Task 6.1) both consume `session.watch.priceHistory` from the same `useDemoSession()` hook. The dashboard's LTV gauge ticks because the same array that drives the UI sparkline also drives the on-chain LTV recomputation — one feed, two surfaces. In production, this becomes a RedStone wrap of Chrono24 polling (Apify keys upgrade reliability when needed; deferred to P2).
 
 **Step 2:** Commit.
 
@@ -1344,12 +1346,32 @@ export const CARD_TX = [
 
 **Step 2:** Commit.
 
-### Task 7.4: `/demo/lend/liquidity` routing visualization
+### Task 7.4: `/demo/lend/liquidity` — 3-tier liquidity stack visualization
 
 **Files:**
 - Create: `apps/web/src/app/demo/lend/liquidity/page.tsx`
 
-**Step 1:** Adapt the visualization from `vaulx-liquidity-architecture.html` into a React component. Hover any node → tooltip with role + status.
+**Framing (drop the old "Kamino + Plume side-by-side" treatment):** Render a 3-tier liquidity stack that puts anchor capital relationships in the foreground and infrastructure rails in the background.
+
+**Caption at top of page:**
+> "$5–10M target launch TVL — closed manually via 2-3 anchor relationships. Kamino V2 + Plume Nest = infrastructure rails, not capital sources."
+
+**Tier 1 (foreground — 3 anchor capital relationship tiles, large, P1 status):**
+- Re7 Labs — vault curator (accessed via Kamino V2)
+- MEV Capital — vault curator (accessed via Kamino V2)
+- Mercado Bitcoin OR Transfero — BR institutional anchor lender
+
+**Tier 2 (middle — 1 tile, P1):**
+- Crypto-native credit facility (TBD specific name)
+
+**Tier 3 (background — INFRASTRUCTURE substrate, smaller tiles, dashed connection lines linking back to Tier 1 curators):**
+- Kamino V2 — curator marketplace where Re7 + MEV deploy capital
+- Plume Nest — later-stage institutional issuance, post-launch
+
+**Tier 3 caption beneath the tiles:**
+> "Kamino V2 — curator marketplace where Re7 + MEV deploy capital. Plume Nest — later-stage institutional issuance, post-launch."
+
+**Step 1:** Build the 3-tier layout described above. Hover any node → tooltip with role + status (P1 / P2 / infrastructure). Re7 + MEV tiles include a small "via Kamino V2" subscript with a dashed line drawn to the Kamino V2 substrate tile in Tier 3.
 
 **Step 2:** Commit.
 
@@ -1393,6 +1415,8 @@ export const CARD_TX = [
 **Files:**
 - Create: `apps/web/src/app/demo/architecture/page.tsx`
 
+**Source adaptation note:** When adapting `vaulx-liquidity-architecture.md` (and `VAULX_Architecture_Interactive.html`) into the React component, the source files have legacy "Garanti.fi" branding throughout. **Strip every Garanti.fi reference during the adaptation and use Vaulx exclusively.** No "Garanti.fi" string should reach the rendered React output.
+
 **Step 1:** Adapt `VAULX_Architecture_Interactive.html` into a React page. Hover-per-partner tooltips with role + status (LIVE / SDK SANDBOX / MOCK / GOV-GATED).
 
 **Step 2:** Commit.
@@ -1401,6 +1425,10 @@ export const CARD_TX = [
 
 **Files:**
 - Modify: `apps/web/src/app/demo/page.tsx`
+
+**Copy directives:**
+- Where the value-prop framing previously contrasted Vaulx against "Caixa" — replace with the generic **"TradFi"** wording (e.g., "vs TradFi pawn lenders", "TradFi incumbents (state-bank monopoly in BR)").
+- Where any "Garanti.fi" string appears — kill it. Vaulx everywhere.
 
 **Step 1:** Replace placeholder with full hero: tagline, two big CTAs (Borrow journey, Lend dashboard), embedded architecture diagram, "Start guided tour" button.
 

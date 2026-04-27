@@ -86,8 +86,9 @@ Ship a clickable, judge-grade mock of Vaulx's full maximalist vision — onboard
 | 7 | **Brinks / Prosegur / Loomis** | **MOCK** — calendar mock + looped IoT clip + `📡 LIVE` badge | Custody contracts (P0) |
 | 8 | **Pix off-ramp** | **MOCK** — `Sending R$X to ••••5234 · Banco Inter` flow | Crossmint off-ramp / fiat partner KYB (P1) |
 | 9 | **Solflare Card / lobster.cash** | **MOCK** — Apple-Pay-styled "Add to Wallet" + tx feed | Card-issuer partnership (P2) |
-| 10 | **Kamino OCC** | **MOCK** — tranche selector on `/demo/lend/liquidity` | Kamino partnership (P2) |
-| 11 | **Plume Nest** | **MOCK** — adjacent to Kamino on same screen | Plume partnership (P2) |
+| 10 | **Kamino OCC** | **MOCK** — Curator infrastructure rail; Re7 + MEV Capital are the actual anchor capital relationships closed *through* Kamino V2. Mock for now (P1 partnership track). | Kamino V2 + Re7 + MEV Capital (P1) |
+| 11 | **Plume Nest** | **MOCK** — rendered as later-stage institutional rail (Phase 2 / post-launch) | Plume partnership (P2) |
+| 11.5 | **RedStone + Chrono24 API price feed** | **MOCK** — synthetic 60s tick anchored to appraisal median + ±2% random walk over 24h; production upgrade path uses real RedStone wrap of Chrono24 polling (Apify P2). The same data feed drives both the dashboard sparkline AND the on-chain LTV recomputation. | Self-serve oracle integration; Apify keys for Chrono24 reliability when needed |
 | 12 | **Tokeny / ERC-3643** | **MOCK** — KYB flow on `/demo/lend/onboard` | Tokeny partnership (P2) |
 | 13 | **CCB.B3 + e-signature** | **REAL PDF + MOCK SIGNATURE** — `@vaulx/ccb` PDF + canvas signature pad, signature hash stored in PDF metadata | DocuSign / D4Sign integration (P2) |
 | 14 | **Auction PDA (3-tier waterfall)** | **MOCK with optional real Devnet bidding** — synthetic bid replay; if Devnet programs are deployed, the bid form fires real `auction.place_bid` | Real on-chain (Phase 4 deploy) |
@@ -163,7 +164,7 @@ Format per item: `- [status emoji] [name] — [owner] — [notes]`. Each mocked 
 **Data primitives:**
 - `<LtvGauge>` — circular brass progress; mono numeral at center; safe/warn/danger zones.
 - `<LiveTicker>` — borrower-facing event stream (5-second tick).
-- `<RedstoneFeedCard>` — 24h sparkline of collateral value + RedStone+Pyth+Chrono24 source pills.
+- `<RedstoneFeedCard>` — 24h sparkline of collateral value + RedStone+Pyth+Chrono24 source pills. Critically, this card and `<LtvGauge>` consume the **same `priceHistory` array** from `vaulx_demo_session.watch.priceHistory`. The dashboard's LTV gauge ticks because the same feed that drives the UI sparkline also feeds the on-chain LTV recomputation — one source of truth for both surfaces. In production, this becomes a RedStone wrap around Chrono24 polling (Apify keys upgrade reliability when needed).
 
 **Domain components:**
 - `<CcbDocument>` — `@vaulx/ccb` PDF + canvas signature pad. Signature image hashed into PDF Keywords on submit.
