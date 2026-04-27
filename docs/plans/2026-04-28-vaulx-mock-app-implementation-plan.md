@@ -1290,58 +1290,47 @@ Fixture: 12 merchant-only transactions (Uber, Pão de Açúcar, iFood, Shell, Sp
 
 ## Phase 6 — Dashboard + Repay/Renew (Day 7, May 4)
 
-### Task 6.1: `<LtvGauge>` component
+### Task 6.1: `<LtvGauge>` component — DONE
 
-**Files:**
-- Create: `apps/web/src/app/demo/_components/ltv-gauge.tsx`
-- Test: `apps/web/src/app/demo/_components/__tests__/ltv-gauge.test.tsx`
+**Files shipped:**
+- `apps/web/src/app/demo/_components/ltv-gauge.tsx`
+- `apps/web/src/app/demo/_components/__tests__/ltv-gauge.test.tsx`
+- `apps/web/vitest.config.ts` — extended include glob to `*.test.tsx` + esbuild `jsx: "automatic"` so React component tests work without a dedicated plugin.
 
-**Step 1:** Test: gauge renders correct % from props; color zones (safe <60, warn 60-75, danger >75).
+200×200 SVG gauge. Computes LTV via BigInt: `Number((loanAmountAtoms * 10000n) / collateralValueAtoms) / 100`. Zero-collateral falls through to 0 without dividing. Three zones — safe <60% (`var(--brand)`), warn 60–75% (amber-400), danger ≥75% (rose-400) — exposed via `data-zone` for DOM tests. Five vitest cases cover the percentage render, all three zones, and the zero-collateral path.
 
-**Step 2:** Implement using SVG circular progress. Mono numeral at center.
+### Task 6.2: `<RedstoneFeedCard>` sparkline — DONE
 
-**Step 3:** Pass + commit.
+**Files shipped:**
+- `apps/web/src/app/demo/_components/redstone-feed-card.tsx`
 
-### Task 6.2: `<RedstoneFeedCard>` sparkline
+200×60 inline SVG of `priceHistory` (24 points). Brass stroke + linear-gradient fill at 25%→0% under the curve. Three source pills above (RedStone, Pyth, Chrono24). Right-aligned `$<last>` mono numeral + 24h % delta (brass when up, rose when down). Footer caption: "RedStone-wrapped Chrono24 · 60s tick · simulated demo". Zero re-implementation: `<LtvGauge>` and this card consume the same `session.watch.priceHistory`, so the gauge ticks in lockstep with the sparkline.
 
-**Files:**
-- Create: `apps/web/src/app/demo/_components/redstone-feed-card.tsx`
+### Task 6.3: `<LiveTicker>` synthetic stream — DONE
 
-**Step 1:** Inline SVG sparkline of `session.watch.priceHistory` (24 points — the 24-point random walk seeded from appraisal median in Task 2.2). Last-tick timestamp + 3 source pills (RedStone, Pyth, Chrono24).
+**Files shipped:**
+- `apps/web/src/app/demo/_components/live-ticker.tsx`
 
-**Critical architectural note — single source of truth for the price feed:** `<RedstoneFeedCard>` and `<LtvGauge>` (Task 6.1) both consume `session.watch.priceHistory` from the same `useDemoSession()` hook. The dashboard's LTV gauge ticks because the same array that drives the UI sparkline also drives the on-chain LTV recomputation — one feed, two surfaces. In production, this becomes a RedStone wrap of Chrono24 polling (Apify keys upgrade reliability when needed; deferred to P2).
+`setInterval(5_000)` emits round-robin `interest_accrued` / `ltv_recompute` / `price_tick` events anchored to `session.loan` + `session.watch.priceHistory`. Interest line uses `computeInterestAccrued(principal, rateBps, 1) / 24n` for a believable per-hour trickle. Reuses the existing `.vx-marquee` / `.vx-marquee-track` classes (defined in `globals.css`) so it pauses on hover and respects `prefers-reduced-motion`. Brass pulse dot at the start indicates live.
 
-**Step 2:** Commit.
+### Task 6.4: `/demo/borrow/dashboard` page — DONE
 
-### Task 6.3: `<LiveTicker>` synthetic stream
+**Files shipped:**
+- `apps/web/src/app/demo/borrow/dashboard/page.tsx`
 
-**Files:**
-- Create: `apps/web/src/app/demo/_components/live-ticker.tsx`
+Composition (phone bezel, single column): eyebrow `STEP 13 / 14 · DASHBOARD` + heading "Your loan, live." → centered `<LtvGauge>` → loan summary card (principal, accrued interest via `computeInterestAccrued` with `createdAtSec = dueTs - termDays*86400`, rate · term, days to due) → `<RedstoneFeedCard>` → IoT placeholder (`/demo/iot-feed-placeholder.svg` via `next/image`) with `📡 LIVE · Brinks SP · Vault A-32` brass pill → `<LiveTicker>` → two-column CTA grid (Repay full / Renew loan). Redirects to `/demo/borrow/disburse` if `loan.disbursedAt` is missing. Tour-step 13 of 14.
 
-**Step 1:** 5-second `setInterval` emits events anchored to `session.loan` (interest accrued, ltv recompute). Renders as scrolling marquee.
+### Task 6.5: `/demo/borrow/repay` + `/demo/borrow/renew` — DONE
 
-**Step 2:** Commit.
+**Files shipped:**
+- `apps/web/src/app/demo/borrow/repay/page.tsx`
+- `apps/web/src/app/demo/borrow/renew/page.tsx`
 
-### Task 6.4: `/demo/borrow/dashboard` page
+**Repay (final tour step, 14/14):** Reads `session.loan` (redirects on missing). Breakdown rows = principal, interest (`X days at Y% APR`), total payoff (computed via `computePayoff`). Single brass CTA → 1.5s spinner ("Settling on-chain…") → emerald confirmation. On done, patches `inAppBalanceAtoms` (clamped at 0n if the in-app balance is below payoff) and bumps `tour.step` to 14. "Back to dashboard" link.
 
-**Files:**
-- Create: `apps/web/src/app/demo/borrow/dashboard/page.tsx`
+**Renew:** Reads `session.loan` (redirects on missing). Term radio 30/60/90 with brass-highlighted selection. Preview shows new due date (`renewAtSec + termDays*86400`), new rate (`rateForTermDays`), and 2% flat renewal fee (`computeRenewalFee`). Single CTA → 1.5s spinner → emerald confirmation. On done, patches `loan.termDays`, `loan.rateBps`, `loan.dueTs`, and decrements `inAppBalanceAtoms` by the fee (clamped at 0n).
 
-**Step 1:** Compose: `<LtvGauge>` + `<RedstoneFeedCard>` + IoT video + `<LiveTicker>`. Repay/Renew CTAs at bottom.
-
-**Step 2:** Commit.
-
-### Task 6.5: `/demo/borrow/repay` + `/demo/borrow/renew`
-
-**Files:**
-- Create: `apps/web/src/app/demo/borrow/repay/page.tsx`
-- Create: `apps/web/src/app/demo/borrow/renew/page.tsx`
-
-**Step 1:** Repay: principal + accrued interest preview → "Pay full" CTA → updates `loan.inAppBalanceAtoms`.
-
-**Step 2:** Renew: term radio (30/60/90), 2% flat fee preview → "Renew" CTA → updates `loan.dueTs` + `loan.rateBps`.
-
-**Step 3:** Commit each separately.
+Both wrapped in `<DemoShell formFactor="phone">`. Editorial pattern (eyebrow + display heading + body + CTA). All math goes through `@vaulx/terms` — no re-implementation.
 
 ---
 
