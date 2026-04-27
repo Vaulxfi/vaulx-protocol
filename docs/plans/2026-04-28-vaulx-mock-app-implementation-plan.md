@@ -631,7 +631,7 @@ Expected: `200`.
 
 **Step 1:** Read the existing `<CivicPassGate>` at `apps/web/src/components/vaulx/civic-pass-gate.tsx` to understand the pattern.
 
-**Step 2:** Implement page (post-fix `useDemoSession` shape: `session: DemoSession | null` + functional `patch((s) => ...)` updater). The `gov.br` bridge effect reads from the production `/borrow/verify-id` flow's localStorage (keyed by wallet pubkey, with a `demo-no-wallet` fallback) when the user returns via `?via=demo`:
+**Step 2:** Implement page (post-fix `useDemoSession` shape: `session: DemoSession | null` + functional `patch((s) => ...)` updater). The gov.br button deep-links to a demo-specific gov.br flow at `/demo/borrow/verify-id` (Task 1.1.b below) which writes directly to `session.govbr` — no localStorage bridge from the production `/borrow/verify-id` route, because that route requires a connected Solana wallet pubkey at the time of writing the verification (and Step 1 happens before Step 3 wallet connect):
 
 ```tsx
 "use client";
@@ -640,7 +640,6 @@ import Link from "next/link";
 import { DemoShell } from "../../_components/demo-shell";
 import { LiveBadge, MockBadge } from "../../_components/integration-badges";
 import { useDemoSession } from "../../_lib/use-demo-session";
-import { getGovbrVerification } from "@/lib/govbr/mock-storage";
 
 export default function OnboardPage() {
   const { session, patch } = useDemoSession();
@@ -651,22 +650,6 @@ export default function OnboardPage() {
     const t = setInterval(() => setElapsed((s) => s + 1), 1000);
     return () => clearInterval(t);
   }, [session?.civic.verifiedAt]);
-
-  // Bridge: pull gov.br verification from the production /borrow/verify-id
-  // page's localStorage (keyed by wallet pubkey, falling back to a sentinel
-  // when no wallet is set yet).
-  useEffect(() => {
-    if (!session) return;
-    if (session.govbr.verifiedAt) return;
-    const wallet = session.wallet.pubkey ?? "demo-no-wallet";
-    const v = getGovbrVerification(wallet);
-    if (v) {
-      patch((s) => ({
-        ...s,
-        govbr: { cpf: v.cpf, name: v.name, verifiedAt: v.verified_at },
-      }));
-    }
-  }, [session, patch]);
 
   if (!session)
     return (
@@ -710,7 +693,7 @@ export default function OnboardPage() {
         </button>
 
         <Link
-          href={`/borrow/verify-id?return_to=/demo/borrow/onboard&via=demo`}
+          href={`/demo/borrow/verify-id?return_to=/demo/borrow/onboard`}
           className="mt-3 block w-full rounded-md border border-[var(--rule)] px-4 py-3 text-center font-mono text-sm uppercase tracking-wider text-[var(--ink-dim)]"
         >
           {govbrDone ? "✓ gov.br verified" : "Continue with gov.br"}
@@ -742,6 +725,25 @@ pnpm --filter @vaulx/web build 2>&1 | tail -3
 ```bash
 git add apps/web/src/app/demo/borrow/onboard/
 git commit -m "feat(demo): /demo/borrow/onboard — Civic CAPTCHA + gov.br mock"
+```
+
+### Task 1.1.b: demo-specific gov.br flow at `/demo/borrow/verify-id` (4 pages)
+
+**Why:** the production gov.br pages at `/borrow/verify-id` require a connected Solana wallet adapter pubkey to write the verification (`setGovbrVerification(wallet, …)` keys localStorage by pubkey). At demo Step 1, no wallet is connected yet (wallet is Step 3 of the demo). Bridging the production flow into demo would strand users when the production page bails with "Connect wallet". Solution: duplicate the 4-page gov.br mock under the demo namespace, with two key differences vs production — reads/writes session via `useDemoSession()` + `patch()` instead of the production `useGovbrVerification` hook, and never requires a connected wallet (the demo session itself is the identity scope).
+
+**Files to create:**
+- `apps/web/src/app/demo/borrow/verify-id/page.tsx` — entry "Verify your Brazilian identity"
+- `apps/web/src/app/demo/borrow/verify-id/redirecting/page.tsx` — 1s spinner
+- `apps/web/src/app/demo/borrow/verify-id/govbr-login/page.tsx` — CPF mask + auth spinner; on submit calls `patch((s) => ({ ...s, govbr: { cpf, name, verifiedAt } }))`
+- `apps/web/src/app/demo/borrow/verify-id/callback/page.tsx` — success card; reads `session.govbr`; "Return" button → `return_to` (default `/demo/borrow/onboard`)
+- `apps/web/src/app/demo/borrow/verify-id/_demo-govbr-chrome.tsx` — phone-bezel-friendly version of the production `<GovbrChrome>` (gov.br blue header + demo badge + footer, but `min-h-full` instead of `min-h-screen` so it fits inside the demo phone viewport)
+
+Each page is wrapped in `<DemoShell formFactor="phone">`. The CPF validator + `mockNameForCpf` helpers from `@/lib/govbr/cpf` and `@/lib/govbr/names` are reused; the production `mock-storage.ts` hook is **not** used.
+
+**Commit:**
+```bash
+git add apps/web/src/app/demo/borrow/verify-id/ apps/web/src/app/demo/borrow/onboard/
+git commit -m "fix(demo): demo-specific gov.br flow under /demo/borrow/verify-id (resolves wallet-key mismatch)"
 ```
 
 ### Task 1.2: Install Privy + Crossmint + LazorKit SDKs
@@ -947,6 +949,8 @@ export function CrossmintCard() {
 
 **However**, `@lazorkit/wallet@2.0.1` pulls a transitive `@solana/kora → @solana-program/token@0.9.0` chain that requires `@solana/kit@^5`. pnpm intermittently resolves a stale `kit@2.3.0` paired path that breaks webpack. Until the upstream peer is pinned cleanly, the card ships as mock-only with a `TODO(lazorkit-sdk-verify)` note. Real-SDK shape preserved in the file's comment block.
 
+Headline + subtitle are intentionally honest about the mock state — saying "FaceID / passkey" when the SDK isn't actually wired is a credibility risk on iPhone judges (tap "FaceID" → no FaceID prompt → mock pubkey written). The card also renders a `<MockBadge partner="LazorKit" />` ribbon to make the mock state visible at a glance.
+
 ```tsx
 "use client";
 // TODO(lazorkit-sdk-verify): @lazorkit/wallet@2.0.1 transitive deps require
@@ -954,25 +958,29 @@ export function CrossmintCard() {
 // workspace, breaking the webpack build. Render mock-only until upstream
 // peers are pinned. Real-SDK shape: render <LazorkitProvider>, then a child
 // that calls `useWallet()` and reads `info.smartWallet` after `await w.connect()`.
+import { MockBadge } from "../integration-badges";
 import { useDemoSession } from "../../_lib/use-demo-session";
 
 export function LazorKitCard() {
   const { session, patch } = useDemoSession();
   return (
-    <button
-      onClick={() =>
-        session &&
-        patch((s) => ({
-          ...s,
-          wallet: { provider: "lazorkit", pubkey: "MOCK33333333333333333333333333333333333333" },
-        }))
-      }
-      className="w-full rounded-md border border-[var(--rule)] p-4 text-left hover:border-[var(--brand)]/50"
-    >
-      <p className="font-mono text-xs uppercase tracking-wider text-[var(--ink-muted)]">LazorKit · sandbox unset</p>
-      <p className="mt-1 font-display text-lg">FaceID / passkey</p>
-      <p className="mt-1 text-xs text-[var(--ink-muted)]">MOCK — upstream peer-dep mismatch (@solana/kit ^5).</p>
-    </button>
+    <>
+      <button
+        onClick={() =>
+          session &&
+          patch((s) => ({
+            ...s,
+            wallet: { provider: "lazorkit", pubkey: "MOCK33333333333333333333333333333333333333" },
+          }))
+        }
+        className="w-full rounded-md border border-[var(--rule)] p-4 text-left hover:border-[var(--brand)]/50"
+      >
+        <p className="font-mono text-xs uppercase tracking-wider text-[var(--ink-muted)]">LazorKit · sandbox unset</p>
+        <p className="mt-1 font-display text-lg">FaceID · mock</p>
+        <p className="mt-1 text-xs text-[var(--ink-muted)]">Real SDK pending @solana/kit ^5 alignment. Mock for now.</p>
+      </button>
+      <MockBadge partner="LazorKit" />
+    </>
   );
 }
 ```

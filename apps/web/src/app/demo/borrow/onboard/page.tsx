@@ -4,7 +4,6 @@ import Link from "next/link";
 import { DemoShell } from "../../_components/demo-shell";
 import { LiveBadge, MockBadge } from "../../_components/integration-badges";
 import { useDemoSession } from "../../_lib/use-demo-session";
-import { getGovbrVerification } from "@/lib/govbr/mock-storage";
 
 export default function OnboardPage() {
   const { session, patch } = useDemoSession();
@@ -15,23 +14,6 @@ export default function OnboardPage() {
     const t = setInterval(() => setElapsed((s) => s + 1), 1000);
     return () => clearInterval(t);
   }, [session?.civic.verifiedAt]);
-
-  // Bridge: pull gov.br verification from the production /borrow/verify-id
-  // page's localStorage (keyed by wallet pubkey, falling back to a sentinel
-  // when no wallet is set yet). Runs whenever the session loads or its
-  // wallet/govbr state changes.
-  useEffect(() => {
-    if (!session) return;
-    if (session.govbr.verifiedAt) return;
-    const wallet = session.wallet.pubkey ?? "demo-no-wallet";
-    const v = getGovbrVerification(wallet);
-    if (v) {
-      patch((s) => ({
-        ...s,
-        govbr: { cpf: v.cpf, name: v.name, verifiedAt: v.verified_at },
-      }));
-    }
-  }, [session, patch]);
 
   if (!session)
     return (
@@ -75,7 +57,7 @@ export default function OnboardPage() {
         </button>
 
         <Link
-          href={`/borrow/verify-id?return_to=/demo/borrow/onboard&via=demo`}
+          href={`/demo/borrow/verify-id?return_to=/demo/borrow/onboard`}
           className="mt-3 block w-full rounded-md border border-[var(--rule)] px-4 py-3 text-center font-mono text-sm uppercase tracking-wider text-[var(--ink-dim)]"
         >
           {govbrDone ? "✓ gov.br verified" : "Continue with gov.br"}
