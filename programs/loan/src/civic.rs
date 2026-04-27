@@ -1,3 +1,12 @@
+// DEPRECATED — Civic Pass was sunset mid-2025. The gateway-token format this
+// file parses is no longer issued by Civic. Retained as historical reference;
+// not called by any live instruction. The replacement is a Vaulx-issued
+// KycAttestation PDA (see programs/{vault,loan}/src/attestation.rs from Task 1.3).
+//
+// To temporarily restore the legacy gate for testing, gate this module behind
+// the `civic-pass-legacy` feature in Cargo.toml.
+#![allow(dead_code)]
+
 use anchor_lang::prelude::*;
 
 /// Civic Gateway program id — stable across mainnet/devnet.

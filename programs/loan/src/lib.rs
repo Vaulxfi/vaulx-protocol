@@ -55,14 +55,16 @@ pub mod loan {
     ) -> Result<()> {
         require!(loan_amount > 0 && appraisal_value > 0, LoanError::ZeroAmount);
 
-        // Civic Pass gate — no-op when network is default.
-        if ctx.accounts.loan_config.civic_network != Pubkey::default() {
-            civic::verify_gateway_token(
-                &ctx.accounts.gateway_token.to_account_info(),
-                &ctx.accounts.payer.key(),
-                &ctx.accounts.loan_config.civic_network,
-            )?;
-        }
+        // TODO(civic-auth-attestation): replaced by KycAttestation PDA check (Task 1.4).
+        // Old call (Civic Pass, sunset):
+        // // Civic Pass gate — no-op when network is default.
+        // if ctx.accounts.loan_config.civic_network != Pubkey::default() {
+        //     civic::verify_gateway_token(
+        //         &ctx.accounts.gateway_token.to_account_info(),
+        //         &ctx.accounts.payer.key(),
+        //         &ctx.accounts.loan_config.civic_network,
+        //     )?;
+        // }
 
         // LTV check: loan * 10_000 <= appraisal * MAX_LTV_BPS
         let lhs = (loan_amount as u128)

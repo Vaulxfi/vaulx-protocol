@@ -68,14 +68,16 @@ pub mod vault {
     pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
         require!(amount > 0, VaultError::ZeroAmount);
 
-        // Civic Pass gate — no-op when `civic_network == Pubkey::default()`.
-        if ctx.accounts.vault_config.civic_network != Pubkey::default() {
-            civic::verify_gateway_token(
-                &ctx.accounts.gateway_token.to_account_info(),
-                &ctx.accounts.depositor.key(),
-                &ctx.accounts.vault_config.civic_network,
-            )?;
-        }
+        // TODO(civic-auth-attestation): replaced by KycAttestation PDA check (Task 1.4).
+        // Old call (Civic Pass, sunset):
+        // // Civic Pass gate — no-op when `civic_network == Pubkey::default()`.
+        // if ctx.accounts.vault_config.civic_network != Pubkey::default() {
+        //     civic::verify_gateway_token(
+        //         &ctx.accounts.gateway_token.to_account_info(),
+        //         &ctx.accounts.depositor.key(),
+        //         &ctx.accounts.vault_config.civic_network,
+        //     )?;
+        // }
 
         let total_assets = ctx.accounts.vault.total_assets;
         let total_shares = ctx.accounts.vault.total_shares;
