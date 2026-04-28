@@ -4,10 +4,29 @@
 // `session.loan.custody.confirmedAt` until the user explicitly walks through
 // the refusal → custodian-sign → retry → release choreography. Session is
 // patched in parallel for downstream pages (dashboard, funds).
+//
+// Wave-D wiring: when a wallet is connected we additionally render an
+// "On-chain disburse" panel that calls the real `loan.disburse_from_vault`
+// via `useDisburse`. Before the call we hit `/api/demo/publish-price` so
+// the SR-2 oracle gate has a fresh PriceFeed for `trdc_state.ref_bytes`.
+//
+// Prereqs (the on-chain call will fail without them, by design):
+//   - session.loan.loanId is set
+//   - on-chain TRDCState exists at deriveTrdcStatePda(loanId)
+//   - TRDCState.status == ActiveInCustody (custody already confirmed)
+//   - the borrower wallet matches the TRDC borrower (it's the signer)
+// When prereqs are missing the panel still renders but surfaces a useful
+// error from the program (e.g. AccountNotFound, InvalidStateTransition).
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { PublicKey } from "@solana/web3.js";
+import { useWallet } from "@solana/wallet-adapter-react";
 import { DemoShell } from "../../_components/demo-shell";
 import { useDemoSession } from "../../_lib/use-demo-session";
+import { deriveTrdcStatePda } from "@/lib/chain/loan-accounts";
+import { useTrdcState } from "@/lib/chain/custody";
+import { useDisburse } from "@/lib/chain/loan";
+import { requireUsdcMint } from "@/lib/usdc";
 
 type DisburseState =
   | "ready"
@@ -36,6 +55,25 @@ export default function DisbursePage() {
   const router = useRouter();
   const { session, patch } = useDemoSession();
   const [state, setState] = useState<DisburseState>("ready");
+  const { publicKey: connectedWallet } = useWallet();
+
+  // Derive TRDCState PDA when session has a loanId; surface real on-chain
+  // status so the disburse panel can show meaningful prereq errors before
+  // the user clicks.
+  const trdcPda = useMemo(() => {
+    const lid = session?.loan?.loanId;
+    if (!lid) return undefined;
+    try {
+      return deriveTrdcStatePda(new PublicKey(lid));
+    } catch {
+      return undefined;
+    }
+  }, [session?.loan?.loanId]);
+  const onchainTrdc = useTrdcState(trdcPda);
+  const disburse = useDisburse();
+  const [chainSig, setChainSig] = useState<string | null>(null);
+  const [chainErr, setChainErr] = useState<string | null>(null);
+  const [chainPending, setChainPending] = useState(false);
 
   // Redirect if the user landed here without a loan.
   useEffect(() => {
@@ -256,6 +294,69 @@ export default function DisbursePage() {
           </div>
         )}
 
+        {/* On-chain disburse panel (real Anchor ix) */}
+        <OnchainDisburseSection
+          loanId={session.loan.loanId}
+          principalAtoms={session.loan.principalAtoms}
+          trdcPda={trdcPda}
+          trdcStatus={
+            onchainTrdc.data?.status as Record<string, unknown> | undefined
+          }
+          trdcRefBytes={
+            (onchainTrdc.data as unknown as { refBytes?: number[] })?.refBytes
+          }
+          walletConnected={!!connectedWallet}
+          isPending={chainPending || disburse.isPending}
+          chainSig={chainSig}
+          chainErr={chainErr}
+          onClick={async () => {
+            setChainErr(null);
+            setChainSig(null);
+            setChainPending(true);
+            try {
+              if (!trdcPda) throw new Error("Loan id missing in session");
+              const usdcMint = requireUsdcMint();
+              const refBytes = (onchainTrdc.data as unknown as {
+                refBytes?: number[];
+              })?.refBytes;
+              // Best-effort: if we have ref_bytes, refresh the price feed
+              // server-side. We don't fail the whole disburse on this — the
+              // operator may have configured oracle_admin = default, in
+              // which case publish-price returns an OracleNotInitialized
+              // error and disburse skips the oracle gate anyway.
+              if (Array.isArray(refBytes) && refBytes.length === 32) {
+                try {
+                  await fetch("/api/demo/publish-price", {
+                    method: "POST",
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify({ refBytes }),
+                  });
+                } catch {
+                  // ignore — disburse will surface the real error
+                }
+              }
+              const principal = BigInt(session.loan!.principalAtoms);
+              const refBytesU8 =
+                Array.isArray(refBytes) && refBytes.length === 32
+                  ? Uint8Array.from(refBytes)
+                  : undefined;
+              const { txSig } = await disburse.mutateAsync({
+                trdcPda,
+                assetMint: usdcMint,
+                amount: principal,
+                refBytes: refBytesU8,
+              });
+              setChainSig(txSig);
+            } catch (err) {
+              setChainErr(
+                err instanceof Error ? err.message : String(err),
+              );
+            } finally {
+              setChainPending(false);
+            }
+          }}
+        />
+
         {/* Primary CTA */}
         <button
           type="button"
@@ -279,5 +380,148 @@ export default function DisbursePage() {
         `}</style>
       </div>
     </DemoShell>
+  );
+}
+
+function OnchainDisburseSection({
+  loanId,
+  principalAtoms,
+  trdcPda,
+  trdcStatus,
+  trdcRefBytes,
+  walletConnected,
+  isPending,
+  chainSig,
+  chainErr,
+  onClick,
+}: {
+  loanId: string;
+  principalAtoms: string;
+  trdcPda: PublicKey | undefined;
+  trdcStatus: Record<string, unknown> | undefined;
+  trdcRefBytes: number[] | undefined;
+  walletConnected: boolean;
+  isPending: boolean;
+  chainSig: string | null;
+  chainErr: string | null;
+  onClick: () => void | Promise<void>;
+}) {
+  const statusKey = trdcStatus ? Object.keys(trdcStatus)[0] : undefined;
+  const inCustody = statusKey === "activeInCustody";
+  const onchainExists = !!trdcPda && !!statusKey;
+
+  return (
+    <div className="mt-8 rounded-md border border-[var(--rule)] bg-[var(--bg-elev-1)] p-5">
+      <div className="flex items-center justify-between">
+        <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--brand)]">
+          On-chain disburse · Devnet
+        </div>
+        {trdcPda && (
+          <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+            {trdcPda.toBase58().slice(0, 6)}…{trdcPda.toBase58().slice(-4)}
+          </span>
+        )}
+      </div>
+
+      <p className="mt-2 text-xs text-[var(--ink-dim)]">
+        Calls{" "}
+        <code className="font-mono text-[var(--brand)]">
+          loan.disburse_from_vault({(BigInt(principalAtoms) / 1_000_000n).toString()} USDC)
+        </code>{" "}
+        from your wallet. Publishes a fresh price feed beforehand to satisfy
+        the SR-2 oracle gate.
+      </p>
+
+      {/* Prereq summary */}
+      <ul className="mt-3 flex flex-col gap-1 font-mono text-[10px] uppercase tracking-[0.14em]">
+        <li
+          className={
+            walletConnected ? "text-emerald-400" : "text-[var(--ink-muted)]"
+          }
+        >
+          {walletConnected ? "✓" : "·"} Wallet connected
+        </li>
+        <li
+          className={
+            !!loanId ? "text-emerald-400" : "text-[var(--ink-muted)]"
+          }
+        >
+          {loanId ? "✓" : "·"} Loan id present
+        </li>
+        <li
+          className={
+            onchainExists ? "text-emerald-400" : "text-[var(--ink-muted)]"
+          }
+        >
+          {onchainExists ? "✓" : "·"} On-chain TRDC found
+          {statusKey && (
+            <span className="ml-2 text-[var(--ink-muted)] normal-case">
+              ({statusKey})
+            </span>
+          )}
+        </li>
+        <li
+          className={
+            inCustody ? "text-emerald-400" : "text-[var(--ink-muted)]"
+          }
+        >
+          {inCustody ? "✓" : "·"} Status = ActiveInCustody
+        </li>
+        <li
+          className={
+            Array.isArray(trdcRefBytes) && trdcRefBytes.length === 32
+              ? "text-emerald-400"
+              : "text-[var(--ink-muted)]"
+          }
+        >
+          {Array.isArray(trdcRefBytes) && trdcRefBytes.length === 32 ? "✓" : "·"} ref_bytes
+          available
+        </li>
+      </ul>
+
+      <button
+        type="button"
+        disabled={!walletConnected || isPending}
+        onClick={onClick}
+        className="mt-4 w-full rounded-md border border-[var(--brand)]/60 bg-[var(--brand)]/10 px-4 py-3 font-mono text-xs uppercase tracking-[0.16em] text-[var(--brand)] disabled:cursor-not-allowed disabled:opacity-40 hover:bg-[var(--brand)]/20"
+      >
+        {isPending
+          ? "Submitting on-chain disburse…"
+          : walletConnected
+            ? "Run disburse on Devnet"
+            : "Connect wallet to disburse"}
+      </button>
+
+      {chainErr && (
+        <p className="mt-3 break-words font-mono text-[11px] text-rose-400">
+          {chainErr}
+        </p>
+      )}
+      {chainSig && (
+        <p className="mt-3 font-mono text-[11px] text-emerald-400">
+          ✓ Disbursed.{" "}
+          <a
+            href={`https://solscan.io/tx/${chainSig}?cluster=devnet`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline decoration-dotted hover:text-emerald-300"
+          >
+            {chainSig.slice(0, 8)}…{chainSig.slice(-4)} ↗
+          </a>
+        </p>
+      )}
+
+      {!onchainExists && walletConnected && (
+        <p className="mt-3 text-[11px] text-[var(--ink-muted)]">
+          No active loan in CustodyConfirmed status. Create a loan first via{" "}
+          <code className="font-mono text-[var(--brand)]">
+            /demo/borrow/onboard
+          </code>{" "}
+          or use the admin cockpit at{" "}
+          <code className="font-mono text-[var(--brand)]">/admin/demo</code>{" "}
+          (local-only).
+        </p>
+      )}
+    </div>
   );
 }

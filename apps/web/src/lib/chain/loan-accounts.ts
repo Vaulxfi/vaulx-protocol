@@ -66,6 +66,23 @@ export function deriveLoanConfigPda(): PublicKey {
 }
 
 /**
+ * Canonical PriceFeed PDA: seeds = [b"price_feed", ref_bytes], owned by the
+ * loan program. Used both client-side (to pass to disburse_from_vault when
+ * the oracle is on) and server-side (to publish a fresh feed via the
+ * operator-keypair signed `/api/demo/publish-price` route).
+ */
+export function derivePriceFeedPda(refBytes: Uint8Array): PublicKey {
+  if (refBytes.length !== 32) {
+    throw new Error("ref_bytes must be exactly 32 bytes");
+  }
+  const [pda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("price_feed"), Buffer.from(refBytes)],
+    LOAN_PROGRAM_ID,
+  );
+  return pda;
+}
+
+/**
  * The common account set for `pay_installment`, `repay_ccb`, and `renew_ccb`
  * — they happen to share an identical list. Derive once; reuse everywhere.
  */

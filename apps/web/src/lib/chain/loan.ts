@@ -9,7 +9,13 @@ import {
   Keypair,
   PublicKey,
   SystemProgram,
+  SYSVAR_INSTRUCTIONS_PUBKEY,
 } from "@solana/web3.js";
+import {
+  TOKEN_PROGRAM_ID,
+  getAssociatedTokenAddressSync,
+  createAssociatedTokenAccountInstruction,
+} from "@solana/spl-token";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { loan as loanFacade } from "@vaulx/anchor-client";
 import { rateForTermDays } from "@vaulx/terms";
@@ -17,9 +23,11 @@ import { rateForTermDays } from "@vaulx/terms";
 import {
   LOAN_PROGRAM_ID,
   TRDC_PROGRAM_ID,
+  VAULT_PROGRAM_ID,
   buildLoanIxAccounts,
   deriveLoanAuthorityPda,
   deriveLoanConfigPda,
+  derivePriceFeedPda,
   deriveTrdcStatePda,
   deriveVaultPda,
 } from "./loan-accounts";
@@ -29,6 +37,7 @@ export {
   TRDC_PROGRAM_ID,
   deriveLoanAuthorityPda,
   deriveLoanConfigPda,
+  derivePriceFeedPda,
   deriveTrdcStatePda,
   deriveVaultPda,
 };
@@ -291,3 +300,126 @@ export function useLoanRepay() {
     },
   });
 }
+
+// ---------------------------------------------------------------------------
+// Wave D — `loan.disburse_from_vault`
+// ---------------------------------------------------------------------------
+
+export interface DisburseArgs {
+  trdcPda: PublicKey;
+  assetMint: PublicKey;
+  /** USDC atoms (×1_000_000). Typically `trdc_state.loan_amount`. */
+  amount: bigint;
+  /**
+   * 32-byte ref_bytes from the TRDCState. Used to derive the canonical
+   * PriceFeed PDA. Pass all-zeros (or omit) to disable the oracle path —
+   * the on-chain handler will skip the price-feed check when
+   * `loan_config.oracle_admin == default`.
+   */
+  refBytes?: Uint8Array;
+}
+
+/**
+ * Hook: calls `loan.disburse_from_vault(amount)` from the connected borrower
+ * wallet. Pulls `amount` USDC from the vault into the borrower's ATA.
+ *
+ * SR-2 oracle gate: if `loan_config.oracle_admin != default`, the handler
+ * re-derives the canonical PriceFeed PDA from `trdc_state.ref_bytes` and
+ * requires the supplied `price_feed` account to match. Callers must ensure
+ * a fresh price feed exists (use `/api/demo/publish-price` route).
+ *
+ * IDL accounts (see `programs/loan/src/lib.rs::DisburseFromVault`):
+ *   trdc_state, loan_config, vault, asset_mint, vault_ata, borrower_ata,
+ *   loan_authority, borrower (signer), trdc_program, vault_program,
+ *   token_program, instructions_sysvar, price_feed.
+ */
+export function useDisburse() {
+  const { connection } = useConnection();
+  const wallet = useAnchorWallet();
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (args: DisburseArgs): Promise<LoanTxResult> => {
+      if (!wallet) throw new Error("Connect your wallet first");
+      if (args.amount <= 0n) throw new Error("Amount must be > 0");
+
+      const provider = new AnchorProvider(connection, wallet, {
+        commitment: "confirmed",
+      });
+      const program = loanFacade.program(provider) as Program<Idl>;
+
+      const vaultPda = deriveVaultPda(args.assetMint);
+      const vaultAta = getAssociatedTokenAddressSync(
+        args.assetMint,
+        vaultPda,
+        true,
+      );
+      const borrowerAta = getAssociatedTokenAddressSync(
+        args.assetMint,
+        wallet.publicKey,
+      );
+      const loanAuthority = deriveLoanAuthorityPda();
+      const loanConfigPda = deriveLoanConfigPda();
+
+      // Pre-create the borrower's USDC ATA if it doesn't exist — the on-chain
+      // disburse expects it to be present.
+      const preIxs = [];
+      const borrowerAtaInfo = await connection.getAccountInfo(borrowerAta);
+      if (!borrowerAtaInfo) {
+        preIxs.push(
+          createAssociatedTokenAccountInstruction(
+            wallet.publicKey,
+            borrowerAta,
+            wallet.publicKey,
+            args.assetMint,
+          ),
+        );
+      }
+
+      // Resolve the price_feed account. If ref_bytes was supplied and is
+      // non-zero, derive the canonical PDA — the on-chain handler will check
+      // it. Otherwise pass SystemProgram.programId as a placeholder (oracle
+      // off path).
+      const hasRefBytes =
+        args.refBytes &&
+        args.refBytes.length === 32 &&
+        args.refBytes.some((b) => b !== 0);
+      const priceFeedKey = hasRefBytes
+        ? derivePriceFeedPda(args.refBytes!)
+        : SystemProgram.programId;
+
+      const methodBuilder = (program.methods as any)
+        .disburseFromVault(new BN(args.amount.toString()))
+        .accounts({
+          trdcState: args.trdcPda,
+          loanConfig: loanConfigPda,
+          vault: vaultPda,
+          assetMint: args.assetMint,
+          vaultAta,
+          borrowerAta,
+          loanAuthority,
+          borrower: wallet.publicKey,
+          trdcProgram: TRDC_PROGRAM_ID,
+          vaultProgram: VAULT_PROGRAM_ID,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          instructionsSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
+          priceFeed: priceFeedKey,
+        });
+
+      const sig =
+        preIxs.length > 0
+          ? await methodBuilder.preInstructions(preIxs).rpc()
+          : await methodBuilder.rpc();
+
+      qc.invalidateQueries({
+        queryKey: ["loan-summary", args.trdcPda.toBase58()],
+      });
+      qc.invalidateQueries({
+        queryKey: ["trdcState", args.trdcPda.toBase58()],
+      });
+
+      return { txSig: sig as string };
+    },
+  });
+}
+

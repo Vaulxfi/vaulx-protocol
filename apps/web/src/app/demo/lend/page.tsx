@@ -1,7 +1,14 @@
 // Vaulx lender-side operator dashboard. Four launch tranches across two
 // currencies, surfaced as the supply-side counterpart to the borrower flow.
+//
+// As of the Wave-D wiring this page also mounts <LendDepositPanel> above
+// the tranche grid. The panel calls the real `vault.deposit` ix on Devnet
+// against `NEXT_PUBLIC_USDC_MINT`, so a connected wallet can supply USDC
+// to the live program from inside the demo. With no wallet connected the
+// rest of the page (TVL fixtures, marketing tiles) keeps working.
 import Link from "next/link";
 import { DemoShell } from "../_components/demo-shell";
+import { LendDepositPanel } from "../_components/lend-deposit-panel";
 import { TRANCHES, totalTvl, type VaultTranche } from "../_fixtures/vault-tranches";
 
 const USD_FMT = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
@@ -62,6 +69,11 @@ export default function LendDashboardPage() {
           waterfall.
         </p>
       </header>
+
+      {/* Live Devnet deposit panel — wired to vault.deposit on Devnet */}
+      <section className="mt-12">
+        <LendDepositPanel />
+      </section>
 
       {/* Stat strip */}
       <section className="mt-12 grid grid-cols-2 gap-px border border-[var(--rule)] bg-[var(--rule)] md:grid-cols-4">

@@ -4,6 +4,13 @@
 // of truth for collateral price (`session.watch.priceHistory`) and loan
 // state (`session.loan`). From here the borrower either repays in full or
 // rolls into a new term.
+//
+// Wave-D wiring: when `session.loan.loanId` is present, render the
+// <OnchainTrdcCard> alongside the mock summary. The card reads the real
+// TRDCState account via `useTrdcState(deriveTrdcStatePda(loanId))` and
+// surfaces status / principal / LTV / due / cNFT asset_id (Solscan deep
+// links). When the on-chain account is absent (mock-only flow) the card
+// renders a "no on-chain TRDC found" placeholder.
 import { useEffect, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -11,6 +18,7 @@ import { useRouter } from "next/navigation";
 import { computeInterestAccrued } from "@vaulx/terms";
 import { DemoShell } from "../../_components/demo-shell";
 import { LtvGauge } from "../../_components/ltv-gauge";
+import { OnchainTrdcCard } from "../../_components/onchain-trdc-card";
 import { RedstoneFeedCard } from "../../_components/redstone-feed-card";
 import { LiveTicker } from "../../_components/live-ticker";
 import { TrdcViewer } from "../../_components/trdc-viewer";
@@ -174,6 +182,11 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* On-chain TRDCState — read from the live loan program */}
+        <div className="mt-6">
+          <OnchainTrdcCard loanId={loan.loanId} />
         </div>
 
         {/* TRDC cNFT viewer — pulls Vaulx-hosted Metaplex JSON for the loan */}
