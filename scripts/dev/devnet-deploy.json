@@ -43,5 +43,13 @@
   },
   "balance_before_sol": 27.98604272,
   "balance_after_sol": 18.11867004,
-  "total_cost_sol": 9.86737268
+  "total_cost_sol": 9.86737268,
+  "upgrade_authority_transferred_to": "99o9WXdP3Gt1wwnYtEXheTh5x599f6SfmAdn9um3hejR",
+  "upgrade_authority_transfer_tx": {
+    "trdc": "2hKTLoyJboeHo1ddnEThgFPcj2rn8ytkzSDxvLRMzzcBfApAZq72XHZN1oWjsHPPQrZ14Pfn7FYCY8anuHyLjatL",
+    "vault": "2jwtp8yU46y8bjEAT7pq4UCstLCxsfZf7R88MkfSYemavYpP7KcMG1upcF26guGivUcUkTk6vrwVdaWSvqY4Hn1g",
+    "loan": "6cuFPdG2KU6vnqqU2s2pUS5hXTGUKemYr2jLoq2eC4uwWZjHHFRrmdW2N9GVb6KNcpmSM9XnmTut6cfCyMidEPA",
+    "auction": "64t8PCUkZCr4mvtCy4jxAwb8migva47AQ9Qi1qTKm5vLkoGwjjDFe1gaBfrVPg2uZKE42h1VNqAXcnZBsHp7ueJT"
+  },
+  "transferred_at": "2026-04-28T07:10:34.864Z"
 }

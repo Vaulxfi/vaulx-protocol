@@ -12,6 +12,7 @@
     "seed:usdc": "pnpm exec tsx scripts/dev/seed-usdc.ts",
     "init:civic": "pnpm exec tsx scripts/dev/init-civic-configs.ts",
     "setup:squads": "pnpm exec tsx scripts/dev/setup-squads-multisig.ts",
+    "transfer:authorities": "pnpm exec tsx scripts/dev/transfer-authorities-to-squads.ts",
     "e2e:moment-1": "pnpm exec tsx scripts/dev/moment-1-e2e.ts",
     "e2e:moments-2-3-4": "pnpm exec tsx scripts/dev/moments-2-3-4-e2e.ts",
     "e2e:moments-5-9": "pnpm exec tsx scripts/dev/moments-5-9-e2e.ts"

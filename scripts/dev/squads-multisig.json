@@ -1,0 +1,15 @@
+{
+  "cluster": "devnet",
+  "rpcUrl": "https://api.devnet.solana.com",
+  "createdAt": "2026-04-28T07:09:01.274Z",
+  "multisigPda": "4uHLWx8dz3kpECAjGpP3CsB2sv9vjvFz2utVJMwfyXCj",
+  "vaultPda": "99o9WXdP3Gt1wwnYtEXheTh5x599f6SfmAdn9um3hejR",
+  "threshold": 2,
+  "members": {
+    "payer": "2HYjytRc4oKY2ndmJfAq2XdGhPqYB7VdDPLzA18QEiAH",
+    "ops": "7QpTNAveTSfQSEzjPCmfzgE9ZGrgkcUBmDZ97dcSixdE",
+    "team": "9MBdm6fbFTMCzvesKDDBYD58JdTsqWNGiefjdaS83LzS"
+  },
+  "createKey": "Bd6CnrA7sYhFwjoQnWawf4GxvGqNSM3KgGcMUXNupFeg",
+  "creationTx": "3Va385yWzsUrxXY8KaQiBc1XCSkAqVxX1fzQA8nEYTur1uYgnhqix8Vt6NXq7nW1vLhqBtCeyQPP9z7b9PrejSM1"
+}
