@@ -54,7 +54,7 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     index: 6,
-    route: "/demo/borrow/loan-offer",
+    route: "/demo/borrow/register",
     headline: "Pick LTV, term, rate.",
     caption: "Sign the CCB.B3 — Brazil's most weaponized credit instrument.",
   },

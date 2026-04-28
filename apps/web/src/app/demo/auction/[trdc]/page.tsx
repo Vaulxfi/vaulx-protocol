@@ -4,7 +4,7 @@
 // Right column: live bid feed (60s loop) + bid form (mock submit).
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { notFound, useParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { DemoShell } from "../../_components/demo-shell";
 import {
@@ -76,18 +76,71 @@ function buildTiers(
   }) as [Tier, Tier, Tier];
 }
 
+function AuctionNotFound({ trdc }: { trdc: string }) {
+  return (
+    <DemoShell formFactor="desktop">
+      <section className="border-b border-[var(--rule)] py-20">
+        <span className="eyebrow">Auction not found</span>
+        <h1 className="mt-3 font-display text-[clamp(1.75rem,3vw,2.5rem)] font-bold leading-[1.1] text-[var(--ink)]">
+          No auction at TRDC <span className="font-mono text-[var(--ink-muted)]">{trdc || "(empty)"}</span>.
+        </h1>
+        <p className="mt-6 max-w-[60ch] text-[var(--ink-dim)]">
+          The TRDC ID in the URL doesn&rsquo;t match any auction we&rsquo;re running. Demo
+          auctions live at known IDs only — check the live list on the auction
+          index, or jump back to the demo home.
+        </p>
+        <div className="mt-10 flex flex-wrap items-center gap-4">
+          <Link
+            href="/demo/auction"
+            className="inline-flex items-center gap-2 rounded-md bg-[var(--brand)] px-5 py-3 font-mono text-xs uppercase tracking-[0.18em] text-[var(--bg)]"
+          >
+            Browse live auctions
+            <span aria-hidden>→</span>
+          </Link>
+          <Link
+            href="/demo"
+            className="inline-flex items-center gap-2 rounded-md border border-[var(--rule-strong)] px-5 py-3 font-mono text-xs uppercase tracking-[0.18em] text-[var(--ink)] hover:border-[var(--brand)] hover:text-[var(--brand)]"
+          >
+            Demo home
+          </Link>
+        </div>
+        {AUCTION_FLOOR && AUCTION_FLOOR.length > 0 && (
+          <p className="mt-12 font-mono text-xs uppercase tracking-[0.18em] text-[var(--ink-muted)]">
+            Live IDs ·{" "}
+            {AUCTION_FLOOR.map((a) => (
+              <Link
+                key={a.trdc}
+                href={`/demo/auction/${a.trdc}`}
+                className="ml-2 underline decoration-[var(--rule-strong)] hover:decoration-[var(--brand)]"
+              >
+                {a.trdc}
+              </Link>
+            ))}
+          </p>
+        )}
+      </section>
+    </DemoShell>
+  );
+}
+
+// Top-level page: zero hooks. Just resolves the TRDC param and either
+// renders the not-found UI or the full content. The full content lives in
+// AuctionDetailContent, which gets a non-null auction as a prop so its
+// hooks (useMemo / useState / useEffect) always run unconditionally.
 export default function AuctionDetailPage() {
   const params = useParams<{ trdc: string }>();
   const trdc = params?.trdc ?? "";
   const auction = getAuction(trdc);
 
   if (!auction) {
-    if (typeof window !== "undefined") {
-      // Client-side guard; keep server-side render with notFound() too.
-    }
-    notFound();
+    return <AuctionNotFound trdc={trdc} />;
   }
+  return <AuctionDetailContent auction={auction} />;
+}
 
+type AuctionData = NonNullable<ReturnType<typeof getAuction>>;
+
+function AuctionDetailContent({ auction }: { auction: AuctionData }) {
   const tiers = useMemo(
     () =>
       buildTiers(

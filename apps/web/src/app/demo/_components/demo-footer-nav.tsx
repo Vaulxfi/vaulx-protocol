@@ -2,7 +2,7 @@
 // Phone footer nav: 4 tabs WITHIN the borrower flow (the entire mobile demo
 // is borrower-side). Each tab points at the natural entry of its section:
 //   Home      → onboard (start of journey, also visible from dashboard)
-//   Borrow    → loan-offer (main apply step)
+//   Borrow    → register (asset register — the apply step that exists)
 //   Spend     → funds (post-disburse outflow hub)
 //   Dashboard → dashboard (active-loan view)
 // Lender + auction surfaces use desktop layouts (no footer nav).
@@ -11,7 +11,7 @@ import { usePathname } from "next/navigation";
 
 const tabs = [
   { href: "/demo/borrow/onboard", label: "Home", icon: "◇" },
-  { href: "/demo/borrow/loan-offer", label: "Borrow", icon: "▤" },
+  { href: "/demo/borrow/register", label: "Borrow", icon: "▤" },
   { href: "/demo/borrow/funds", label: "Spend", icon: "◊" },
   { href: "/demo/borrow/dashboard", label: "Dashboard", icon: "▦" },
 ] as const;

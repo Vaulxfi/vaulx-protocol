@@ -85,13 +85,13 @@ export default function Home() {
                 </p>
 
                 <div className="vx-reveal mt-12 flex flex-col items-start gap-4 sm:flex-row sm:items-center" data-delay="4">
-                  <Link href="/lend" className="btn-gold-outline">
+                  <Link href="/demo/lend" className="btn-gold-outline">
                     <span>Earn · USDC yield</span>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4">
                       <path strokeLinecap="round" d="M5 12h14M13 5l7 7-7 7" />
                     </svg>
                   </Link>
-                  <Link href="/borrow/new/asset" className="btn-ghost">
+                  <Link href="/demo/borrow/onboard" className="btn-ghost">
                     <span>Borrow against your watch</span>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4">
                       <path strokeLinecap="round" d="M5 12h14M13 5l7 7-7 7" />
@@ -381,13 +381,13 @@ export default function Home() {
               <em className="not-italic italic font-normal text-[var(--brand)]">appreciate</em>.
             </h2>
             <div className="mt-12 flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <Link href="/lend" className="btn-gold">
+              <Link href="/demo/lend" className="btn-gold">
                 <span>Open the vault</span>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4">
                   <path strokeLinecap="round" d="M5 12h14M13 5l7 7-7 7" />
                 </svg>
               </Link>
-              <Link href="/borrow/new/asset" className="btn-ghost">
+              <Link href="/demo/borrow/onboard" className="btn-ghost">
                 <span>Request a line</span>
               </Link>
             </div>

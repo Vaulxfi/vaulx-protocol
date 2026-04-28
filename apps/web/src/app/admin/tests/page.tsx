@@ -32,12 +32,33 @@ export default function AdminTestsPage() {
             </h1>
 
             <p className="mt-6 max-w-[62ch] font-sans text-base leading-[1.65] text-[var(--ink-dim)] md:text-[17px]">
-              This page streams the full Vaulx on-chain test suite (45+ tests across the
+              This page streams the full Vaulx on-chain test suite (69 tests across the
               vault, loan, TRDC, and auction programs) in real time from{" "}
               <span className="font-mono text-[var(--ink)]">anchor test --skip-build</span>{" "}
               against a fresh localnet. No recordings, no aggregates — the terminal
               below is the server&apos;s stdout and stderr as it runs.
             </p>
+
+            {/* Local-only banner — must precede the runner so production
+                viewers see the warning BEFORE clicking RUN. */}
+            <aside className="mt-10 rounded-md border-l-4 border-l-[var(--brand)] border border-[var(--rule)] bg-[var(--bg-elev-1)] p-6">
+              <div className="eyebrow text-[var(--brand)]">Local-development only</div>
+              <p className="mt-3 font-sans text-sm leading-[1.65] text-[var(--ink-dim)]">
+                The live runner below requires the Anchor + Solana CLIs on the
+                server PATH and a localnet validator — none of which exist on
+                Vercel&rsquo;s serverless runtime. Clicking <strong className="text-[var(--ink)]">RUN</strong> on
+                production will hang at &ldquo;Spawning child process…&rdquo;. To watch the
+                suite stream live, clone the repo and visit{" "}
+                <span className="font-mono">localhost:3000/admin/tests</span>.
+              </p>
+              <p className="mt-3 font-sans text-sm leading-[1.65] text-[var(--ink-dim)]">
+                For a static replay of the last green run (captured at the
+                pre-hackathon checkpoint), use the{" "}
+                <strong className="text-[var(--ink)]">Replay last run</strong> button below — that
+                works on Vercel because it streams a captured log file rather
+                than spawning a process.
+              </p>
+            </aside>
 
             <div className="mt-12">
               <TestStream />

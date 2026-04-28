@@ -44,6 +44,28 @@ export default function AdminDemoPage() {
               on.
             </p>
 
+            {/* Local-only banner — must precede the cockpit so production
+                viewers see the warning BEFORE clicking the buttons. */}
+            <aside className="mt-10 rounded-md border-l-4 border-l-[var(--brand)] border border-[var(--rule)] bg-[var(--bg-elev-1)] p-6">
+              <div className="eyebrow text-[var(--brand)]">Local-development only</div>
+              <p className="mt-3 font-sans text-sm leading-[1.65] text-[var(--ink-dim)]">
+                The buttons below will <strong className="text-[var(--ink)]">fail
+                on Vercel</strong> with 503 errors. The route handlers read
+                local files (<span className="font-mono">scripts/dev/demo-wallets.json</span>,
+                {" "}<span className="font-mono">~/.config/solana/id.json</span>) that don&rsquo;t
+                exist in serverless. To run the cockpit, clone the repo, run{" "}
+                <span className="font-mono">pnpm seed:usdc</span>, then{" "}
+                <span className="font-mono">pnpm --filter @vaulx/web dev</span> and visit{" "}
+                <span className="font-mono">localhost:3000/admin/demo</span>.
+              </p>
+              <p className="mt-3 font-sans text-sm leading-[1.65] text-[var(--ink-dim)]">
+                For a production walkthrough that works on Vercel, see the
+                {" "}<a href="/demo" className="text-[var(--brand)] underline decoration-[var(--rule-strong)] underline-offset-4 hover:decoration-[var(--brand)]">
+                /demo
+                </a>{" "}walkthrough instead.
+              </p>
+            </aside>
+
             <div className="mt-12">
               <DemoCockpit />
             </div>
