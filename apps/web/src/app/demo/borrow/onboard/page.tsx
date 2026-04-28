@@ -129,22 +129,48 @@ export default function OnboardPage() {
 
         <div className="mt-6">{civicNode}</div>
 
+        {/*
+          gov.br styling escalates based on state. Default = secondary
+          outlined link. When Civic is done but gov.br isn't, this becomes
+          the obvious primary CTA (filled brand color) so the user knows
+          where to click next. After both are done, the brand-color "Next →"
+          below takes over as the primary.
+        */}
         <Link
           href={`/demo/borrow/verify-id?return_to=/demo/borrow/onboard`}
-          className="mt-3 block w-full rounded-md border border-[var(--rule)] px-4 py-3 text-center font-mono text-sm uppercase tracking-wider text-[var(--ink-dim)]"
+          className={`mt-3 block w-full rounded-md border px-4 py-3 text-center font-mono text-sm uppercase tracking-wider ${
+            govbrDone
+              ? "border-[var(--brand)]/40 bg-[var(--brand)]/10 text-[var(--brand)]"
+              : civicDone
+                ? "border-[var(--brand)] bg-[var(--brand)] text-[var(--bg)]"
+                : "border-[var(--rule)] text-[var(--ink-dim)]"
+          }`}
         >
-          {govbrDone ? "✓ gov.br verified" : "Continue with gov.br"}
+          {govbrDone ? "✓ gov.br verified" : "Continue with gov.br →"}
         </Link>
 
+        {/*
+          Final Next is enabled only when BOTH gates pass. While disabled,
+          the label is explicit about why so users don't click into a
+          dead button (previous behaviour: just "Next →" + grey + nothing
+          visibly explains the gate).
+        */}
         <Link
           href="/demo/borrow/wallet"
+          aria-disabled={!(civicDone && govbrDone)}
           className={`mt-8 block w-full rounded-md border px-4 py-3 text-center font-mono text-sm uppercase tracking-wider ${
             civicDone && govbrDone
               ? "border-[var(--brand)] bg-[var(--brand)] text-[var(--bg)]"
               : "border-[var(--rule)] text-[var(--ink-muted)] pointer-events-none"
           }`}
         >
-          Next →
+          {civicDone && govbrDone
+            ? "Next →"
+            : !civicDone && !govbrDone
+              ? "Complete Civic + gov.br to continue"
+              : !civicDone
+                ? "Verify Civic to continue"
+                : "Verify gov.br to continue"}
         </Link>
       </div>
       <MockBadge partner="gov.br" />
