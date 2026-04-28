@@ -16,19 +16,20 @@
   - Run `solana program show <PROGRAM_ID>` to inspect upgrade authority
   - If upgradeable: confirm Squads V4 multisig + timelock governance
 - [ ] KYC field mapping for BR residents (CPF/RG/CNH/employment/source-of-funds)
-  - Confirm gov.br ouro output covers Create User schema
-- [ ] Civic Auth acceptance as Full KYC liveness gate[^civic]
+  - Confirm Sumsub Brazil Non-Doc CPF flow output covers Create User schema
+- [ ] Sumsub acceptance as Full KYC liveness gate
   - Single-flow vs duplicate-flow determines onboarding friction
-- [ ] Per-region custom-token JWT bridge (gov.br for BR, Aadhaar for IN, eIDAS for EU, etc.)
+- [ ] Per-region custom-token JWT bridge (Sumsub for BR/global, eIDAS for EU, etc.)
 - [ ] MiCA CASP umbrella for EU users (Vaulx as BR entity)
 
-### Civic Auth
-- **Status:** integration scaffolded, gate disabled in demo (`vault_config.kyc_required = false`, `NEXT_PUBLIC_CIVIC_AUTH_CLIENT_ID` unset on production demo; FE uses mock token)
-- **Pitch line for deck:** **Civic Auth** — OAuth/OIDC + identity attestations. SOC 2 Type 1. Free tier for hackathon. Active sponsor; list as named partner in deck.
-- [ ] Sign up for production Civic Auth client ID at [auth.civic.com](https://auth.civic.com); paste into `NEXT_PUBLIC_CIVIC_AUTH_CLIENT_ID` for mainnet
-- [ ] Confirm SOC 2 Type 1 attestation copy for compliance pages
-- [ ] Wire on-chain `issue_kyc_attestation` admin ix to a post-OIDC callback (operator-signed)
+### Sumsub
+- **Status:** WebSDK wired (sandbox), lazy-triggered at money-touching CTAs via `<KycRequiredModal>`. On-chain gate disabled in demo (`vault_config.kyc_required = false`); attestation PDA minted server-side after webhook GREEN.
+- **Pitch line for deck:** **Sumsub** — Identity Verification. Native Solana Attestation Service (SAS) integration with the Solana Foundation, May 2025. Brazil Non-Doc CPF flow (CPF + liveness vs Serpro government database, ~60s, no documents). Cross-platform reusable KYC via ID Connect across 200+ partners. Free sandbox tier. List as named partner in deck.
+- [ ] Create the `basic-kyc-level` in the Sumsub dashboard (sandbox tokens already wired in `.env`)
+- [ ] Pre-configure a sandbox applicant (`demo@vaulx.app`) marked GREEN with returned BR CPF for the judge demo path
+- [ ] Wire on-chain `issue_kyc_attestation` admin ix to the `/api/sumsub/webhook` GREEN handler (operator-signed)
 - [ ] Flip `vault_config.kyc_required = true` via admin ix at mainnet cutover
+- [ ] Submit Sumsub sandbox for production approval (1-week post-hackathon ask)
 
 ### Kamino V2 (curator infrastructure rail / Re7 + MEV Capital onboarding lever)
 - [ ] Off-Chain Collateral integration scope — share Vault + Loan IDLs with Kamino BD
@@ -81,8 +82,6 @@
 
 ## Decisions log
 
-- **2026-04-27** — Dropped Privy and LazorKit. Crossmint becomes the sole wallet/auth vendor. Civic Auth (OAuth/OIDC) is the on-chain identity gate, bridged to a `KycAttestation` PDA owned by the vault and loan programs.[^civic] Reasoning: single-vendor compliance, smart-wallet-by-default for TRDC collateral semantics, 100+ off-ramps for LATAM→MENA→SEA expansion. Privy's Stripe-acquisition value is irrelevant for Vaulx's USDC+PIX+BRL stack. LazorKit's FaceID UX is delivered natively by Crossmint's passkey signer support.
-- **2026-04-28** — Civic Pass → Civic Auth migration completed (commits `39131e1`, `596f1e0`, `b170c73`, `f3ef3dd`, `ec04a22`). Civic Pass was sunset mid-2025; the gateway-token Borsh decode in `programs/{vault,loan}/src/civic.rs` is retained as deprecated reference only. New gate: operator-issued `KycAttestation` PDA after Civic Auth OIDC sign-in. Demo runs gate-off (`kyc_required = false`).
-
-[^civic]: Civic Pass was sunset mid-2025; current product is Civic Auth (OAuth/OIDC).
+- **2026-04-27** — Dropped Privy and LazorKit. Crossmint becomes the sole wallet/auth vendor. Reasoning: single-vendor compliance, smart-wallet-by-default for TRDC collateral semantics, 100+ off-ramps for LATAM→MENA→SEA expansion. Privy's Stripe-acquisition value is irrelevant for Vaulx's USDC+PIX+BRL stack. LazorKit's FaceID UX is delivered natively by Crossmint's passkey signer support.
+- **2026-04-28** — **Civic dropped entirely; Sumsub added as KYC layer.** The previous Civic Pass → Civic Auth migration is superseded; both Civic SKUs are removed from the codebase. Reasoning: Civic Auth duplicated Crossmint Auth (Google/Apple already covered), the "1M Civic Pass users" narrative was dead inventory after the mid-2025 sunset, and Sumsub offers Brazil Non-Doc CPF + ID Connect + native SAS integration with the Solana Foundation. New stack: Crossmint (auth + smart wallet) + Sumsub (KYC, lazy-triggered at money-touching CTAs) + vendor-neutral on-chain `KycAttestation` PDA (minted server-side after Sumsub webhook). See [`docs/plans/2026-04-28-vaulx-civic-drop-sumsub-add-design.md`](docs/plans/2026-04-28-vaulx-civic-drop-sumsub-add-design.md).
 - **2026-04-27** — Re-framed liquidity-stack partnership thesis. Kamino V2 = door-opener for Re7 + MEV Capital curators (P1 capital relationships closed *through* Kamino V2's curator marketplace, not as a direct capital source). Mercado Bitcoin + Transfero + a TBD crypto-native credit facility round out the P1 anchor-lender set. Plume Nest moved to P2 (later-stage institutional rail, post-launch). Apify deferred to P2 — production upgrade for Chrono24 reliability if fallback scraping breaks down.

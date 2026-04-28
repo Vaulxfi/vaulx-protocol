@@ -18,7 +18,7 @@ Ship a clickable, judge-grade mock of Vaulx's full maximalist vision — onboard
 
 **Scope (β+):** Full borrower flow + full lender flow + 3-tier auction waterfall + landing + interactive architecture diagram. ~22 routes total, ~18 substantive screens. Default flow visualized via the auction surface; lender side mocks Kamino + Plume + Tokeny + FIDC routing.
 
-**Real vs mock split** (see §2 for full matrix): real for self-serve dev integrations (Civic Auth scaffolded but gate-off in demo, Crossmint, WatchCharts, Chrono24 fallback, Devnet wallet send). Mock for everything that requires commercial agreements (Pix off-ramp, Solflare/lobster card, Kamino OCC, Plume Nest, Tokeny ERC-3643, gov.br official, Brinks IoT). All mocks ship with `MOCK · partnership in progress` ribbons; partnership tracking lives in `PARTNERSHIPS.md`.
+**Real vs mock split** (see §2 for full matrix): real for self-serve dev integrations (Crossmint Auth + smart wallet, Sumsub WebSDK sandbox lazy-triggered at money-touching CTAs, WatchCharts, Chrono24 fallback, Devnet wallet send). Mock for everything that requires commercial agreements (Pix off-ramp, Solflare/lobster card, Kamino OCC, Plume Nest, Tokeny ERC-3643, gov.br official, Brinks IoT). All mocks ship with `MOCK · partnership in progress` ribbons; partnership tracking lives in `PARTNERSHIPS.md`.
 
 ---
 
@@ -31,7 +31,9 @@ Ship a clickable, judge-grade mock of Vaulx's full maximalist vision — onboard
                                       with hover tooltips per partner. Adapted from
                                       VAULX_Architecture_Interactive.html, themed to /demo palette.
 ─────────────── BORROWER (mobile bezel on desktop, full-bleed on mobile) ───────────────
-/demo/borrow/onboard             ── Civic Auth scaffolded (gate disabled in demo) + gov.br mocked. 60-sec stopwatch UI.[^civic]
+/demo/borrow/onboard             ── Crossmint sign-in only (Google / Apple / Email / SMS / wallet).
+                                      Sumsub KYC is NOT triggered here — it lazy-fires at the
+                                      first money-touching CTA via <KycRequiredModal>.[^kyc]
 /demo/borrow/wallet              ── Single-CTA Crossmint sign-in (Google / Apple / Email)
 /demo/borrow/register            ── Watch make/model/ref/year/condition + 3-photo upload
 /demo/borrow/appraisal           ── Chrono24 + WatchCharts + internal model triangulation
@@ -51,7 +53,7 @@ Ship a clickable, judge-grade mock of Vaulx's full maximalist vision — onboard
 /demo/borrow/renew               ── Term extension + 2% flat fee
 ─────────────── LENDER (desktop responsive) ───────────────
 /demo/lend                       ── Operator dashboard: 4 vault tranches
-/demo/lend/onboard               ── KYC for accredited (Civic Auth + Tokeny ERC-3643 mock)
+/demo/lend/onboard               ── KYC for accredited (Sumsub WebSDK + Tokeny ERC-3643 mock)
 /demo/lend/vaults/[id]           ── Vault detail: TVL, APY, current LTV health, deposit form
 /demo/lend/liquidity             ── Kamino OCC + Plume Nest + SCD + FIDC routing visualization
                                       (adapted from vaulx-liquidity-architecture.html)
@@ -77,8 +79,8 @@ Ship a clickable, judge-grade mock of Vaulx's full maximalist vision — onboard
 
 | # | Partner | Implementation in `/demo/*` | Real prod path |
 |---|---|---|---|
-| 1 | **Civic Auth**[^civic] | **REAL (scaffolded, gate disabled in demo)** — `<CivicAuthGate>` from main app self-disables when `NEXT_PUBLIC_CIVIC_AUTH_CLIENT_ID` is unset (demo default). Mock token rendered for FE chip. | Live (set client ID + flip `kyc_required = true` for mainnet) |
-| 2 | **gov.br** | **MOCK** — reuse existing `/borrow/verify-id/*` themed for `/demo` | Brazilian-registered entity, gov registration |
+| 1 | **Sumsub WebSDK**[^kyc] | **REAL (sandbox, lazy-triggered)** — `<KycRequiredModal>` mounts at money-touching CTAs (Submit Asset / Disburse / Deposit USDC); `<SumsubVerify>` opens the sandbox iframe; webhook GREEN → server mints `KycAttestation` PDA via operator keypair. Brazil Non-Doc CPF (~60s, no documents) is the headline path; ID Connect handles returning users in ~5s. | Live (Sumsub sandbox → prod approval; flip `kyc_required = true` on-chain for protocol-layer enforcement) |
+| 2 | **gov.br** | **MOCK / DROPPED FROM SIGN-IN** — Sumsub Brazil Non-Doc handles CPF + liveness directly against Serpro; the standalone gov.br step is removed from onboard. The `/borrow/verify-id/*` mock screens remain for visual reference only. | Brazilian-registered entity, gov registration (P3) |
 | 3 | **Crossmint (auth + smart wallet + sanctions/PEP)** | **REAL** — sandbox dev API key | Self-serve, paid tier for prod |
 | 4 | **WatchCharts API** | **REAL** — `lib/appraisal/watchcharts.ts` already wired | Free tier; paid tier for full feed |
 | 5 | **Chrono24 scrape** | **REAL fallback-safe** — `lib/appraisal/chrono24.ts` already wired | Data licensing required for prod |
@@ -99,21 +101,33 @@ Ship a clickable, judge-grade mock of Vaulx's full maximalist vision — onboard
 
 ---
 
-## §2.1 — Crossmint integration architecture
+## §2.1 — Sign-in flow: Crossmint (auth) + Sumsub (KYC, lazy)
 
-Crossmint is the sole wallet/auth/compliance vendor. Civic Auth (OAuth/OIDC) is the on-chain identity gate, bridged to a `KycAttestation` PDA owned by the vault and loan programs.[^civic] Production flow:
+The sign-in surface is **Crossmint only**; the KYC surface is **Sumsub only**. There is no separate gov.br step — Sumsub Brazil Non-Doc handles CPF + liveness inside the iframe.[^kyc]
 
-1. User lands → Civic Auth OIDC sign-in (Google/Apple/Email; replaces the deprecated Civic Pass CAPTCHA gateway-token flow)
-2. gov.br OAuth → CPF + biometric + selo prata/ouro address
-3. Vaulx backend maps gov.br + Civic Auth outputs to Crossmint Create User schema (`{name, dob, country, idDocumentNumber, address, email}`) and POSTs
-4. Crossmint runs sanctions + PEP + ongoing monitoring → cleared status returned
-5. Crossmint provisions Solana smart-wallet PDA keyed by Vaulx-issued JWT (custom-token mode, since gov.br/Civic Auth aren't pre-built Crossmint OIDC providers)
-6. Operator signs `issue_kyc_attestation` admin ix → `KycAttestation` PDA written for the user
-7. Anchor `loan` and `vault` programs require the `KycAttestation` PDA (when `kyc_required = true`) before allowing `deposit` / `create_ccb_trdc` / `confirm_custody` / disburse / repay / renew
+**Sign-in (always; zero friction):**
 
-**Demo default:** `kyc_required = false`; `NEXT_PUBLIC_CIVIC_AUTH_CLIENT_ID` unset; FE renders mock token. Real gating ships at mainnet cutover.
+1. User clicks **Sign in to Vaulx** → Crossmint Auth modal opens. Branches internally:
+   - Non-crypto: Google / Apple / email magic link / SMS → Crossmint smart wallet auto-provisioned in ~3s (passkey-ready, email recovery)
+   - Crypto-native: Phantom / Solflare / Backpack via wallet-adapter
+2. Both branches resolve to a Solana pubkey. The user is now logged in and can browse freely. **No KYC at this step.**
 
-The smart wallet is PDA-based: signers can rotate without moving assets, which gives the right collateral semantics for TRDC cNFTs and lets Vaulx attach on-chain policy. In `/demo/*` we skip the Create User API call (real backend integration is a P1 partnership task) and just create the local Crossmint wallet via SDK.
+**KYC (lazy; only at money-touching CTAs):**
+
+3. User clicks Submit Asset / Disburse / Deposit USDC → `useKycGate()` checks the on-chain `KycAttestation` PDA for the connected wallet
+4. If missing → mount `<KycRequiredModal>` → user clicks "Verify with Sumsub" → `/api/sumsub/init-token` returns a per-user SDK access token → `<SumsubVerify>` opens the iframe scoped to the `basic-kyc-level` level
+5. Sumsub iframe handles internally:
+   - **Brazil Non-Doc CPF** — CPF + liveness vs Serpro government database, ~60s, no documents
+   - **ID Connect** — reusable KYC for returning users across 200+ partners, ~5s if found
+   - **Global doc-scan** — fallback for everyone else
+6. On completion Sumsub POSTs to `/api/sumsub/webhook` with HMAC-signed payload → server verifies HMAC against `SUMSUB_WEBHOOK_SECRET` → on `reviewAnswer === GREEN` calls `vault.issue_kyc_attestation(wallet, jwtHash, attestor=operator)` signed by the operator keypair
+7. SAS attestation minted on-chain → FE polls `/api/sumsub/applicant-status` (2s interval) → status flips to verified → modal closes → original mutation resumes via deferred-callback pattern
+
+**Anchor enforcement:** `loan` and `vault` programs require the `KycAttestation` PDA (when `kyc_required = true`) before allowing `deposit` / `create_ccb_trdc` / `confirm_custody` / disburse / repay / renew. The PDA struct is vendor-neutral.
+
+**Demo default:** `kyc_required = false`; on-chain gate short-circuited; FE `<KycRequiredModal>` is the friendly UX layer. Real on-chain gating ships at mainnet cutover via the existing `set_kyc_required` admin ix.
+
+The Crossmint smart wallet is PDA-based: signers can rotate without moving assets, which gives the right collateral semantics for TRDC cNFTs and lets Vaulx attach on-chain policy.
 
 ### `PARTNERSHIPS.md` — internal team tracker (committed alongside this doc)
 
@@ -126,8 +140,8 @@ P0 — must close before launch (May 10)
 - Brazilian fintech counsel for CCB + fiduciary alienation
 
 P1 — close by submission for "named partner" deck mention
-- Civic Auth production client ID + identity-attestations subscription (paid; demo uses free tier)
-- Crossmint production tier + KYC field mapping + Civic Auth acceptance + per-region JWT bridge + MiCA CASP umbrella
+- Sumsub production tier (sandbox approval → prod) + `basic-kyc-level` configured + named-partner deck mention
+- Crossmint production tier + KYC field mapping + Sumsub acceptance + per-region JWT bridge + MiCA CASP umbrella
 - Pix off-ramp partner (KYB conversation)
 
 P2 — close post-submission for first integrations
@@ -177,7 +191,7 @@ Format per item: `- [status emoji] [name] — [owner] — [notes]`. Each mocked 
 
 | Route | Form | Key behavior |
 |---|---|---|
-| `/demo/borrow/onboard` | Phone | 60-sec onboarding stopwatch; Civic Auth (mock token in demo) + CPF stored to session |
+| `/demo/borrow/onboard` | Phone | Crossmint sign-in CTA only; Sumsub KYC defers to first money-touching CTA |
 | `/demo/borrow/wallet` | Phone | Single Crossmint CTA; real SDK call fires; resulting Solana smart-wallet pubkey stored |
 | `/demo/borrow/appraisal` | Phone | Animated reveal of Chrono24 → WatchCharts → Vaulx Model → median in 800ms |
 | `/demo/borrow/loan-offer` | Phone | LTV slider + term + rate + signature pad → submit → state advances |
@@ -201,8 +215,8 @@ Five layers, explicit boundaries.
 type DemoSession = {
   sessionId: string;          // uuid
   startedAt: number;
-  civic: { token?: string; verifiedAt?: number }; // Civic Auth OIDC token (mock in demo when client-id unset)
-  govbr: { cpf?: string; name?: string; verifiedAt?: number };
+  kyc: { applicantId?: string; status?: 'missing' | 'pending' | 'verified'; verifiedAt?: number; jwtHashShort?: string }; // Sumsub applicant + on-chain attestation status
+  govbr: { cpf?: string; name?: string; verifiedAt?: number }; // captured by Sumsub Brazil Non-Doc internally; mirrored here for FE convenience only
   wallet: {
     provider?: 'crossmint';
     pubkey?: string;            // real Solana smart-wallet pubkey from Crossmint
@@ -236,7 +250,8 @@ type DemoSession = {
 
 | When | Fires | Persists to |
 |---|---|---|
-| `/demo/borrow/onboard` | Civic Auth OIDC sign-in (mock token when `NEXT_PUBLIC_CIVIC_AUTH_CLIENT_ID` unset; gate disabled in demo) | `civic.token` |
+| `/demo/borrow/onboard` | Crossmint Auth modal (Google/Apple/email/SMS/wallet → Solana pubkey resolved) | `wallet.{provider, pubkey, email}` |
+| _(lazy, on Submit Asset / Disburse / Deposit)_ | Sumsub WebSDK iframe → webhook → on-chain `KycAttestation` PDA mint | `kyc.{applicantId, status, verifiedAt, jwtHashShort}` |
 | `/demo/borrow/wallet` | Crossmint embedded auth + smart-wallet SDK (`useCrossmintAuth().login()` → `useWallet().wallet.address`) | `wallet.{provider, pubkey, email}` |
 | `/demo/borrow/appraisal` | Existing `/api/appraisal` | `watch.appraisal` |
 | `/demo/borrow/funds/wallet` | Real on-chain Devnet SOL/USDC transfer (signed by connected wallet) | tx signature in toast |
@@ -279,7 +294,7 @@ Server-side, deterministic, imported with JSON attributes. Lives at `apps/web/sr
 | # | Route | Tour caption headline (Fraunces) |
 |---|---|---|
 | 1 | `/demo` | This is Vaulx — let's borrow against a Rolex in two minutes. |
-| 2 | `/demo/borrow/onboard` | 60-second KYC. Civic Auth (gate disabled in demo; on-chain `KycAttestation` PDA at mainnet). gov.br for Brazilian PII. |
+| 2 | `/demo/borrow/onboard` | Sign in with Crossmint. KYC is lazy — Sumsub fires only at the first money-touching CTA, not here. |
 | 3 | `/demo/borrow/wallet` | Sign in once. Email, Google, or Apple. Crossmint provisions a Solana smart wallet — passkey-ready, no seed phrase. |
 | 4 | `/demo/borrow/wallet` (post-login) | Wallet provisioned in <2 sec. No seed phrase, no extension. |
 | 5 | `/demo/borrow/register` | Register your watch. Make + model + reference + 3 photos. |
@@ -378,7 +393,7 @@ Above the timeline: watch photo, model, year, condition, last-known location ("B
 | Day | Date | Deliverable |
 |---|---|---|
 | 1 | Apr 28 | Foundation: route tree, `<DemoShell>` / `<PhoneBezel>` / `<DemoTopBar>` / `<DemoFooterNav>`, `useDemoSession()` hook. Blank `/demo` deployed. |
-| 2 | Apr 29 | `/demo/borrow/onboard` (Civic + gov.br); `/demo/borrow/wallet` (single-CTA Crossmint SDK). |
+| 2 | Apr 29 | `/demo/borrow/onboard` (Crossmint sign-in CTA only); `/demo/borrow/wallet` (single-CTA Crossmint SDK). Sumsub `<KycRequiredModal>` + `useKycGate()` wired into Submit Asset / Disburse / Deposit later in the week. |
 | 3 | Apr 30 | `/demo/borrow/register` (form + photos); `/demo/borrow/appraisal` (existing /api/appraisal). |
 | 4 | May 1 | `/demo/borrow/loan-offer` (`<CcbDocument>` + signature); `/demo/borrow/custody` (calendar mock); `/demo/borrow/awaiting-custody` (IoT loop). `<MockBadge>`/`<LiveBadge>`. |
 | 5 | May 2 | THE AHA MOMENT — `/demo/borrow/disburse` choreography. Step 10 tour pause/resume. |
@@ -391,7 +406,7 @@ Above the timeline: watch photo, model, year, condition, last-known location ("B
 ### Parallel team tracks (don't block dev)
 
 - SCD LOI + custodian MOU + fintech counsel
-- Civic / Crossmint / Kamino / Plume warm intros (each confirmed convo upgrades a `MOCK · agreement pending` ribbon to `MOCK · partner aligned` or graduates to `LIVE`)
+- Sumsub / Crossmint / Kamino / Plume warm intros (each confirmed convo upgrades a `MOCK · agreement pending` ribbon to `MOCK · partner aligned` or graduates to `LIVE`)
 - `PARTNERSHIPS.md` updated daily
 
 ### Risks
@@ -449,7 +464,7 @@ The platform speaks as **Vaulx** (the institution). Across all UI, copy, deck, t
 ### Allowed
 - Roles: borrower, lender, custodian, dealer
 - Networks: "Vaulx-curated dealer network", "Vaulx Reseller Network"
-- Brand names: Banco Inter, Brinks, Civic, Crossmint, etc.
+- Brand names: Banco Inter, Brinks, Sumsub, Crossmint, etc.
 - Pseudonymized identifiers: `vaulx-lender-04`, `••••5234`
 
 ### Not allowed (anywhere user-facing or judge-facing)
@@ -487,4 +502,4 @@ The implementation plan will:
 
 After the plan lands and is approved, dispatch the build via `superpowers:subagent-driven-development` against the 9-day calendar.
 
-[^civic]: Civic Pass was sunset mid-2025; current product is Civic Auth (OAuth/OIDC). Vaulx now uses operator-issued `KycAttestation` PDAs (`programs/{vault,loan}/src/state/kyc.rs`) gated by Civic Auth OIDC sign-in via `@civic/auth-web3`. Demo runs gate-off (`vault_config.kyc_required = false`).
+[^kyc]: Civic Auth was dropped 2026-04-28. KYC now flows through **Sumsub WebSDK** (lazy-triggered at money-touching CTAs via `<KycRequiredModal>`); the on-chain `KycAttestation` PDA (`programs/{vault,loan}/src/state/kyc.rs`) is vendor-neutral and minted server-side after Sumsub webhook GREEN. Sign-in is **Crossmint Auth** only (Google / Apple / email / SMS / wallet). Demo runs on-chain gate-off (`vault_config.kyc_required = false`); the FE `<KycRequiredModal>` is the friendly UX layer. See [`2026-04-28-vaulx-civic-drop-sumsub-add-design.md`](2026-04-28-vaulx-civic-drop-sumsub-add-design.md).

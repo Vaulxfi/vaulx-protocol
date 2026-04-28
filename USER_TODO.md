@@ -90,21 +90,28 @@ The Crossmint SDK has **no explicit `environment` prop** — routing is by API-k
 - [ ] If/when ready: get an Apify API token + paste into `.env` as `APIFY_API_TOKEN=...`. Swap takes ~1 day.
 - [ ] Currently P2 — not blocking demo or first-customer flows.
 
-### Civic Auth — gate state & cutover plan[^civic]
+### Sumsub sandbox setup
 
-**For demo (now):** `vault_config.kyc_required = false` and `loan_config.kyc_required = false` (defaults). `NEXT_PUBLIC_CIVIC_AUTH_CLIENT_ID` is unset on the production demo. The borrower flow uses a mock token; `<CivicAuthGate>` self-disables when the env var is unset. No on-chain attestation issuance fires. Zero friction for judges.
+The Sumsub sandbox credentials are already in the root `.env` (you saved `SUMSUB_TOKEN`, `SUMSUB_SECRET`, `SUMSUB_WEBHOOK_SECRET`). The remaining setup is a one-time dashboard task:
+
+- [ ] In the Sumsub dashboard, create a verification level named exactly `basic-kyc-level` — this is the level the FE references when calling `/api/sumsub/init-token`. Brazil Non-Doc CPF flow + global doc-scan fallback are the recommended steps for that level.
+- [ ] Pre-configure a sandbox applicant (`demo@vaulx.app`) marked GREEN with a returned Brazilian CPF. The judge demo path uses ID Connect to hit this applicant in ~5s.
+- [ ] (Optional) Submit the sandbox for production approval after the hackathon — this is a 1-week ask, not blocking for May 10.
+
+### Sumsub — gate state & cutover plan
+
+**For demo (now):** `vault_config.kyc_required = false` and `loan_config.kyc_required = false` (defaults). The on-chain attestation constraint is short-circuited; the FE `<KycRequiredModal>` is the friendly UX gate. Money-touching CTAs (Submit Asset / Disburse / Deposit USDC) lazy-trigger Sumsub via `useKycGate()`. After Sumsub webhook GREEN the operator mints the on-chain `KycAttestation` PDA, so the second click sails through. Zero friction for judges who skip KYC; full real attestation flow for judges who exercise it.
 
 **For mainnet (post-hackathon):**
-- [ ] Sign up for a production Civic Auth client ID at [auth.civic.com](https://auth.civic.com) and paste into `apps/web/.env.local` as `NEXT_PUBLIC_CIVIC_AUTH_CLIENT_ID=...`
-- [ ] Wire the FE attestation-issuance flow: post-OIDC callback → operator signs `issue_kyc_attestation` admin ix → `KycAttestation` PDA written for the user
-- [ ] Flip `vault_config.kyc_required = true` (and `loan_config.kyc_required = true`) via admin ix to enforce the gate at the protocol layer. **No program redeploy** — config is read from on-chain.
+- [ ] Flip `vault_config.kyc_required = true` (and `loan_config.kyc_required = true`) via the existing `set_kyc_required` admin ix to enforce the gate at the protocol layer. **No program redeploy** — config is read from on-chain. The FE gate stays as the friendly UX layer on top.
+- [ ] Confirm operator keypair (`OPERATOR_KEYPAIR_JSON` on Vercel) is the signer used by `/api/sumsub/webhook` to mint attestations.
 
-### Crossmint solutions team — pre-prod call (Felipe / Marcelo)
+### Crossmint solutions team — pre-prod call
 
 - [ ] Confirm smart-wallet program audit + upgrade-authority governance (Squads V4 timelock minimum)
-- [ ] Confirm Civic Auth + gov.br ouro acceptance as Full KYC liveness gate (no duplicate check)[^civic]
+- [ ] Confirm Sumsub acceptance as Full KYC liveness gate (no duplicate check)
 - [ ] Confirm BR-resident Create User field schema (CPF? RG? CNH? employment? source of funds?)
-- [ ] Confirm per-region custom-token JWT bridge (gov.br for BR; Aadhaar for IN; eIDAS for EU)
+- [ ] Confirm per-region custom-token JWT bridge (Sumsub for BR/global; eIDAS for EU)
 - [ ] Confirm MiCA CASP umbrella for Vaulx (BR entity, EU users)
 
 ---
@@ -148,8 +155,8 @@ The 4 Anchor programs only exist on localnet; no live cluster deployment yet.
 - [x] Top up `2HYjytRc4oKY2ndmJfAq2XdGhPqYB7VdDPLzA18QEiAH` to ≥ 10 SOL (you have 35)
 - [ ] **Trigger:** Track A completes, then ping me to run `solana program deploy` (upgradeable, real Vaulx name) for trdc → vault → loan → auction, then `pnpm init:civic --custodian <demo-wallet-2-pubkey>` (script name retained for legacy reasons; `kyc_required` defaults to `false`). <30 min execution time. Authority transfers to Squads V4 multisig (Item 2.3) immediately after.
 
-### 2. Civic Auth gate enable — DEFERRED to mainnet[^civic]
-- Demo intentionally runs gate-off. See "Civic Auth — gate state & cutover plan" above. No action required for the hackathon demo.
+### 2. KYC gate enable — DEFERRED to mainnet
+- Demo intentionally runs gate-off on-chain. The FE `<KycRequiredModal>` lazy-triggers Sumsub at money-touching CTAs and is fully wired against the sandbox. See "Sumsub — gate state & cutover plan" above. No action required for the hackathon demo.
 
 ---
 
@@ -173,7 +180,7 @@ The 4 Anchor programs only exist on localnet; no live cluster deployment yet.
 
 ## Item 1 follow-ups (post-hackathon)
 
-Tracked from the Civic Pass → Civic Auth migration reviews (commits `39131e1`, `596f1e0`, `b170c73`, `f3ef3dd`, `ec04a22`).
+Tracked from the original Civic Pass → Civic Auth migration reviews (commits `39131e1`, `596f1e0`, `b170c73`, `f3ef3dd`, `ec04a22`). **Civic was dropped 2026-04-28 in favor of Sumsub** — the on-chain artifacts below are vendor-neutral and survive the swap; see [`docs/plans/2026-04-28-vaulx-civic-drop-sumsub-add-design.md`](docs/plans/2026-04-28-vaulx-civic-drop-sumsub-add-design.md).
 
 - [ ] **Add `set_kyc_required(bool)` admin ix** to vault + loan programs. Enables runtime revert test for `NoKycAttestation` (currently the test is IDL-presence-only because `vault_config` is a singleton init-once PDA). ~30 min on-chain edit; test rewrite ~2h.
 - [ ] **Add `close_kyc_attestation` admin ix** for revocation/re-issuance. Currently `KycAttestation` PDA is `init`-only — no path to close stale/expired attestations. Required before mainnet. ~30 min.
@@ -209,15 +216,13 @@ Status: **GraphQL-on-Supabase pattern shipped.** The indexer now serves a read-o
 
 ### Bump Next.js 14 → 15 (or 16)
 
-- [ ] Decide whether to bump after submission. **Currently on Next 14.2.15** — locked in during Phase 0 (Apr 23) for ecosystem-stability reasons; all Civic + Crossmint + wallet-adapter SDKs peer-resolve cleanly against it. No demo-relevant feature in 15/16 is needed.
+- [ ] Decide whether to bump after submission. **Currently on Next 14.2.15** — locked in during Phase 0 (Apr 23) for ecosystem-stability reasons; all Sumsub + Crossmint + wallet-adapter SDKs peer-resolve cleanly against it. No demo-relevant feature in 15/16 is needed.
 - [ ] Migration cost when ready: ~1-2 hours
   - Update every dynamic-segment page in `/demo/borrow/loan-offer/[reqId]`, `/demo/borrow/awaiting-custody/[trdc]`, `/demo/borrow/appraisal/[reqId]`, `/demo/lend/vaults/[id]`, `/demo/auction/[trdc]` to use `params: Promise<Params>` + `React.use(params)` (Next 15 API; the inverse of the fix we shipped at commit `3c7e55e`).
-  - Re-run peer-dep resolution for Civic + Crossmint + wallet-adapter; expect minor `pnpm.overrides` adjustments.
+  - Re-run peer-dep resolution for Sumsub + Crossmint + wallet-adapter; expect minor `pnpm.overrides` adjustments.
   - Rebuild + retest all 22 demo routes against Vercel.
 - [ ] Trigger: pick once submission lands, when the team has time for non-demo-critical maintenance.
 
 ---
 
 **Status file:** [STATUS.md](STATUS.md) · **Changelog:** [CHANGELOG.md](CHANGELOG.md)
-
-[^civic]: Civic Pass was sunset mid-2025; current product is Civic Auth (OAuth/OIDC). Vaulx now uses operator-issued `KycAttestation` PDAs gated by Civic Auth OIDC sign-in.

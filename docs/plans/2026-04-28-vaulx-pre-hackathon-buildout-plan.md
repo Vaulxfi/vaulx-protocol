@@ -33,6 +33,8 @@ Track A = 5 days; Track B = 11 days. Run Track A first while user reviews+author
 
 ## Item 1 — Civic Pass → Civic Auth migration (3 days)
 
+> **SUPERSEDED 2026-04-28** — Civic is being dropped entirely; Sumsub replaces it as the KYC layer. The on-chain `KycAttestation` PDA + admin ixs from Item 1's Tasks 1.3-1.5 are kept (vendor-neutral). See [`2026-04-28-vaulx-civic-drop-sumsub-add-design.md`](2026-04-28-vaulx-civic-drop-sumsub-add-design.md) for the new design and [`2026-04-28-vaulx-civic-drop-sumsub-add-implementation-plan.md`](2026-04-28-vaulx-civic-drop-sumsub-add-implementation-plan.md) for the task breakdown.
+
 **Why first:** the current `programs/{vault,loan}/src/civic.rs` Borsh parser reads a Civic Pass gateway-token format that **no longer exists** (sunset mid-2025). Active integration of dead infrastructure is a correctness defect.
 
 **Architectural shift:**

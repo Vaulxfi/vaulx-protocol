@@ -2,9 +2,9 @@
 
 **Pawn your Submariner. Mint a CCB. Settle in USDC.**
 
-Vaulx is a Brazilian RWA lending protocol on Solana that takes luxury watches as collateral, mints a legally-binding **CCB.B3** (Cédula de Crédito Bancário) per loan, anchors its SHA-256 on-chain, gates every entry point with **Civic Auth**[^civic] identity attestations, and uses an open auction primitive for foreclosure. Lender liquidity, borrower disbursement, repayment, renewal, and default — all settle in USDC across four Anchor programs. Submission for the **Colosseum Frontier** hackathon, May 2026.
+Vaulx is a Brazilian RWA lending protocol on Solana that takes luxury watches as collateral, mints a legally-binding **CCB.B3** (Cédula de Crédito Bancário) per loan, anchors its SHA-256 on-chain, gates money-touching actions with a vendor-neutral on-chain `KycAttestation` PDA (minted server-side after a **Sumsub** WebSDK verification), and uses an open auction primitive for foreclosure. Sign-in is handled by **Crossmint** (auth + smart wallet). Lender liquidity, borrower disbursement, repayment, renewal, and default — all settle in USDC across four Anchor programs. Submission for the **Colosseum Frontier** hackathon, May 2026.
 
-[^civic]: Civic Pass was sunset mid-2025; current product is Civic Auth (OAuth/OIDC). Vaulx now uses on-chain `KycAttestation` PDAs issued by the operator after a Civic Auth OIDC sign-in. **Demo default: gate is feature-flagged off.** `vault_config.kyc_required = false` and `NEXT_PUBLIC_CIVIC_AUTH_CLIENT_ID` is unset on the production demo. The demo flow uses a mock token; real Civic Auth gating will be enabled before mainnet.
+[^kyc]: Civic Auth was dropped 2026-04-28 — the previous Civic Pass / Civic Auth integration is fully removed and replaced by Sumsub WebSDK for KYC and Crossmint Auth for sign-in. The on-chain `KycAttestation` PDA stays vendor-neutral. **Demo default: `vault_config.kyc_required = false`**; the FE `<KycRequiredModal>` lazy-triggers Sumsub at money-touching CTAs (Submit Asset / Disburse / Deposit). See [`docs/plans/2026-04-28-vaulx-civic-drop-sumsub-add-design.md`](docs/plans/2026-04-28-vaulx-civic-drop-sumsub-add-design.md).
 
 ![Phase](https://img.shields.io/badge/phase-3%2F5-D4AF37)
 ![Anchor tests](https://img.shields.io/badge/anchor%20tests-45%20green-22C55E)
@@ -35,7 +35,7 @@ Click "Take the guided tour" on the landing page — a React-native overlay walk
 
 ### Borrower flow
 
-- Onboard (Civic Auth + gov.br): [/demo/borrow/onboard](https://vaulx.vercel.app/demo/borrow/onboard)
+- Onboard (Crossmint sign-in + lazy Sumsub KYC): [/demo/borrow/onboard](https://vaulx.vercel.app/demo/borrow/onboard)
 - Wallet (Crossmint): [/demo/borrow/wallet](https://vaulx.vercel.app/demo/borrow/wallet)
 - AHA — disburse: [/demo/borrow/disburse](https://vaulx.vercel.app/demo/borrow/disburse)
 - Active dashboard: [/demo/borrow/dashboard](https://vaulx.vercel.app/demo/borrow/dashboard)
@@ -94,7 +94,7 @@ For a click-through judge experience, [`/admin/demo`](apps/web/src/app/admin/dem
 
 ## Architecture in one diagram
 
-Four programs, two PDAs of operator config, an 8-state TRDC lifecycle, and a thin off-chain index/UI tier. Civic Auth attestations gate the two entry points (`vault.deposit`, `loan.create_ccb_trdc`) when `kyc_required = true`; every other on-chain edge is a typed CPI. **Demo default: `kyc_required = false`, gate disabled.**
+Four programs, two PDAs of operator config, an 8-state TRDC lifecycle, and a thin off-chain index/UI tier. The vendor-neutral on-chain `KycAttestation` PDA (minted server-side after Sumsub webhook) gates the two entry points (`vault.deposit`, `loan.create_ccb_trdc`) when `kyc_required = true`; every other on-chain edge is a typed CPI. **Demo default: `kyc_required = false`, on-chain gate disabled — the FE lazy-fires Sumsub at money-touching CTAs instead.**
 
 ```mermaid
 flowchart LR
@@ -133,9 +133,9 @@ flowchart LR
 
     subgraph integrations["integrations"]
         I1[I1 · Chrono24 + WatchCharts<br/>median appraisal]
-        I2[I2 · gov.br mock<br/>CPF + ID]
+        I2[I2 · Sumsub WebSDK<br/>BR Non-Doc CPF + liveness]
         I3[I3 · Solana Pay QR<br/>tx-request endpoint]
-        I4[I4 · Civic Auth<br/>KycAttestation PDA gate]
+        I4[I4 · KycAttestation PDA<br/>minted via Sumsub webhook]
     end
     I1 --> WEB
     I2 --> WEB
@@ -183,7 +183,7 @@ PATH=/Users/gogy/.local/share/solana/install/active_release/bin:$PATH \
 pnpm -w test
 ```
 
-`COPYFILE_DISABLE=1` keeps macOS resource forks out of the genesis tarball. (Historical note: `anchor test` previously cloned the Civic gateway program from mainnet-beta on validator boot — that dependency was dropped when the on-chain gate moved from gateway-token Borsh decode to a `KycAttestation` PDA owned by the program itself.[^civic])
+`COPYFILE_DISABLE=1` keeps macOS resource forks out of the genesis tarball. (Historical note: `anchor test` previously cloned the Civic gateway program from mainnet-beta on validator boot — that dependency was dropped when the on-chain gate moved from gateway-token Borsh decode to a `KycAttestation` PDA owned by the program itself. Civic was dropped entirely on 2026-04-28; KYC now flows through Sumsub.[^kyc])
 
 ### C. Full demo cockpit on Devnet
 
@@ -193,7 +193,7 @@ Prerequisites:
 - `SUPABASE_SERVICE_ROLE_KEY` in both [`apps/web/.env.local`](apps/web/.env.example) and `apps/indexer/.env.local` so the indexer can write `onchain_events`.
 - 4 programs deployed: `anchor deploy --provider.cluster devnet` (~19 SOL).
 - `pnpm seed:usdc` to create the demo USDC mint and fund 6 demo wallets.
-- `pnpm init:civic --custodian <pubkey>` to write `VaultConfig` + `LoanConfig` PDAs. (Script name retained for legacy reasons — it now writes the operator/custodian config; `kyc_required` defaults to `false` for the demo.[^civic])
+- `pnpm init:civic --custodian <pubkey>` to write `VaultConfig` + `LoanConfig` PDAs. (Script name retained for legacy reasons — it now writes the operator/custodian config; `kyc_required` defaults to `false` for the demo. Civic was dropped 2026-04-28; the script is vendor-neutral.[^kyc])
 
 Then drive the story:
 
@@ -231,30 +231,43 @@ pnpm e2e:moments-5-9    # Moments 5-9 (two parallel loans, ~4-5 min)
 
 Each E2E exits `0` (pass) / `2` (SKIPPED — env not set) / `1` (fail). Mocha wrappers map `2 → this.skip()` so CI stays green.
 
-## Civic Auth KYC[^civic]
+## Sumsub KYC + Crossmint Auth[^kyc]
 
-Vaulx enforces KYC at the protocol layer via **Civic Auth** (OAuth/OIDC) bridged to a `KycAttestation` PDA owned by the vault and loan programs. `vault.deposit` and `loan.create_ccb_trdc` require the caller to have a `KycAttestation` PDA issued by the operator after Civic Auth sign-in — when `vault_config.kyc_required` (or the loan-program equivalent) is `true`. The on-chain check is a `require_keys_eq!(*att_info.owner, crate::ID, NoKycAttestation)` constraint at `programs/{vault,loan}/src/lib.rs`.
+Vaulx splits identity into two layers: **Crossmint Auth** is the only sign-in surface; **Sumsub WebSDK** is the only KYC surface, lazy-triggered at money-touching CTAs. The on-chain `KycAttestation` PDA stays vendor-neutral and is minted server-side after Sumsub's webhook validates a successful applicant review.
 
-### Demo default — gate disabled, mock token
+### Crossmint Auth — single sign-in for crypto + non-crypto users
 
-**The production demo runs with `kyc_required = false` and `NEXT_PUBLIC_CIVIC_AUTH_CLIENT_ID` unset.** The borrower flow uses a mock Civic Auth token to render the FE attestation chip; no on-chain attestation issuance fires. This keeps the demo zero-friction for judges. Real Civic Auth gating + on-chain attestation issuance will be enabled before mainnet.
+One CTA — "Sign in to Vaulx" — opens the Crossmint modal. Non-crypto users pick **Google / Apple / email magic link / SMS** and Crossmint auto-provisions a real Solana smart wallet in ~3 seconds (passkey-ready, email recovery). Crypto-natives pick **Phantom / Solflare / Backpack** and connect via `@solana/wallet-adapter`. Both branches resolve to a Solana pubkey; the rest of the app reads it identically. Wired via `@crossmint/client-sdk-react-ui@4.1.5`.
 
-### Production path — Civic Auth + on-chain attestation issuance
+### Sumsub WebSDK — lazy KYC gate at money-touching CTAs
 
-1. Sign up for a Civic Auth client ID at [auth.civic.com](https://auth.civic.com) and set `NEXT_PUBLIC_CIVIC_AUTH_CLIENT_ID` in `apps/web/.env.local`.
-2. Wrap the FE in `<CivicAuthProvider>` and `<CivicAuthGate>` (already scaffolded — gate self-disables when the env var is unset).
-3. Operator signs the `issue_kyc_attestation` admin ix after Civic OIDC sign-in completes; this writes the `KycAttestation` PDA for the user.
-4. Flip `vault_config.kyc_required = true` via the admin ix to enforce the gate at the protocol layer. **No program redeploy** — config is read from on-chain.
+KYC is **not** required at sign-in. Users browse freely. The gate fires only when the user clicks one of three money-touching CTAs:
 
-### Disable for development
+| Action | Page | CTA |
+|---|---|---|
+| Submit asset for offline evaluation | `/demo/borrow/register` | "Submit asset" |
+| Request loan disbursement | `/demo/borrow/disburse` | "Disburse" |
+| Lend USDC into protocol | `/demo/lend` | "Deposit USDC" |
 
-`vault_config.kyc_required = false` and `loan_config.kyc_required = false` are the defaults. The `KycAttestation` constraint is short-circuited when the flag is off. Useful for `anchor test` without any Civic Auth dependency.
+Click → `useKycGate()` checks the on-chain `KycAttestation` PDA for the connected wallet → if missing, mounts `<KycRequiredModal>` → user clicks "Verify with Sumsub" → Sumsub iframe handles **Brazil Non-Doc CPF** (CPF + liveness vs Serpro government database, ~60s, no documents), **ID Connect** (reusable KYC across 200+ partners, ~5s if returning), or global doc-scan internally → completion → backend mints the attestation → modal closes → original mutation resumes.
+
+### On-chain attestation — vendor-neutral `KycAttestation` PDA
+
+Sumsub posts to `/api/sumsub/webhook` with an HMAC-signed payload. The server verifies HMAC against `SUMSUB_WEBHOOK_SECRET`, and on `reviewAnswer === GREEN` calls `vault.issue_kyc_attestation(wallet, jwtHash, attestor=operator)` signed by the operator keypair. The PDA struct is unchanged from the previous design — `{owner, attestedAt, jwtHash}` — so any future swap of KYC vendor requires zero on-chain change.
+
+### Demo default — on-chain gate disabled, FE gate live
+
+`vault_config.kyc_required = false` and `loan_config.kyc_required = false` are the defaults. The on-chain `KycAttestation` constraint is short-circuited when the flag is off, so `anchor test` runs without any Sumsub dependency. The FE `<KycRequiredModal>` is the friendly UX layer that judges experience.
+
+### Production path — flip the on-chain gate
+
+For mainnet, flip `vault_config.kyc_required = true` (and `loan_config.kyc_required = true`) via the existing `set_kyc_required` admin ix to add on-chain enforcement. **No program redeploy** — config is read from on-chain. The FE gate stays as the friendly UX layer on top.
 
 ### Runtime coverage
 
-The on-chain gate is exercised by the program owner check at `programs/{vault,loan}/src/lib.rs:106-110` — load-bearing as the only thing preventing cross-program discriminator collision (see Item 1 follow-ups in `USER_TODO.md`). The legacy `tests/civic-happy-path.spec.ts` Borsh-decode test was removed when the gateway-token gate was deprecated.
+The on-chain gate is exercised by the program owner check at `programs/{vault,loan}/src/lib.rs:106-110` — load-bearing as the only thing preventing cross-program discriminator collision (see Item 1 follow-ups in `USER_TODO.md`).
 
-[Historical reference: the original on-chain gateway-token Borsh decode in `programs/{vault,loan}/src/civic.rs` is retained as deprecated reference code — see file banners. Source-of-truth: the `KycAttestation` PDA in `programs/vault/src/state/kyc.rs` and `programs/loan/src/state/kyc.rs`.]
+> **Historical note (2026-04-28):** Civic Pass / Civic Auth was the previous KYC vendor and has been dropped entirely. The on-chain `KycAttestation` PDA + admin ixs (vendor-neutral) are kept; the FE Civic SDK + on-chain `civic.rs` files are removed. See [`docs/plans/2026-04-28-vaulx-civic-drop-sumsub-add-design.md`](docs/plans/2026-04-28-vaulx-civic-drop-sumsub-add-design.md) for the redesign rationale.
 
 ## Crossmint smart-wallet onboarding
 
@@ -282,7 +295,7 @@ The page streams stdout/stderr from `anchor test --skip-build` line by line. Exi
 - **Web:** Next.js `14` App Router · Tailwind · shadcn/ui (`new-york`)
 - **Design:** editorial dark-operator system — Fraunces (display) + Instrument Sans (body) + JetBrains Mono (numerals); ink-black `#0A0B0D` / paper-warm `#F4F2ED` / restrained gold `#D4AF37`
 - **Client:** TanStack Query · React Hook Form · Zod · sonner
-- **On-chain libs:** `@solana/pay` · `@civic/auth-web3` · `pdf-lib` · `@noble/hashes`
+- **On-chain libs:** `@solana/pay` · `@sumsub/websdk` · `@crossmint/client-sdk-react-ui` · `pdf-lib` · `@noble/hashes`
 - **Infra:** Supabase (free tier, `us-east-1`) · Helius RPC (Devnet)
 - **Testing:** mocha + chai (Anchor) · vitest (workspace)
 
@@ -305,7 +318,7 @@ supabase/migrations/                  # onchain_events schema
 |---|---|---|
 | Phase 0 — Bootstrap | Apr 23–24 | pnpm + Turborepo, 4 Anchor programs scaffolded, Next.js + Tailwind + shadcn, Supabase wired, GitHub Actions CI |
 | Phase 1 — Core programs | Apr 25–28 | TRDC 8-state machine, Vault share accounting, LTV gate, lender FE, indexer worker, Moment 1 E2E. **17/17 → 29/29** anchor tests |
-| Phase 2 — Disburse + wizard | Apr 29–May 1 | CPI-only `disburse` gate, `confirm_custody`, real CCB PDF + SHA-256, I1 appraisal aggregator, **on-chain KYC gate via `KycAttestation` PDA (Civic Auth bridged)**[^civic], I2 gov.br mock, borrower wizard, Moments 2-3-4 E2E. **33/33 → 35/35** anchor tests |
+| Phase 2 — Disburse + wizard | Apr 29–May 1 | CPI-only `disburse` gate, `confirm_custody`, real CCB PDF + SHA-256, I1 appraisal aggregator, **on-chain KYC gate via vendor-neutral `KycAttestation` PDA (Sumsub-driven mint after 2026-04-28; Civic-driven before)**[^kyc], I2 gov.br mock, borrower wizard, Moments 2-3-4 E2E. **33/33 → 35/35** anchor tests |
 | Phase 3 — Closing loops | May 2–4 | Pay/repay/renew lifecycle + interest math, auction program + permissionless default, borrower loan dashboard, I3 Solana Pay QR, lender auction routes, `/admin/tests` SSE runner, `/admin/demo` cockpit, Moments 5-9 E2E. **45/45** anchor tests, all 9 moments executable |
 | Phase 4 — Rehearsal + deploy | May 5–7 | _ready to start — deploy to Devnet, record demo, polish_ |
 | Phase 5 — Submission | May 8–9 | _not started_ |
@@ -315,7 +328,8 @@ See [`STATUS.md`](STATUS.md) for the full task breakdown and [`CHANGELOG.md`](CH
 ## Acknowledgements
 
 - **shadcn/ui** for the `new-york` registry that anchors the component layer.
-- **Civic** for `@civic/auth-web3` (OAuth/OIDC + smart-wallet binding) — Vaulx wires the Civic Auth sign-in to an on-chain `KycAttestation` PDA issued by the operator.
+- **Sumsub** for the WebSDK that handles Brazil Non-Doc CPF + liveness, ID Connect (reusable KYC), and global doc-scan in one iframe — Vaulx mints the on-chain `KycAttestation` PDA server-side after the Sumsub webhook validates a successful applicant review.
+- **Crossmint** for `@crossmint/client-sdk-react-ui` (single sign-in surface for crypto + non-crypto users; auto-provisions Solana smart wallets via Google / Apple / email / SMS).
 - **gov.br** for the visual language of the Brazilian federal identity portal — mimicked, not affiliated.
 - **Brazilian private-law tradition** — the CCB (Cédula de Crédito Bancário) is real, enforceable, and predates this protocol by decades. Vaulx just hashes it.
 - **The Anchor team** for `0.30.1` and the IDL machinery that makes four programs feel like one.
