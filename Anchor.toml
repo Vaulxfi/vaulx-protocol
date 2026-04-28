@@ -27,12 +27,34 @@ wallet  = "~/.config/solana/id.json"
 [scripts]
 test = "pnpm exec ts-mocha -p ./tsconfig.anchor.json -t 1000000 tests/**/*.ts"
 
-# Clone the Civic Gateway program into localnet so tests can mint real gateway
-# tokens to exercise the Civic Pass gate end-to-end. Source: mainnet-beta (the
-# program is identical on mainnet/devnet). Used by
-# `tests/civic-happy-path.spec.ts`.
-[test.validator]
-url = "https://api.mainnet-beta.solana.com"
+# External programs loaded into the local validator from pre-downloaded .so
+# files. Cloning from a remote cluster at startup hits an agave-validator
+# 1.18.26 macOS bug ("extra entry found: ._genesis.bin"), so we ship local
+# program binaries via [[test.genesis]] instead of [[test.validator.clone]].
+# Refresh via:
+#   solana program dump -u mainnet-beta gatem74V238djXdzWnJf94Wo1DcnuGkfijbf3AuBhfs tests/sbf-programs/civic-gateway.so
+#   solana program dump -u devnet       BGUMAp9Gq7iTEuizy4pqaxsTyUCBK68MDfK752saRPUY tests/sbf-programs/mpl-bubblegum.so
+#   solana program dump -u devnet       cmtDvXumGCrqC1Age74AVPhSRVXJMd8PJS91L8KbNCK tests/sbf-programs/spl-account-compression.so
+#   solana program dump -u devnet       noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV tests/sbf-programs/spl-noop.so
+# Anchor runs `anchor test` with COPYFILE_DISABLE=1 (set inline by callers
+# or via the shell env) to suppress macOS AppleDouble metadata files in the
+# generated genesis tarball.
+[test]
+startup_wait = 20000
 
-[[test.validator.clone]]
+[[test.genesis]]
 address = "gatem74V238djXdzWnJf94Wo1DcnuGkfijbf3AuBhfs"
+program = "tests/sbf-programs/civic-gateway.so"
+
+# Task 4.2 — Metaplex Bubblegum cNFT mint program.
+[[test.genesis]]
+address = "BGUMAp9Gq7iTEuizy4pqaxsTyUCBK68MDfK752saRPUY"
+program = "tests/sbf-programs/mpl-bubblegum.so"
+
+[[test.genesis]]
+address = "cmtDvXumGCrqC1Age74AVPhSRVXJMd8PJS91L8KbNCK"
+program = "tests/sbf-programs/spl-account-compression.so"
+
+[[test.genesis]]
+address = "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV"
+program = "tests/sbf-programs/spl-noop.so"

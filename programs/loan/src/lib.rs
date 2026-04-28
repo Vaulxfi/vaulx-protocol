@@ -4,8 +4,7 @@ use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 use auction::cpi::accounts::CreateAuction as AuctionCreateAuction;
 use auction::program::Auction as AuctionProgram;
 use trdc::cpi::accounts::{
-    ConfirmCustodyTransition, InitializeTrdcState, MintTrdcCnft, TransitionAuth,
-    TransitionToActive,
+    ConfirmCustodyTransition, InitializeTrdcState, TransitionAuth, TransitionToActive,
 };
 use trdc::program::Trdc;
 use trdc::state::{Status, TRDCState};
@@ -77,7 +76,7 @@ pub mod loan {
         loan_amount: u64,
         due_ts: i64,
         rate_bps: u64,
-        asset_hint: [u8; 32],
+        _asset_hint: [u8; 32],
     ) -> Result<()> {
         require!(loan_amount > 0 && appraisal_value > 0, LoanError::ZeroAmount);
 
@@ -124,13 +123,12 @@ pub mod loan {
             loan_id, appraisal_value, loan_amount, due_ts, rate_bps,
         )?;
 
-        trdc::cpi::mint_trdc_cnft(
-            CpiContext::new(ctx.accounts.trdc_program.to_account_info(), MintTrdcCnft {
-                trdc_state: ctx.accounts.trdc_state.to_account_info(),
-                authority: ctx.accounts.payer.to_account_info(),
-            }),
-            asset_hint,
-        )?;
+        // Task 4.2 — the cNFT mint is now a separate ix on the trdc program.
+        // It pulls in real Bubblegum / spl-account-compression accounts that
+        // do not belong on the loan program's instruction surface, so the
+        // borrower invokes `trdc::mint_trdc_cnft` in a follow-up tx.
+        // `asset_hint` is preserved in the ix signature for IDL stability;
+        // it is no longer consumed here.
 
         emit!(CcbTrdcCreated {
             trdc_state: ctx.accounts.trdc_state.key(),

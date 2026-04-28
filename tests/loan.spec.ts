@@ -55,7 +55,7 @@ describe("loan / create_ccb_trdc", () => {
     expect(code).to.eq("LtvTooHigh");
   });
 
-  it("test_create_ccb_trdc_happy_path — 59% accepted, TRDCState in PendingCustody with non-default asset_id", async () => {
+  it("test_create_ccb_trdc_happy_path — 59% accepted, TRDCState in PendingCustody (asset_id default until separate mint_trdc_cnft tx)", async () => {
     const loanId = Keypair.generate().publicKey;
     const [trdcStatePda] = PublicKey.findProgramAddressSync(
       [Buffer.from("trdc_state"), loanId.toBuffer()],
@@ -77,7 +77,9 @@ describe("loan / create_ccb_trdc", () => {
     const state = await trdcProgram.account.trdcState.fetch(trdcStatePda);
     expect(state.status).to.deep.equal({ pendingCustody: {} });
     expect(state.loanId.toBase58()).to.eq(loanId.toBase58());
-    expect(state.assetId.toBase58()).to.not.eq(PublicKey.default.toBase58());
+    // Task 4.2 decoupled mint from create_ccb_trdc — the cNFT is minted in a
+    // separate tx via `trdc.mint_trdc_cnft`, so asset_id stays default here.
+    expect(state.assetId.toBase58()).to.eq(PublicKey.default.toBase58());
   });
 
   it("test_ltv_exactly_at_limit_accepted — 60.00% LTV (60k/100k USDC @ 6dp) succeeds", async () => {

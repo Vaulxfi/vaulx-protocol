@@ -38,6 +38,7 @@ wallet-*.json
 
 # Build artifacts
 *.so
+!tests/sbf-programs/*.so
 *.tsbuildinfo
 
 # Claude local settings

@@ -150,7 +150,7 @@
           "type": "u64"
         },
         {
-          "name": "asset_hint",
+          "name": "_asset_hint",
           "type": {
             "array": [
               "u8",
@@ -1452,6 +1452,10 @@
           },
           {
             "name": "asset_id",
+            "docs": [
+              "Bubblegum cNFT asset id assigned by `mint_trdc_cnft`. `Pubkey::default`",
+              "until the mint succeeds; written exactly once."
+            ],
             "type": "pubkey"
           },
           {
@@ -1482,6 +1486,15 @@
               "accrue interest on-chain without re-deriving from the term length."
             ],
             "type": "u64"
+          },
+          {
+            "name": "borrower",
+            "docs": [
+              "Borrower pubkey captured at `initialize_trdc_state`. Used by",
+              "`mint_trdc_cnft` to require that the signer is the same identity that",
+              "originated the loan (SR-2)."
+            ],
+            "type": "pubkey"
           },
           {
             "name": "_reserved",
