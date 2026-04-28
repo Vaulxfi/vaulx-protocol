@@ -6,11 +6,12 @@
 
 ## Active items as of 2026-04-27
 
-### Devnet contracts deploy — DEFERRED until code review
+### Devnet contracts deploy — AUTHORIZED (upgradeable, real Vaulx name)
 
-- [ ] Payer wallet has 35 SOL on devnet (sufficient for `--final` deploy of all 4 programs ≈ 9.55 SOL).
-- [ ] When ready: code review + audit pass before deploying to devnet. Programs are immutable in `--final` mode — review costs zero, redeploy costs ~9 SOL.
-- [ ] Trigger: ping me when you want the deploy step to run; takes <30 min once authorized.
+- [x] Payer wallet has 35 SOL on devnet (sufficient for upgradeable deploy ≈ 19.09 SOL with ~16 SOL buffer).
+- [x] Subagent-driven-development reviews completed across Item 1; no audit-pass gate remaining.
+- [ ] **Status: AUTHORIZED — proceed after Track A completes.** Mode: upgradeable (not `--final`). Cost ~19.09 SOL. Authority transfers to Squads V4 multisig (Item 2.3) immediately after deploy.
+- [ ] Trigger: ping me when Track A wraps; takes <30 min once authorized.
 
 ### Apify (Chrono24 production scraping) — DEFER until needed
 
@@ -18,10 +19,19 @@
 - [ ] If/when ready: get an Apify API token + paste into `.env` as `APIFY_API_TOKEN=...`. Swap takes ~1 day.
 - [ ] Currently P2 — not blocking demo or first-customer flows.
 
+### Civic Auth — gate state & cutover plan[^civic]
+
+**For demo (now):** `vault_config.kyc_required = false` and `loan_config.kyc_required = false` (defaults). `NEXT_PUBLIC_CIVIC_AUTH_CLIENT_ID` is unset on the production demo. The borrower flow uses a mock token; `<CivicAuthGate>` self-disables when the env var is unset. No on-chain attestation issuance fires. Zero friction for judges.
+
+**For mainnet (post-hackathon):**
+- [ ] Sign up for a production Civic Auth client ID at [auth.civic.com](https://auth.civic.com) and paste into `apps/web/.env.local` as `NEXT_PUBLIC_CIVIC_AUTH_CLIENT_ID=...`
+- [ ] Wire the FE attestation-issuance flow: post-OIDC callback → operator signs `issue_kyc_attestation` admin ix → `KycAttestation` PDA written for the user
+- [ ] Flip `vault_config.kyc_required = true` (and `loan_config.kyc_required = true`) via admin ix to enforce the gate at the protocol layer. **No program redeploy** — config is read from on-chain.
+
 ### Crossmint solutions team — pre-prod call (Felipe / Marcelo)
 
 - [ ] Confirm smart-wallet program audit + upgrade-authority governance (Squads V4 timelock minimum)
-- [ ] Confirm Civic Pass + gov.br ouro acceptance as Full KYC liveness gate (no duplicate check)
+- [ ] Confirm Civic Auth + gov.br ouro acceptance as Full KYC liveness gate (no duplicate check)[^civic]
 - [ ] Confirm BR-resident Create User field schema (CPF? RG? CNH? employment? source of funds?)
 - [ ] Confirm per-region custom-token JWT bridge (gov.br for BR; Aadhaar for IN; eIDAS for EU)
 - [ ] Confirm MiCA CASP umbrella for Vaulx (BR entity, EU users)
@@ -65,10 +75,10 @@ The 4 Anchor programs only exist on localnet; no live cluster deployment yet.
 - **Current payer balance:** 35 SOL ✅ (sufficient for `--final` deploy with 25 SOL buffer)
 
 - [x] Top up `2HYjytRc4oKY2ndmJfAq2XdGhPqYB7VdDPLzA18QEiAH` to ≥ 10 SOL (you have 35)
-- [ ] **Trigger:** code-review/audit pass on the 4 Anchor programs first, then ping me to run `solana program deploy --final` for trdc → vault → loan → auction, then `pnpm init:civic --custodian <demo-wallet-2-pubkey>`. <30 min execution time.
+- [ ] **Trigger:** Track A completes, then ping me to run `solana program deploy` (upgradeable, real Vaulx name) for trdc → vault → loan → auction, then `pnpm init:civic --custodian <demo-wallet-2-pubkey>` (script name retained for legacy reasons; `kyc_required` defaults to `false`). <30 min execution time. Authority transfers to Squads V4 multisig (Item 2.3) immediately after.
 
-### 2. Civic gate enable (after #1)
-- [ ] Once programs are deployed and configs initialized, set `NEXT_PUBLIC_CIVIC_PASS_NETWORK=ignREusXmGrscGNUesoU9mxfds9AiYTezUKex2PsZV6` in `apps/web/.env.local` to turn on the CAPTCHA Civic Pass gate in the UI.
+### 2. Civic Auth gate enable — DEFERRED to mainnet[^civic]
+- Demo intentionally runs gate-off. See "Civic Auth — gate state & cutover plan" above. No action required for the hackathon demo.
 
 ---
 
@@ -90,6 +100,16 @@ The 4 Anchor programs only exist on localnet; no live cluster deployment yet.
 
 ---
 
+## Item 1 follow-ups (post-hackathon)
+
+Tracked from the Civic Pass → Civic Auth migration reviews (commits `39131e1`, `596f1e0`, `b170c73`, `f3ef3dd`, `ec04a22`).
+
+- [ ] **Add `set_kyc_required(bool)` admin ix** to vault + loan programs. Enables runtime revert test for `NoKycAttestation` (currently the test is IDL-presence-only because `vault_config` is a singleton init-once PDA). ~30 min on-chain edit; test rewrite ~2h.
+- [ ] **Add `close_kyc_attestation` admin ix** for revocation/re-issuance. Currently `KycAttestation` PDA is `init`-only — no path to close stale/expired attestations. Required before mainnet. ~30 min.
+- [ ] **Document load-bearing program-owner check** at `programs/{vault,loan}/src/lib.rs:106-110` — the `require_keys_eq!(*att_info.owner, crate::ID, NoKycAttestation)` is the *only* thing preventing cross-program discriminator collision (vault and loan both have `account:KycAttestation` with the same Anchor-derived 8-byte discriminator). Add a `// LOAD-BEARING: do not remove or relax — see docs/...` comment in the code. ~5 min.
+
+---
+
 ## Post-hackathon (after May 10)
 
 ### Bump Next.js 14 → 15 (or 16)
@@ -104,3 +124,5 @@ The 4 Anchor programs only exist on localnet; no live cluster deployment yet.
 ---
 
 **Status file:** [STATUS.md](STATUS.md) · **Changelog:** [CHANGELOG.md](CHANGELOG.md)
+
+[^civic]: Civic Pass was sunset mid-2025; current product is Civic Auth (OAuth/OIDC). Vaulx now uses operator-issued `KycAttestation` PDAs gated by Civic Auth OIDC sign-in.

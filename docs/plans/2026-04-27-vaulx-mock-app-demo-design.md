@@ -18,7 +18,7 @@ Ship a clickable, judge-grade mock of Vaulx's full maximalist vision — onboard
 
 **Scope (β+):** Full borrower flow + full lender flow + 3-tier auction waterfall + landing + interactive architecture diagram. ~22 routes total, ~18 substantive screens. Default flow visualized via the auction surface; lender side mocks Kamino + Plume + Tokeny + FIDC routing.
 
-**Real vs mock split** (see §2 for full matrix): real for self-serve dev integrations (Civic CAPTCHA, Crossmint, WatchCharts, Chrono24 fallback, Devnet wallet send). Mock for everything that requires commercial agreements (Pix off-ramp, Solflare/lobster card, Kamino OCC, Plume Nest, Tokeny ERC-3643, gov.br official, Brinks IoT). All mocks ship with `MOCK · partnership in progress` ribbons; partnership tracking lives in `PARTNERSHIPS.md`.
+**Real vs mock split** (see §2 for full matrix): real for self-serve dev integrations (Civic Auth scaffolded but gate-off in demo, Crossmint, WatchCharts, Chrono24 fallback, Devnet wallet send). Mock for everything that requires commercial agreements (Pix off-ramp, Solflare/lobster card, Kamino OCC, Plume Nest, Tokeny ERC-3643, gov.br official, Brinks IoT). All mocks ship with `MOCK · partnership in progress` ribbons; partnership tracking lives in `PARTNERSHIPS.md`.
 
 ---
 
@@ -31,7 +31,7 @@ Ship a clickable, judge-grade mock of Vaulx's full maximalist vision — onboard
                                       with hover tooltips per partner. Adapted from
                                       VAULX_Architecture_Interactive.html, themed to /demo palette.
 ─────────────── BORROWER (mobile bezel on desktop, full-bleed on mobile) ───────────────
-/demo/borrow/onboard             ── Civic CAPTCHA real + gov.br mocked. 60-sec stopwatch UI.
+/demo/borrow/onboard             ── Civic Auth scaffolded (gate disabled in demo) + gov.br mocked. 60-sec stopwatch UI.[^civic]
 /demo/borrow/wallet              ── Single-CTA Crossmint sign-in (Google / Apple / Email)
 /demo/borrow/register            ── Watch make/model/ref/year/condition + 3-photo upload
 /demo/borrow/appraisal           ── Chrono24 + WatchCharts + internal model triangulation
@@ -51,7 +51,7 @@ Ship a clickable, judge-grade mock of Vaulx's full maximalist vision — onboard
 /demo/borrow/renew               ── Term extension + 2% flat fee
 ─────────────── LENDER (desktop responsive) ───────────────
 /demo/lend                       ── Operator dashboard: 4 vault tranches
-/demo/lend/onboard               ── KYC for accredited (Civic + Tokeny ERC-3643 mock)
+/demo/lend/onboard               ── KYC for accredited (Civic Auth + Tokeny ERC-3643 mock)
 /demo/lend/vaults/[id]           ── Vault detail: TVL, APY, current LTV health, deposit form
 /demo/lend/liquidity             ── Kamino OCC + Plume Nest + SCD + FIDC routing visualization
                                       (adapted from vaulx-liquidity-architecture.html)
@@ -77,7 +77,7 @@ Ship a clickable, judge-grade mock of Vaulx's full maximalist vision — onboard
 
 | # | Partner | Implementation in `/demo/*` | Real prod path |
 |---|---|---|---|
-| 1 | **Civic Pass (CAPTCHA)** | **REAL** — reuse existing `<CivicPassGate>` from main app | Live |
+| 1 | **Civic Auth**[^civic] | **REAL (scaffolded, gate disabled in demo)** — `<CivicAuthGate>` from main app self-disables when `NEXT_PUBLIC_CIVIC_AUTH_CLIENT_ID` is unset (demo default). Mock token rendered for FE chip. | Live (set client ID + flip `kyc_required = true` for mainnet) |
 | 2 | **gov.br** | **MOCK** — reuse existing `/borrow/verify-id/*` themed for `/demo` | Brazilian-registered entity, gov registration |
 | 3 | **Crossmint (auth + smart wallet + sanctions/PEP)** | **REAL** — sandbox dev API key | Self-serve, paid tier for prod |
 | 4 | **WatchCharts API** | **REAL** — `lib/appraisal/watchcharts.ts` already wired | Free tier; paid tier for full feed |
@@ -101,14 +101,17 @@ Ship a clickable, judge-grade mock of Vaulx's full maximalist vision — onboard
 
 ## §2.1 — Crossmint integration architecture
 
-Crossmint is the sole wallet/auth/compliance vendor. Civic Pass is the on-chain identity gate. Production flow:
+Crossmint is the sole wallet/auth/compliance vendor. Civic Auth (OAuth/OIDC) is the on-chain identity gate, bridged to a `KycAttestation` PDA owned by the vault and loan programs.[^civic] Production flow:
 
-1. User lands → Civic Pass CAPTCHA (Sybil resistance, on-chain gateway token)
+1. User lands → Civic Auth OIDC sign-in (Google/Apple/Email; replaces the deprecated Civic Pass CAPTCHA gateway-token flow)
 2. gov.br OAuth → CPF + biometric + selo prata/ouro address
-3. Vaulx backend maps gov.br + Civic outputs to Crossmint Create User schema (`{name, dob, country, idDocumentNumber, address, email}`) and POSTs
+3. Vaulx backend maps gov.br + Civic Auth outputs to Crossmint Create User schema (`{name, dob, country, idDocumentNumber, address, email}`) and POSTs
 4. Crossmint runs sanctions + PEP + ongoing monitoring → cleared status returned
-5. Crossmint provisions Solana smart-wallet PDA keyed by Vaulx-issued JWT (custom-token mode, since gov.br/Civic aren't pre-built Crossmint OIDC providers)
-6. Anchor `loan` program reads the user's Civic Pass gateway token before allowing `confirm_custody` / disburse / repay / renew
+5. Crossmint provisions Solana smart-wallet PDA keyed by Vaulx-issued JWT (custom-token mode, since gov.br/Civic Auth aren't pre-built Crossmint OIDC providers)
+6. Operator signs `issue_kyc_attestation` admin ix → `KycAttestation` PDA written for the user
+7. Anchor `loan` and `vault` programs require the `KycAttestation` PDA (when `kyc_required = true`) before allowing `deposit` / `create_ccb_trdc` / `confirm_custody` / disburse / repay / renew
+
+**Demo default:** `kyc_required = false`; `NEXT_PUBLIC_CIVIC_AUTH_CLIENT_ID` unset; FE renders mock token. Real gating ships at mainnet cutover.
 
 The smart wallet is PDA-based: signers can rotate without moving assets, which gives the right collateral semantics for TRDC cNFTs and lets Vaulx attach on-chain policy. In `/demo/*` we skip the Create User API call (real backend integration is a P1 partnership task) and just create the local Crossmint wallet via SDK.
 
@@ -123,8 +126,8 @@ P0 — must close before launch (May 10)
 - Brazilian fintech counsel for CCB + fiduciary alienation
 
 P1 — close by submission for "named partner" deck mention
-- Civic full-KYC gatekeeper sub (paid)
-- Crossmint production tier + KYC field mapping + Civic Pass acceptance + per-region JWT bridge + MiCA CASP umbrella
+- Civic Auth production client ID + identity-attestations subscription (paid; demo uses free tier)
+- Crossmint production tier + KYC field mapping + Civic Auth acceptance + per-region JWT bridge + MiCA CASP umbrella
 - Pix off-ramp partner (KYB conversation)
 
 P2 — close post-submission for first integrations
@@ -174,7 +177,7 @@ Format per item: `- [status emoji] [name] — [owner] — [notes]`. Each mocked 
 
 | Route | Form | Key behavior |
 |---|---|---|
-| `/demo/borrow/onboard` | Phone | 60-sec onboarding stopwatch; Civic Pass + CPF stored to session |
+| `/demo/borrow/onboard` | Phone | 60-sec onboarding stopwatch; Civic Auth (mock token in demo) + CPF stored to session |
 | `/demo/borrow/wallet` | Phone | Single Crossmint CTA; real SDK call fires; resulting Solana smart-wallet pubkey stored |
 | `/demo/borrow/appraisal` | Phone | Animated reveal of Chrono24 → WatchCharts → Vaulx Model → median in 800ms |
 | `/demo/borrow/loan-offer` | Phone | LTV slider + term + rate + signature pad → submit → state advances |
@@ -198,7 +201,7 @@ Five layers, explicit boundaries.
 type DemoSession = {
   sessionId: string;          // uuid
   startedAt: number;
-  civic: { gatewayToken?: string; verifiedAt?: number };
+  civic: { token?: string; verifiedAt?: number }; // Civic Auth OIDC token (mock in demo when client-id unset)
   govbr: { cpf?: string; name?: string; verifiedAt?: number };
   wallet: {
     provider?: 'crossmint';
@@ -233,7 +236,7 @@ type DemoSession = {
 
 | When | Fires | Persists to |
 |---|---|---|
-| `/demo/borrow/onboard` | Civic CAPTCHA gateway-token issuance | `civic.gatewayToken` |
+| `/demo/borrow/onboard` | Civic Auth OIDC sign-in (mock token when `NEXT_PUBLIC_CIVIC_AUTH_CLIENT_ID` unset; gate disabled in demo) | `civic.token` |
 | `/demo/borrow/wallet` | Crossmint embedded auth + smart-wallet SDK (`useCrossmintAuth().login()` → `useWallet().wallet.address`) | `wallet.{provider, pubkey, email}` |
 | `/demo/borrow/appraisal` | Existing `/api/appraisal` | `watch.appraisal` |
 | `/demo/borrow/funds/wallet` | Real on-chain Devnet SOL/USDC transfer (signed by connected wallet) | tx signature in toast |
@@ -276,7 +279,7 @@ Server-side, deterministic, imported with JSON attributes. Lives at `apps/web/sr
 | # | Route | Tour caption headline (Fraunces) |
 |---|---|---|
 | 1 | `/demo` | This is Vaulx — let's borrow against a Rolex in two minutes. |
-| 2 | `/demo/borrow/onboard` | 60-second KYC. Civic Pass real on Solana. gov.br for Brazilian PII. |
+| 2 | `/demo/borrow/onboard` | 60-second KYC. Civic Auth (gate disabled in demo; on-chain `KycAttestation` PDA at mainnet). gov.br for Brazilian PII. |
 | 3 | `/demo/borrow/wallet` | Sign in once. Email, Google, or Apple. Crossmint provisions a Solana smart wallet — passkey-ready, no seed phrase. |
 | 4 | `/demo/borrow/wallet` (post-login) | Wallet provisioned in <2 sec. No seed phrase, no extension. |
 | 5 | `/demo/borrow/register` | Register your watch. Make + model + reference + 3 photos. |
@@ -483,3 +486,5 @@ The implementation plan will:
 - Include git commit message templates per task
 
 After the plan lands and is approved, dispatch the build via `superpowers:subagent-driven-development` against the 9-day calendar.
+
+[^civic]: Civic Pass was sunset mid-2025; current product is Civic Auth (OAuth/OIDC). Vaulx now uses operator-issued `KycAttestation` PDAs (`programs/{vault,loan}/src/state/kyc.rs`) gated by Civic Auth OIDC sign-in via `@civic/auth-web3`. Demo runs gate-off (`vault_config.kyc_required = false`).

@@ -2,7 +2,9 @@
 
 **Pawn your Submariner. Mint a CCB. Settle in USDC.**
 
-Vaulx is a Brazilian RWA lending protocol on Solana that takes luxury watches as collateral, mints a legally-binding **CCB.B3** (Cédula de Crédito Bancário) per loan, anchors its SHA-256 on-chain, gates every entry point with **Civic Pass**, and uses an open auction primitive for foreclosure. Lender liquidity, borrower disbursement, repayment, renewal, and default — all settle in USDC across four Anchor programs. Submission for the **Colosseum Frontier** hackathon, May 2026.
+Vaulx is a Brazilian RWA lending protocol on Solana that takes luxury watches as collateral, mints a legally-binding **CCB.B3** (Cédula de Crédito Bancário) per loan, anchors its SHA-256 on-chain, gates every entry point with **Civic Auth**[^civic] identity attestations, and uses an open auction primitive for foreclosure. Lender liquidity, borrower disbursement, repayment, renewal, and default — all settle in USDC across four Anchor programs. Submission for the **Colosseum Frontier** hackathon, May 2026.
+
+[^civic]: Civic Pass was sunset mid-2025; current product is Civic Auth (OAuth/OIDC). Vaulx now uses on-chain `KycAttestation` PDAs issued by the operator after a Civic Auth OIDC sign-in. **Demo default: gate is feature-flagged off.** `vault_config.kyc_required = false` and `NEXT_PUBLIC_CIVIC_AUTH_CLIENT_ID` is unset on the production demo. The demo flow uses a mock token; real Civic Auth gating will be enabled before mainnet.
 
 ![Phase](https://img.shields.io/badge/phase-3%2F5-D4AF37)
 ![Anchor tests](https://img.shields.io/badge/anchor%20tests-45%20green-22C55E)
@@ -33,7 +35,7 @@ Click "Take the guided tour" on the landing page — a React-native overlay walk
 
 ### Borrower flow
 
-- Onboard (Civic + gov.br): [/demo/borrow/onboard](https://vaulx.vercel.app/demo/borrow/onboard)
+- Onboard (Civic Auth + gov.br): [/demo/borrow/onboard](https://vaulx.vercel.app/demo/borrow/onboard)
 - Wallet (Crossmint): [/demo/borrow/wallet](https://vaulx.vercel.app/demo/borrow/wallet)
 - AHA — disburse: [/demo/borrow/disburse](https://vaulx.vercel.app/demo/borrow/disburse)
 - Active dashboard: [/demo/borrow/dashboard](https://vaulx.vercel.app/demo/borrow/dashboard)
@@ -92,7 +94,7 @@ For a click-through judge experience, [`/admin/demo`](apps/web/src/app/admin/dem
 
 ## Architecture in one diagram
 
-Four programs, two PDAs of operator config, an 8-state TRDC lifecycle, and a thin off-chain index/UI tier. Civic Pass gates the two entry points (`vault.deposit`, `loan.create_ccb_trdc`); every other on-chain edge is a typed CPI.
+Four programs, two PDAs of operator config, an 8-state TRDC lifecycle, and a thin off-chain index/UI tier. Civic Auth attestations gate the two entry points (`vault.deposit`, `loan.create_ccb_trdc`) when `kyc_required = true`; every other on-chain edge is a typed CPI. **Demo default: `kyc_required = false`, gate disabled.**
 
 ```mermaid
 flowchart LR
@@ -104,8 +106,8 @@ flowchart LR
             LOAN[loan<br/>LoanConfig PDA<br/>loan_authority PDA]
             AUCTION[auction<br/>Auction PDA<br/>auction_authority PDA]
         end
-        VC[VaultConfig PDA<br/>civic_network]
-        LC[LoanConfig PDA<br/>custodian + civic_network]
+        VC[VaultConfig PDA<br/>kyc_required flag]
+        LC[LoanConfig PDA<br/>custodian + kyc_required]
         VAULT --- VC
         LOAN --- LC
         LOAN -- create_ccb / confirm / disburse / repay / renew / default --> TRDC
@@ -133,7 +135,7 @@ flowchart LR
         I1[I1 · Chrono24 + WatchCharts<br/>median appraisal]
         I2[I2 · gov.br mock<br/>CPF + ID]
         I3[I3 · Solana Pay QR<br/>tx-request endpoint]
-        I4[I4 · Civic Pass<br/>gateway-token gate]
+        I4[I4 · Civic Auth<br/>KycAttestation PDA gate]
     end
     I1 --> WEB
     I2 --> WEB
@@ -181,7 +183,7 @@ PATH=/Users/gogy/.local/share/solana/install/active_release/bin:$PATH \
 pnpm -w test
 ```
 
-`COPYFILE_DISABLE=1` keeps macOS resource forks out of the genesis tarball. `anchor test` clones the Civic gateway program from mainnet-beta on validator boot (see `Anchor.toml`).
+`COPYFILE_DISABLE=1` keeps macOS resource forks out of the genesis tarball. (Historical note: `anchor test` previously cloned the Civic gateway program from mainnet-beta on validator boot — that dependency was dropped when the on-chain gate moved from gateway-token Borsh decode to a `KycAttestation` PDA owned by the program itself.[^civic])
 
 ### C. Full demo cockpit on Devnet
 
@@ -191,7 +193,7 @@ Prerequisites:
 - `SUPABASE_SERVICE_ROLE_KEY` in both [`apps/web/.env.local`](apps/web/.env.example) and `apps/indexer/.env.local` so the indexer can write `onchain_events`.
 - 4 programs deployed: `anchor deploy --provider.cluster devnet` (~19 SOL).
 - `pnpm seed:usdc` to create the demo USDC mint and fund 6 demo wallets.
-- `pnpm init:civic --custodian <pubkey>` to write `VaultConfig` + `LoanConfig` PDAs.
+- `pnpm init:civic --custodian <pubkey>` to write `VaultConfig` + `LoanConfig` PDAs. (Script name retained for legacy reasons — it now writes the operator/custodian config; `kyc_required` defaults to `false` for the demo.[^civic])
 
 Then drive the story:
 
@@ -216,37 +218,30 @@ pnpm e2e:moments-5-9    # Moments 5-9 (two parallel loans, ~4-5 min)
 
 Each E2E exits `0` (pass) / `2` (SKIPPED — env not set) / `1` (fail). Mocha wrappers map `2 → this.skip()` so CI stays green.
 
-## Civic Pass KYC
+## Civic Auth KYC[^civic]
 
-Vaulx enforces KYC at the protocol layer via **Civic Pass** (Solana native gateway tokens). `vault.deposit` and `loan.create_ccb_trdc` require the caller to hold an active gateway token from the configured gatekeeper network — checked by a hand-rolled Borsh decode of the gateway-token account in [`programs/{vault,loan}/src/civic.rs`](programs/loan/src/civic.rs).
+Vaulx enforces KYC at the protocol layer via **Civic Auth** (OAuth/OIDC) bridged to a `KycAttestation` PDA owned by the vault and loan programs. `vault.deposit` and `loan.create_ccb_trdc` require the caller to have a `KycAttestation` PDA issued by the operator after Civic Auth sign-in — when `vault_config.kyc_required` (or the loan-program equivalent) is `true`. The on-chain check is a `require_keys_eq!(*att_info.owner, crate::ID, NoKycAttestation)` constraint at `programs/{vault,loan}/src/lib.rs`.
 
-### Demo network — CAPTCHA / uniqueness
+### Demo default — gate disabled, mock token
 
-The hackathon demo uses Civic's free **CAPTCHA / uniqueness network** (`ignREusXmGrscGNUesoU9mxfds9AiYTezUKex2PsZV6`):
+**The production demo runs with `kyc_required = false` and `NEXT_PUBLIC_CIVIC_AUTH_CLIENT_ID` unset.** The borrower flow uses a mock Civic Auth token to render the FE attestation chip; no on-chain attestation issuance fires. This keeps the demo zero-friction for judges. Real Civic Auth gating + on-chain attestation issuance will be enabled before mainnet.
 
-- Free, instant issuance via captcha.
-- Sybil-resistant (one-wallet-per-human).
-- Judges can pass the gate live in ~30 seconds via the "Verify with Civic" button.
+### Production path — Civic Auth + on-chain attestation issuance
 
-Enable for Devnet:
-
-```bash
-pnpm init:civic --custodian <custodian-pubkey>
-# then in apps/web/.env.local:
-# NEXT_PUBLIC_CIVIC_PASS_NETWORK=ignREusXmGrscGNUesoU9mxfds9AiYTezUKex2PsZV6
-```
-
-### Production upgrade — full Civic KYC
-
-Subscribe to a paid gatekeeper network (document upload + liveness) at [civic.me](https://civic.me), pass its pubkey to `pnpm init:civic --network <pk> --custodian <pk>`, and rotate `NEXT_PUBLIC_CIVIC_PASS_NETWORK`. **No program redeploy** — the gate reads the network pubkey from on-chain config.
+1. Sign up for a Civic Auth client ID at [auth.civic.com](https://auth.civic.com) and set `NEXT_PUBLIC_CIVIC_AUTH_CLIENT_ID` in `apps/web/.env.local`.
+2. Wrap the FE in `<CivicAuthProvider>` and `<CivicAuthGate>` (already scaffolded — gate self-disables when the env var is unset).
+3. Operator signs the `issue_kyc_attestation` admin ix after Civic OIDC sign-in completes; this writes the `KycAttestation` PDA for the user.
+4. Flip `vault_config.kyc_required = true` via the admin ix to enforce the gate at the protocol layer. **No program redeploy** — config is read from on-chain.
 
 ### Disable for development
 
-Leave `civic_network = Pubkey::default()` in `vault_config` / `loan_config` (the default). Useful for `anchor test` without cloning the Civic program.
+`vault_config.kyc_required = false` and `loan_config.kyc_required = false` are the defaults. The `KycAttestation` constraint is short-circuited when the flag is off. Useful for `anchor test` without any Civic Auth dependency.
 
 ### Runtime coverage
 
-[`tests/civic-happy-path.spec.ts`](tests/civic-happy-path.spec.ts) issues a real gateway token via `@identity.com/solana-gateway-ts` against a throwaway network, asserts the on-chain Borsh layout matches the parser, then revokes it and asserts the state byte flips `Active(0) → Revoked(2)`.
+The on-chain gate is exercised by the program owner check at `programs/{vault,loan}/src/lib.rs:106-110` — load-bearing as the only thing preventing cross-program discriminator collision (see Item 1 follow-ups in `USER_TODO.md`). The legacy `tests/civic-happy-path.spec.ts` Borsh-decode test was removed when the gateway-token gate was deprecated.
+
+[Historical reference: the original on-chain gateway-token Borsh decode in `programs/{vault,loan}/src/civic.rs` is retained as deprecated reference code — see file banners. Source-of-truth: the `KycAttestation` PDA in `programs/vault/src/state/kyc.rs` and `programs/loan/src/state/kyc.rs`.]
 
 ## Live QA — `/admin/tests`
 
@@ -268,7 +263,7 @@ The page streams stdout/stderr from `anchor test --skip-build` line by line. Exi
 - **Web:** Next.js `14` App Router · Tailwind · shadcn/ui (`new-york`)
 - **Design:** editorial dark-operator system — Fraunces (display) + Instrument Sans (body) + JetBrains Mono (numerals); ink-black `#0A0B0D` / paper-warm `#F4F2ED` / restrained gold `#D4AF37`
 - **Client:** TanStack Query · React Hook Form · Zod · sonner
-- **On-chain libs:** `@solana/pay` · `@civic/solana-gateway-react` · `@identity.com/solana-gateway-ts` · `pdf-lib` · `@noble/hashes`
+- **On-chain libs:** `@solana/pay` · `@civic/auth-web3` · `pdf-lib` · `@noble/hashes`
 - **Infra:** Supabase (free tier, `us-east-1`) · Helius RPC (Devnet)
 - **Testing:** mocha + chai (Anchor) · vitest (workspace)
 
@@ -291,7 +286,7 @@ supabase/migrations/                  # onchain_events schema
 |---|---|---|
 | Phase 0 — Bootstrap | Apr 23–24 | pnpm + Turborepo, 4 Anchor programs scaffolded, Next.js + Tailwind + shadcn, Supabase wired, GitHub Actions CI |
 | Phase 1 — Core programs | Apr 25–28 | TRDC 8-state machine, Vault share accounting, LTV gate, lender FE, indexer worker, Moment 1 E2E. **17/17 → 29/29** anchor tests |
-| Phase 2 — Disburse + wizard | Apr 29–May 1 | CPI-only `disburse` gate, `confirm_custody`, real CCB PDF + SHA-256, I1 appraisal aggregator, **real Civic Pass on-chain gate**, I2 gov.br mock, borrower wizard, Moments 2-3-4 E2E. **33/33 → 35/35** anchor tests |
+| Phase 2 — Disburse + wizard | Apr 29–May 1 | CPI-only `disburse` gate, `confirm_custody`, real CCB PDF + SHA-256, I1 appraisal aggregator, **on-chain KYC gate via `KycAttestation` PDA (Civic Auth bridged)**[^civic], I2 gov.br mock, borrower wizard, Moments 2-3-4 E2E. **33/33 → 35/35** anchor tests |
 | Phase 3 — Closing loops | May 2–4 | Pay/repay/renew lifecycle + interest math, auction program + permissionless default, borrower loan dashboard, I3 Solana Pay QR, lender auction routes, `/admin/tests` SSE runner, `/admin/demo` cockpit, Moments 5-9 E2E. **45/45** anchor tests, all 9 moments executable |
 | Phase 4 — Rehearsal + deploy | May 5–7 | _ready to start — deploy to Devnet, record demo, polish_ |
 | Phase 5 — Submission | May 8–9 | _not started_ |
@@ -301,7 +296,7 @@ See [`STATUS.md`](STATUS.md) for the full task breakdown and [`CHANGELOG.md`](CH
 ## Acknowledgements
 
 - **shadcn/ui** for the `new-york` registry that anchors the component layer.
-- **Civic** for the open gateway-token spec and the SDK that made the on-chain gate possible.
+- **Civic** for `@civic/auth-web3` (OAuth/OIDC + smart-wallet binding) — Vaulx wires the Civic Auth sign-in to an on-chain `KycAttestation` PDA issued by the operator.
 - **gov.br** for the visual language of the Brazilian federal identity portal — mimicked, not affiliated.
 - **Brazilian private-law tradition** — the CCB (Cédula de Crédito Bancário) is real, enforceable, and predates this protocol by decades. Vaulx just hashes it.
 - **The Anchor team** for `0.30.1` and the IDL machinery that makes four programs feel like one.
