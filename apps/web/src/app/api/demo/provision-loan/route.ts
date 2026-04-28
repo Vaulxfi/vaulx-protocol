@@ -215,12 +215,15 @@ export async function POST(req: Request) {
         );
       }
       priceFeedPda = derivePriceFeedPda(refBytes, loanProgramId);
+      // Backdate observed_at by 60s to absorb clock drift between Vercel
+      // serverless and the Devnet validator. Still well within
+      // PriceFeed::MAX_AGE_SECONDS (600s freshness window).
       publishPriceTx = await (loanProgram.methods as any)
         .publishPrice(
           Array.from(refBytes),
           new BN(body.appraisalUsdCents),  // median_usd_cents
           new BN(5),                       // listings (>=3 required by SR-5)
-          new BN(nowSec),                  // observed_at
+          new BN(nowSec - 60),             // observed_at (60s in the past)
         )
         .accounts({
           priceFeed: priceFeedPda,
