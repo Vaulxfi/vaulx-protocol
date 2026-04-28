@@ -1,6 +1,13 @@
+import { ApifyClient } from "apify-client";
 import { parse } from "node-html-parser";
 import type { AppraisalInput, SourceResult } from "./types";
 import { watchchartsFallback } from "./watchcharts";
+
+// Apify Chrono24 actor — production-grade Chrono24 scrape.
+// Default actor id is `apify/chrono24-scraper` (verify on Apify Store);
+// override via APIFY_CHRONO24_ACTOR_ID at runtime if the actor is renamed.
+const CHRONO24_ACTOR_ID =
+  process.env.APIFY_CHRONO24_ACTOR_ID || "apify/chrono24-scraper";
 
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15";
@@ -65,9 +72,45 @@ function fallbackStub(input: AppraisalInput, detail: string): SourceResult {
   };
 }
 
+export async function chrono24PriceViaApify(
+  input: AppraisalInput,
+): Promise<SourceResult | null> {
+  const token = process.env.APIFY_API_TOKEN;
+  if (!token) return null;
+  try {
+    const client = new ApifyClient({ token });
+    const run = await client.actor(CHRONO24_ACTOR_ID).call(
+      {
+        searchQuery: `${input.make} ${input.ref}`,
+        maxResults: 10,
+      },
+      { timeout: 30 },
+    );
+    const { items } = await client.dataset(run.defaultDatasetId).listItems();
+    const prices = items
+      .map((i: { price?: unknown }) => Number(i.price))
+      .filter((p: number) => Number.isFinite(p) && p > 0)
+      .sort((a: number, b: number) => a - b);
+    if (prices.length < 3) return null;
+    const med = prices[Math.floor(prices.length / 2)];
+    return {
+      ok: true,
+      value: med,
+      source: "chrono24",
+      fallback: false,
+      detail: `Apify (${prices.length} listings)`,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function chrono24Price(
   input: AppraisalInput,
 ): Promise<SourceResult> {
+  // Prefer Apify-backed scrape when the token is configured.
+  const apify = await chrono24PriceViaApify(input);
+  if (apify) return apify;
   try {
     const res = await fetch(buildUrl(input), {
       headers: {
