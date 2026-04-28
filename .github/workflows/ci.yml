@@ -101,7 +101,11 @@ jobs:
 
       - name: Install Anchor CLI ${{ env.ANCHOR_VERSION }}
         if: steps.cache-anchor.outputs.cache-hit != 'true'
-        run: cargo install --git https://github.com/coral-xyz/anchor --tag v${ANCHOR_VERSION} anchor-cli --locked
+        # No --locked: anchor v0.30.1's pinned time 0.3.x has a type-inference
+        # bug under Rust 1.80+. Letting cargo solve fresh picks a newer
+        # time (>=0.3.35) that compiles cleanly. Tracked in
+        # https://github.com/time-rs/time/issues/693
+        run: cargo install --git https://github.com/coral-xyz/anchor --tag v${ANCHOR_VERSION} anchor-cli
 
       - name: Generate throwaway keypair
         run: |
