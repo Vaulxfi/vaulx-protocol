@@ -507,3 +507,322 @@ describe("kyc gate runtime revert / set_kyc_required", () => {
     expect(codeLoan).to.eq("Unauthorized");
   });
 });
+
+// Wave B.2 — close_kyc_attestation admin ix.
+//
+// KycAttestation PDA was init-only (Task 1.3). Without a close path, revoked
+// or expired attestations remain on-chain forever, and re-issuance is
+// impossible because PDA seeds are `[SEED, owner]` (deterministic per owner).
+//
+// `close_kyc_attestation(owner)` is admin-gated and uses Anchor's
+// `close = admin` constraint to refund rent and zero the account, restoring
+// init-ability for the same owner with a fresh jwt_hash.
+describe("kyc attestation close / close_kyc_attestation", () => {
+  anchor.setProvider(anchor.AnchorProvider.env());
+  const vaultProgram = anchor.workspace.Vault as Program<any>;
+  const loanProgram = anchor.workspace.Loan as Program<any>;
+  const provider = anchor.getProvider() as anchor.AnchorProvider;
+
+  let vaultCfgPda: PublicKey;
+  let loanCfgPda: PublicKey;
+
+  before(async () => {
+    const ev = await ensureVaultConfig(vaultProgram, provider);
+    vaultCfgPda = ev.vaultConfigPda;
+    const el = await ensureLoanConfig(loanProgram, provider);
+    loanCfgPda = el.loanConfigPda;
+  });
+
+  function loanAttestationPda(owner: PublicKey): PublicKey {
+    return PublicKey.findProgramAddressSync(
+      [Buffer.from("kyc_attestation"), owner.toBuffer()],
+      loanProgram.programId,
+    )[0];
+  }
+
+  it("test_admin_can_close_attestation_owner_can_reissue", async () => {
+    const owner = Keypair.generate();
+    const attPda = attestationPda(vaultProgram.programId, owner.publicKey);
+
+    // Issue attestation #1 with jwt_hash A.
+    const jwtA = randomJwtHash();
+    await vaultProgram.methods
+      .issueKycAttestation(owner.publicKey, jwtA)
+      .accounts({
+        kycAttestation: attPda,
+        vaultConfig: vaultCfgPda,
+        admin: provider.wallet.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc();
+
+    const att1 = await (vaultProgram.account as any).kycAttestation.fetch(
+      attPda,
+    );
+    expect(Array.from(att1.jwtHash as number[])).to.deep.eq(jwtA);
+
+    // Close attestation as admin. Verify rent is refunded to admin.
+    const adminLamportsBefore = await provider.connection.getBalance(
+      provider.wallet.publicKey,
+    );
+    const attLamports = (await provider.connection.getAccountInfo(attPda))!
+      .lamports;
+
+    await vaultProgram.methods
+      .closeKycAttestation(owner.publicKey)
+      .accounts({
+        vaultConfig: vaultCfgPda,
+        kycAttestation: attPda,
+        admin: provider.wallet.publicKey,
+      })
+      .rpc();
+
+    // PDA no longer exists.
+    const acctAfter = await provider.connection.getAccountInfo(attPda);
+    expect(acctAfter, "kyc attestation PDA must be closed").to.eq(null);
+
+    // Admin lamports went up by ~attLamports (minus tx fee, so just assert
+    // a non-trivial positive delta in the right direction — the precise tx
+    // fee depends on validator settings).
+    const adminLamportsAfter = await provider.connection.getBalance(
+      provider.wallet.publicKey,
+    );
+    expect(
+      adminLamportsAfter,
+      "admin should be refunded most of the rent (minus tx fee)",
+    ).to.be.greaterThan(adminLamportsBefore + attLamports - 10_000_000);
+
+    // Re-issue with a different jwt_hash.
+    const jwtB = randomJwtHash();
+    // Sanity: ensure jwtB != jwtA so the assertion below is meaningful.
+    expect(jwtB).to.not.deep.eq(jwtA);
+
+    await vaultProgram.methods
+      .issueKycAttestation(owner.publicKey, jwtB)
+      .accounts({
+        kycAttestation: attPda,
+        vaultConfig: vaultCfgPda,
+        admin: provider.wallet.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc();
+
+    const att2 = await (vaultProgram.account as any).kycAttestation.fetch(
+      attPda,
+    );
+    expect(Array.from(att2.jwtHash as number[])).to.deep.eq(jwtB);
+    expect(att2.owner.toBase58()).to.eq(owner.publicKey.toBase58());
+  });
+
+  it("test_close_attestation_rejects_non_admin", async () => {
+    const owner = Keypair.generate();
+    const attPda = attestationPda(vaultProgram.programId, owner.publicKey);
+
+    // Issue an attestation as the real admin.
+    await vaultProgram.methods
+      .issueKycAttestation(owner.publicKey, randomJwtHash())
+      .accounts({
+        kycAttestation: attPda,
+        vaultConfig: vaultCfgPda,
+        admin: provider.wallet.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc();
+
+    const impostor = Keypair.generate();
+    const sig = await provider.connection.requestAirdrop(
+      impostor.publicKey,
+      LAMPORTS_PER_SOL,
+    );
+    await provider.connection.confirmTransaction(sig, "confirmed");
+
+    let threw = false;
+    let code: string | undefined;
+    try {
+      await vaultProgram.methods
+        .closeKycAttestation(owner.publicKey)
+        .accounts({
+          vaultConfig: vaultCfgPda,
+          kycAttestation: attPda,
+          admin: impostor.publicKey,
+        })
+        .signers([impostor])
+        .rpc();
+    } catch (e: any) {
+      threw = true;
+      code = e.error?.errorCode?.code ?? e.code;
+    }
+    expect(threw, "non-admin must not close attestation").to.eq(true);
+    expect(code).to.eq("Unauthorized");
+
+    // Account must still exist after the failed close attempt.
+    const acct = await provider.connection.getAccountInfo(attPda);
+    expect(acct, "attestation must remain on-chain after rejected close")
+      .to.not.eq(null);
+
+    // Cleanup: close as the real admin so this test is idempotent across
+    // re-runs against a persistent ledger.
+    await vaultProgram.methods
+      .closeKycAttestation(owner.publicKey)
+      .accounts({
+        vaultConfig: vaultCfgPda,
+        kycAttestation: attPda,
+        admin: provider.wallet.publicKey,
+      })
+      .rpc();
+  });
+
+  it("test_close_attestation_fails_when_attestation_does_not_exist", async () => {
+    const ghostOwner = Keypair.generate();
+    const ghostPda = attestationPda(vaultProgram.programId, ghostOwner.publicKey);
+
+    // Sanity check: the PDA does not exist on-chain.
+    const acct = await provider.connection.getAccountInfo(ghostPda);
+    expect(acct, "ghost PDA precondition: must not exist").to.eq(null);
+
+    let threw = false;
+    let code: string | undefined;
+    try {
+      await vaultProgram.methods
+        .closeKycAttestation(ghostOwner.publicKey)
+        .accounts({
+          vaultConfig: vaultCfgPda,
+          kycAttestation: ghostPda,
+          admin: provider.wallet.publicKey,
+        })
+        .rpc();
+    } catch (e: any) {
+      threw = true;
+      code = e.error?.errorCode?.code ?? e.code;
+    }
+    expect(threw, "close on non-existent PDA must revert").to.eq(true);
+    // Anchor surfaces this as AccountNotInitialized when an `Account<T>`
+    // points at an empty (lamports=0, owner=SystemProgram) address.
+    expect(code).to.eq("AccountNotInitialized");
+  });
+
+  // Mirror: same three flows on the loan program. Loan keeps an independent
+  // KycAttestation namespace (separate program id), so the close ix must be
+  // verified there too.
+  it("test_loan_admin_can_close_attestation_owner_can_reissue", async () => {
+    const owner = Keypair.generate();
+    const attPda = loanAttestationPda(owner.publicKey);
+
+    const jwtA = randomJwtHash();
+    await loanProgram.methods
+      .issueKycAttestation(owner.publicKey, jwtA)
+      .accounts({
+        kycAttestation: attPda,
+        loanConfig: loanCfgPda,
+        admin: provider.wallet.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc();
+
+    await loanProgram.methods
+      .closeKycAttestation(owner.publicKey)
+      .accounts({
+        loanConfig: loanCfgPda,
+        kycAttestation: attPda,
+        admin: provider.wallet.publicKey,
+      })
+      .rpc();
+
+    const after = await provider.connection.getAccountInfo(attPda);
+    expect(after, "loan kyc attestation PDA must be closed").to.eq(null);
+
+    // Re-issue with a new jwt_hash succeeds.
+    const jwtB = randomJwtHash();
+    await loanProgram.methods
+      .issueKycAttestation(owner.publicKey, jwtB)
+      .accounts({
+        kycAttestation: attPda,
+        loanConfig: loanCfgPda,
+        admin: provider.wallet.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc();
+
+    const att2 = await (loanProgram.account as any).kycAttestation.fetch(
+      attPda,
+    );
+    expect(Array.from(att2.jwtHash as number[])).to.deep.eq(jwtB);
+  });
+
+  it("test_loan_close_attestation_rejects_non_admin", async () => {
+    const owner = Keypair.generate();
+    const attPda = loanAttestationPda(owner.publicKey);
+    await loanProgram.methods
+      .issueKycAttestation(owner.publicKey, randomJwtHash())
+      .accounts({
+        kycAttestation: attPda,
+        loanConfig: loanCfgPda,
+        admin: provider.wallet.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc();
+
+    const impostor = Keypair.generate();
+    const sig = await provider.connection.requestAirdrop(
+      impostor.publicKey,
+      LAMPORTS_PER_SOL,
+    );
+    await provider.connection.confirmTransaction(sig, "confirmed");
+
+    let threw = false;
+    let code: string | undefined;
+    try {
+      await loanProgram.methods
+        .closeKycAttestation(owner.publicKey)
+        .accounts({
+          loanConfig: loanCfgPda,
+          kycAttestation: attPda,
+          admin: impostor.publicKey,
+        })
+        .signers([impostor])
+        .rpc();
+    } catch (e: any) {
+      threw = true;
+      code = e.error?.errorCode?.code ?? e.code;
+    }
+    expect(threw).to.eq(true);
+    expect(code).to.eq("Unauthorized");
+
+    // Cleanup as real admin.
+    await loanProgram.methods
+      .closeKycAttestation(owner.publicKey)
+      .accounts({
+        loanConfig: loanCfgPda,
+        kycAttestation: attPda,
+        admin: provider.wallet.publicKey,
+      })
+      .rpc();
+  });
+
+  it("test_loan_close_attestation_fails_when_attestation_does_not_exist", async () => {
+    const ghostOwner = Keypair.generate();
+    const ghostPda = loanAttestationPda(ghostOwner.publicKey);
+    expect(
+      await provider.connection.getAccountInfo(ghostPda),
+      "ghost loan PDA precondition: must not exist",
+    ).to.eq(null);
+
+    let threw = false;
+    let code: string | undefined;
+    try {
+      await loanProgram.methods
+        .closeKycAttestation(ghostOwner.publicKey)
+        .accounts({
+          loanConfig: loanCfgPda,
+          kycAttestation: ghostPda,
+          admin: provider.wallet.publicKey,
+        })
+        .rpc();
+    } catch (e: any) {
+      threw = true;
+      code = e.error?.errorCode?.code ?? e.code;
+    }
+    expect(threw).to.eq(true);
+    expect(code).to.eq("AccountNotInitialized");
+  });
+});

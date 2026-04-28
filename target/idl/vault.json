@@ -7,6 +7,98 @@
   },
   "instructions": [
     {
+      "name": "close_kyc_attestation",
+      "docs": [
+        "Admin-only: close a `KycAttestation` PDA and refund rent to the admin.",
+        "Caller must be `vault_config.admin`. After this ix, `issue_kyc_attestation`",
+        "can be re-called for the same `owner` (e.g. with a fresh `jwt_hash`)",
+        "because the PDA seeds are deterministic per owner — closure is the",
+        "only way to break the init-once constraint.",
+        "",
+        "Use cases: KYC verification expired, issuer revoked the user, or the",
+        "underlying JWT was rotated."
+      ],
+      "discriminator": [
+        92,
+        214,
+        228,
+        119,
+        181,
+        84,
+        94,
+        68
+      ],
+      "accounts": [
+        {
+          "name": "vault_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "kyc_attestation",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  107,
+                  121,
+                  99,
+                  95,
+                  97,
+                  116,
+                  116,
+                  101,
+                  115,
+                  116,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "_owner",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
       "name": "deposit",
       "discriminator": [
         242,
@@ -780,6 +872,19 @@
       ]
     },
     {
+      "name": "KycAttestationClosed",
+      "discriminator": [
+        141,
+        38,
+        15,
+        236,
+        37,
+        28,
+        110,
+        224
+      ]
+    },
+    {
       "name": "KycRequiredChanged",
       "discriminator": [
         254,
@@ -964,6 +1069,22 @@
           {
             "name": "bump",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "KycAttestationClosed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "admin",
+            "type": "pubkey"
           }
         ]
       }

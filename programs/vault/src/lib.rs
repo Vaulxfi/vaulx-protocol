@@ -95,6 +95,30 @@ pub mod vault {
         Ok(())
     }
 
+    /// Admin-only: close a `KycAttestation` PDA and refund rent to the admin.
+    /// Caller must be `vault_config.admin`. After this ix, `issue_kyc_attestation`
+    /// can be re-called for the same `owner` (e.g. with a fresh `jwt_hash`)
+    /// because the PDA seeds are deterministic per owner — closure is the
+    /// only way to break the init-once constraint.
+    ///
+    /// Use cases: KYC verification expired, issuer revoked the user, or the
+    /// underlying JWT was rotated.
+    pub fn close_kyc_attestation(
+        ctx: Context<CloseKycAttestation>,
+        _owner: Pubkey,
+    ) -> Result<()> {
+        require_keys_eq!(
+            ctx.accounts.admin.key(),
+            ctx.accounts.vault_config.admin,
+            VaultError::Unauthorized
+        );
+        emit!(KycAttestationClosed {
+            owner: ctx.accounts.kyc_attestation.owner,
+            admin: ctx.accounts.admin.key(),
+        });
+        Ok(())
+    }
+
     pub fn initialize_vault(ctx: Context<InitializeVault>) -> Result<()> {
         let v = &mut ctx.accounts.vault;
         v.asset_mint = ctx.accounts.asset_mint.key();
@@ -518,6 +542,22 @@ pub struct SetKycRequired<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(owner: Pubkey)]
+pub struct CloseKycAttestation<'info> {
+    #[account(seeds = [VaultConfig::SEED], bump = vault_config.bump)]
+    pub vault_config: Account<'info, VaultConfig>,
+    #[account(
+        mut,
+        seeds = [KycAttestation::SEED, owner.as_ref()],
+        bump = kyc_attestation.bump,
+        close = admin,
+    )]
+    pub kyc_attestation: Account<'info, KycAttestation>,
+    #[account(mut)]
+    pub admin: Signer<'info>,
+}
+
+#[derive(Accounts)]
 pub struct InitializeVault<'info> {
     #[account(
         init, payer = payer, space = Vault::SIZE,
@@ -701,6 +741,12 @@ pub struct Disbursed {
 pub struct KycRequiredChanged {
     pub required: bool,
     pub by: Pubkey,
+}
+
+#[event]
+pub struct KycAttestationClosed {
+    pub owner: Pubkey,
+    pub admin: Pubkey,
 }
 
 pub use errors::*;

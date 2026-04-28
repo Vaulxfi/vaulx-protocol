@@ -87,6 +87,27 @@ pub mod loan {
         Ok(())
     }
 
+    /// Admin-only: close a `KycAttestation` PDA and refund rent to the admin.
+    /// Mirrors `vault::close_kyc_attestation`. Required for revocation /
+    /// re-issuance — PDA seeds are deterministic per owner, so the only way
+    /// to re-issue with a fresh `jwt_hash` is to close the existing account
+    /// first.
+    pub fn close_kyc_attestation(
+        ctx: Context<CloseKycAttestation>,
+        _owner: Pubkey,
+    ) -> Result<()> {
+        require_keys_eq!(
+            ctx.accounts.admin.key(),
+            ctx.accounts.loan_config.admin,
+            LoanError::Unauthorized
+        );
+        emit!(KycAttestationClosed {
+            owner: ctx.accounts.kyc_attestation.owner,
+            admin: ctx.accounts.admin.key(),
+        });
+        Ok(())
+    }
+
     pub fn create_ccb_trdc(
         ctx: Context<CreateCcbTrdc>,
         loan_id: Pubkey,
@@ -1117,6 +1138,22 @@ pub struct SetKycRequired<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(owner: Pubkey)]
+pub struct CloseKycAttestation<'info> {
+    #[account(seeds = [LoanConfig::SEED], bump = loan_config.bump)]
+    pub loan_config: Account<'info, LoanConfig>,
+    #[account(
+        mut,
+        seeds = [KycAttestation::SEED, owner.as_ref()],
+        bump = kyc_attestation.bump,
+        close = admin,
+    )]
+    pub kyc_attestation: Account<'info, KycAttestation>,
+    #[account(mut)]
+    pub admin: Signer<'info>,
+}
+
+#[derive(Accounts)]
 pub struct SetOracleAdmin<'info> {
     #[account(
         mut,
@@ -1155,6 +1192,12 @@ pub struct PublishPrice<'info> {
 pub struct KycRequiredChanged {
     pub required: bool,
     pub by: Pubkey,
+}
+
+#[event]
+pub struct KycAttestationClosed {
+    pub owner: Pubkey,
+    pub admin: Pubkey,
 }
 
 #[event]
