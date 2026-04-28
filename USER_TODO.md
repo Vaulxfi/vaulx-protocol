@@ -4,6 +4,29 @@
 
 ---
 
+## Squads V4 multisig keypairs — BACK UP BEFORE PRODUCTION
+
+Two fresh signer keypairs were generated for the Vaulx Squads V4 2/3 multisig (upgrade authority + treasury). Together with the existing payer (`2HYjytRc4oKY2ndmJfAq2XdGhPqYB7VdDPLzA18QEiAH`), they form the 3 signers; threshold is 2.
+
+**Pubkeys (safe to share):**
+- ops:  `7QpTNAveTSfQSEzjPCmfzgE9ZGrgkcUBmDZ97dcSixdE`
+- team: `9MBdm6fbFTMCzvesKDDBYD58JdTsqWNGiefjdaS83LzS`
+
+**Local file paths (private — DO NOT commit, gitignored as a safety net):**
+- `~/.config/vaulx/ops-keypair.json`
+- `~/.config/vaulx/team-keypair.json`
+
+**Backup instructions (do this BEFORE mainnet — Devnet is fine without):**
+1. Copy both JSON files into a password manager (1Password / Bitwarden) or an encrypted backup (e.g. age-encrypted blob in cloud storage).
+2. Optionally re-derive each keypair from a seed phrase you record on paper — `solana-keygen recover` can rebuild the JSON from the seed if you ever delete the local copy.
+3. Keep at least one offline copy (paper / hardware) of each.
+
+These keypairs sign program upgrades and treasury actions via the Squads multisig. **Losing 2 of 3 = total program lockout** (no upgrade path, frozen treasury). Devnet loss is recoverable (redeploy); mainnet loss is not.
+
+- [ ] Backed up ops + team keypairs (required before mainnet — Devnet is fine without)
+
+---
+
 ## Active items as of 2026-04-27
 
 ### Devnet contracts deploy — AUTHORIZED (upgradeable, real Vaulx name)

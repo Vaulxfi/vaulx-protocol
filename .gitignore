@@ -34,6 +34,7 @@ supabase/.branches/
 *.json.keypair
 **/id.json
 wallet-*.json
+**/.config/vaulx/*-keypair.json
 
 # Build artifacts
 *.so
@@ -41,3 +42,4 @@ wallet-*.json
 
 # Claude local settings
 .claude/
+.vercel
