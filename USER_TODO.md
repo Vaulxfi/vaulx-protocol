@@ -31,16 +31,22 @@ These keypairs sign program upgrades and treasury actions via the Squads multisi
 
 ### Crossmint API key — set in Vercel to flip mock → live wallet
 
-The `<CrossmintWallet>` component on `/demo/borrow/wallet` is fully wired against `@crossmint/client-sdk-react-ui@4.1.5` (real OAuth, real Solana smart-wallet provisioning with email recovery, passkey-ready). It just falls back to a clearly-labeled MOCK demo path when the API key is unset.
+The `<CrossmintWallet>` component on `/demo/borrow/wallet` is fully wired against `@crossmint/client-sdk-react-ui@4.1.5` (real OAuth, real Solana smart-wallet provisioning with email recovery, passkey-ready). It falls back to a clearly-labeled MOCK demo path when the API key OR `NEXT_PUBLIC_CROSSMINT_ENV` is unset / set to `"mock"`.
 
-To flip to real Crossmint:
+**Use staging — it's free, no KYC, and supports Solana Devnet out of the box.** Production (mainnet) requires a Crossmint solutions-team call + KYC and is gated behind `ck_production_*` keys.
 
-1. Sign up at [console.crossmint.com](https://console.crossmint.com) (free dev tier; no card required for testnet).
-2. Create a Solana **Devnet** project; copy the **client-side** API key (starts with `ck_development_...` for staging, `ck_production_...` for prod).
-3. In Vercel project settings → **Environment Variables** → add `NEXT_PUBLIC_CROSSMINT_API_KEY=<your-key>` for **Production + Preview**.
+To flip to real Crossmint (staging):
+
+1. Sign up at **[staging.crossmint.com](https://staging.crossmint.com)** (NOT crossmint.com — staging is the free dev tier, instant, no KYC).
+2. Create a Solana **Devnet** project; copy the **client-side** API key (starts with `ck_staging_...`).
+3. In Vercel project settings → **Environment Variables** → add for **Production + Preview**:
+   - `NEXT_PUBLIC_CROSSMINT_API_KEY=ck_staging_...`
+   - `NEXT_PUBLIC_CROSSMINT_ENV=staging`
 4. Redeploy (next push triggers automatically).
 
-After this, `/demo/borrow/wallet` shows the real Crossmint sign-in (Google / Apple / email) and provisions a real Solana smart wallet bound to the user's email. The `wallet.pubkey` saved in the demo session becomes a real on-chain pubkey usable by downstream Anchor ixs.
+After this, `/demo/borrow/wallet` shows real Crossmint sign-in (Google / Apple / email) and provisions a real Solana **Devnet** smart wallet bound to the user's email. The `wallet.pubkey` saved in the demo session becomes a real on-chain pubkey. Test USDXM is mintable via `wallet.stagingFund(amount)` — see Crossmint docs.
+
+The Crossmint SDK has **no explicit `environment` prop** — routing is by API-key prefix (`ck_staging_*` → `staging.crossmint.com`, `ck_production_*` → `www.crossmint.com`). Our wrapper still validates the prefix matches `NEXT_PUBLIC_CROSSMINT_ENV` and falls back to mock with an inline warning on mismatch.
 
 - [ ] Crossmint API key set in Vercel (P1 for live demo; demo flow works in mock mode without it).
 

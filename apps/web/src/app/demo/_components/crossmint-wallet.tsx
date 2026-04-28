@@ -5,12 +5,21 @@
 //   - <CrossmintWalletProvider> (gives us `useWallet().wallet`)
 // `wallet.address` is the on-chain Solana pubkey when chain="solana".
 //
-// Real mode: NEXT_PUBLIC_CROSSMINT_API_KEY set → real OAuth/email login,
-//           real Solana smart wallet provisioned with email recovery.
-// Mock mode: env unset → simulated 1.5s "signing in" UI then mock pubkey
-//           is set on the demo session so the rest of the journey
-//           (custody → disburse → repay) flows. Mocked path is clearly
-//           labeled with the MockBadge so judges don't mistake it for live.
+// Environment selection (Phase A):
+//   The Crossmint SDK does NOT expose an explicit `environment` prop on
+//   <CrossmintProvider>. The API-key prefix determines routing:
+//     ck_staging_*   → https://staging.crossmint.com/  (free, no KYC, Devnet)
+//     ck_production_* → https://www.crossmint.com/      (KYC required, Mainnet)
+//   See: @crossmint/common-sdk-base/dist/apiKey/consts.d.cts (CROSSMINT_STG_URL
+//   vs CROSSMINT_PROD_URL). We surface NEXT_PUBLIC_CROSSMINT_ENV as an
+//   explicit guard so misconfigured keys (e.g. prod key with env=staging)
+//   throw loudly rather than silently routing to mainnet.
+//
+// Modes:
+//   env=mock       → mock fallback (1.5s simulated provisioning)
+//   env=staging    → real Crossmint @ staging, Solana Devnet smart wallet
+//   env=production → real Crossmint @ prod, Solana Mainnet (post-KYC)
+//   unset          → mock (back-compat with commit 15b5e19)
 import {
   CrossmintProvider,
   CrossmintAuthProvider,
@@ -23,6 +32,18 @@ import { useDemoSession } from "../_lib/use-demo-session";
 import { MockBadge } from "./integration-badges";
 
 const CROSSMINT_API_KEY = process.env.NEXT_PUBLIC_CROSSMINT_API_KEY;
+const CROSSMINT_ENV = (process.env.NEXT_PUBLIC_CROSSMINT_ENV ?? "mock") as
+  | "staging"
+  | "production"
+  | "mock";
+
+/** API-key prefix → environment match check. The SDK auto-routes by prefix
+ * (see CROSSMINT_STG_URL / CROSSMINT_PROD_URL in @crossmint/common-sdk-base);
+ * this just protects against a `staging` env var paired with a prod key. */
+function apiKeyMatchesEnv(key: string, env: "staging" | "production"): boolean {
+  if (env === "staging") return key.startsWith("ck_staging_");
+  return key.startsWith("ck_production_");
+}
 
 function CrossmintInner({
   onConnected,
@@ -118,8 +139,25 @@ function CrossmintMockButton() {
 export function CrossmintWallet() {
   const { session, patch } = useDemoSession();
 
-  if (!CROSSMINT_API_KEY) {
+  // Mock mode: env unset, env=mock, or no key at all.
+  if (!CROSSMINT_API_KEY || CROSSMINT_ENV === "mock") {
     return <CrossmintMockButton />;
+  }
+
+  // Guard: env explicitly set to staging|production but the key prefix
+  // doesn't match. Render the mock + an inline warning rather than silently
+  // routing to the wrong network (esp. dangerous when prod key is paired
+  // with `staging` — would route real OAuth users to staging.crossmint.com).
+  if (!apiKeyMatchesEnv(CROSSMINT_API_KEY, CROSSMINT_ENV)) {
+    return (
+      <>
+        <CrossmintMockButton />
+        <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.18em] text-rose-400">
+          Crossmint env mismatch · NEXT_PUBLIC_CROSSMINT_ENV={CROSSMINT_ENV} but
+          key prefix is not ck_{CROSSMINT_ENV}_*. Falling back to mock.
+        </p>
+      </>
+    );
   }
 
   return (

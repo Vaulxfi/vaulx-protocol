@@ -256,6 +256,12 @@ The on-chain gate is exercised by the program owner check at `programs/{vault,lo
 
 [Historical reference: the original on-chain gateway-token Borsh decode in `programs/{vault,loan}/src/civic.rs` is retained as deprecated reference code — see file banners. Source-of-truth: the `KycAttestation` PDA in `programs/vault/src/state/kyc.rs` and `programs/loan/src/state/kyc.rs`.]
 
+## Crossmint smart-wallet onboarding
+
+Email / Google / Apple → Solana smart wallet, no seed phrase, email recovery. Vaulx wires `@crossmint/client-sdk-react-ui@4.1.5` on `/demo/borrow/wallet` so a non-crypto user can land on the demo, sign in with Google, and have a real on-chain Solana pubkey within ~3 seconds — no Phantom install, no seed-phrase ceremony. The `<CrossmintWallet>` component falls back to a clearly-labeled mock when no API key is set, so the rest of the demo flow keeps working zero-config.
+
+**Staging-first.** The Crossmint SDK routes by API-key prefix — `ck_staging_*` keys auto-provision real Solana **Devnet** smart wallets at zero cost with no KYC, signing up at [staging.crossmint.com](https://staging.crossmint.com). Test USDXM is mintable via `wallet.stagingFund(amount)`. Mainnet (production keys, `ck_production_*`) requires a solutions-team call and KYC — not needed for demo. Toggle modes via `NEXT_PUBLIC_CROSSMINT_ENV=staging|production|mock`; see [`apps/web/.env.example`](apps/web/.env.example) for full setup notes and [`USER_TODO.md`](USER_TODO.md) for the Vercel deploy checklist.
+
 ## Live QA — `/admin/tests`
 
 Run the Anchor test suite live in the browser via Server-Sent Events:
