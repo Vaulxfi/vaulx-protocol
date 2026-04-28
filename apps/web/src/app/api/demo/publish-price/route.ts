@@ -26,14 +26,17 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-import { BN } from "@coral-xyz/anchor";
-import { PublicKey, SystemProgram } from "@solana/web3.js";
+import { AnchorProvider, BN, Program, type Idl } from "@coral-xyz/anchor";
+import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
+import { loan as loanFacade } from "@vaulx/anchor-client";
 
 import {
   checkAdminAuth,
   demoErrorResponse,
   deriveLoanConfigPda,
-  loadDemoEnv,
+  derivePriceFeedPda,
+  loadOperatorKeypair,
+  walletFromKeypair,
 } from "@/lib/admin/demo";
 
 type Body = {
@@ -45,16 +48,6 @@ type Body = {
 
 const DEFAULT_MEDIAN_CENTS = 50_000 * 100; // $50,000.00 in cents
 const DEFAULT_LISTINGS = 5;
-
-function derivePriceFeedPda(
-  refBytes: Uint8Array,
-  programId: PublicKey,
-): PublicKey {
-  return PublicKey.findProgramAddressSync(
-    [Buffer.from("price_feed"), Buffer.from(refBytes)],
-    programId,
-  )[0];
-}
 
 export async function POST(req: Request) {
   const gate = checkAdminAuth(req);
@@ -100,8 +93,18 @@ export async function POST(req: Request) {
   }
 
   try {
-    const env = await loadDemoEnv();
-    const { payer, loanProgram, loanProgramId } = env;
+    // Lightweight env load: only the operator keypair is needed (publish_price
+    // doesn't touch USDC, demo wallets, or vault setup). loadDemoEnv() pulls
+    // demo-wallets.json which is local-only — using the slim loader makes
+    // this route work on Vercel.
+    const payer = loadOperatorKeypair();
+    const rpc = process.env.SOLANA_RPC_URL ?? "https://api.devnet.solana.com";
+    const conn = new Connection(rpc, "confirmed");
+    const provider = new AnchorProvider(conn, walletFromKeypair(payer), {
+      commitment: "confirmed",
+    });
+    const loanProgramId = new PublicKey(loanFacade.programId);
+    const loanProgram = loanFacade.program(provider) as Program<Idl>;
 
     const loanConfigPda = deriveLoanConfigPda(loanProgramId);
     const priceFeedPda = derivePriceFeedPda(refBytes, loanProgramId);
