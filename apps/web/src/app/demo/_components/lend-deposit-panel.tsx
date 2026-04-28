@@ -22,6 +22,10 @@ import {
   useUserUsdcBalance,
   useVaultData,
 } from "@/lib/chain/vault";
+import {
+  useUnifiedWallet,
+  formatWalletLabel,
+} from "@/components/providers/crossmint-wallet-adapter";
 
 const WalletMultiButton = dynamic(
   async () =>
@@ -63,6 +67,7 @@ export function LendDepositPanel() {
   }, [rawMint]);
 
   const { publicKey } = useWallet();
+  const unified = useUnifiedWallet();
 
   const vault = useVaultData(assetMint);
   const shareMint = vault.data?.shareMint;
@@ -153,6 +158,38 @@ export function LendDepositPanel() {
           value={publicKey ? fmtAtoms(shares.data) : "—"}
         />
       </div>
+
+      {/* Unified wallet status — surfaces Crossmint identity vs Phantom signing */}
+      <div className="mt-6 flex flex-wrap items-center gap-2 border border-[var(--rule)] bg-[var(--bg)] px-3 py-2">
+        <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--ink-muted)]">
+          Wallet
+        </span>
+        <span className="font-mono text-[11px] tabnums text-[var(--ink)]">
+          {formatWalletLabel(unified)}
+        </span>
+        {unified.canSign && (
+          <span className="rounded-full bg-emerald-400/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-emerald-400">
+            ready to sign
+          </span>
+        )}
+        {unified.identityOnly && (
+          <span className="rounded-full bg-amber-400/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-amber-400">
+            identity only
+          </span>
+        )}
+      </div>
+
+      {/* Identity-only callout: Crossmint signed-in but wallet-adapter blank.
+          Crossmint's SDK doesn't expose detached signTransaction yet, so the
+          chain hooks need a wallet-adapter wallet to actually submit txns. */}
+      {unified.identityOnly && (
+        <p className="mt-3 max-w-[60ch] font-mono text-[11px] leading-relaxed text-amber-200/80">
+          Signed in with Crossmint ({unified.email ?? "email"}). To submit a
+          deposit on Devnet, also connect Phantom or Solflare below — Crossmint
+          smart-wallet signing through wallet-adapter is pending an SDK
+          capability.
+        </p>
+      )}
 
       {/* Form */}
       {!publicKey ? (
