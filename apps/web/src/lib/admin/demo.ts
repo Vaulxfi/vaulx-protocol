@@ -30,7 +30,6 @@ import path from "node:path";
 import {
   AnchorProvider,
   Program,
-  Wallet,
   type Idl,
 } from "@coral-xyz/anchor";
 import {
@@ -38,7 +37,44 @@ import {
   Keypair,
   PublicKey,
   type Commitment,
+  Transaction,
+  VersionedTransaction,
 } from "@solana/web3.js";
+
+/**
+ * Inline wallet adapter for AnchorProvider. Replaces `new Wallet(payer)` from
+ * `@coral-xyz/anchor` which fails at runtime in serverless bundles
+ * ("Wallet is not a constructor"). Only the four methods AnchorProvider
+ * touches are implemented — that's the entire shape it needs.
+ */
+export function walletFromKeypair(payer: Keypair) {
+  return {
+    publicKey: payer.publicKey,
+    payer,
+    signTransaction: async <T extends Transaction | VersionedTransaction>(
+      tx: T,
+    ): Promise<T> => {
+      if ("partialSign" in tx && typeof tx.partialSign === "function") {
+        (tx as Transaction).partialSign(payer);
+      } else {
+        (tx as VersionedTransaction).sign([payer]);
+      }
+      return tx;
+    },
+    signAllTransactions: async <T extends Transaction | VersionedTransaction>(
+      txs: T[],
+    ): Promise<T[]> => {
+      for (const tx of txs) {
+        if ("partialSign" in tx && typeof tx.partialSign === "function") {
+          (tx as Transaction).partialSign(payer);
+        } else {
+          (tx as VersionedTransaction).sign([payer]);
+        }
+      }
+      return txs;
+    },
+  };
+}
 import {
   auction as auctionFacade,
   loan as loanFacade,
@@ -234,7 +270,12 @@ export async function loadDemoEnv(): Promise<DemoEnv> {
   const rpc = process.env.SOLANA_RPC_URL ?? "https://api.devnet.solana.com";
   const conn = new Connection(rpc, COMMITMENT);
 
-  const provider = new AnchorProvider(conn, new Wallet(payer), {
+  // Anchor 0.30.1's `Wallet` named export is unreliable in client-side
+  // bundles ("Wallet is not a constructor" runtime error on Vercel
+  // serverless). Inline a Wallet-shape object instead — AnchorProvider
+  // only needs publicKey + signTransaction + signAllTransactions.
+  const wallet = walletFromKeypair(payer);
+  const provider = new AnchorProvider(conn, wallet, {
     commitment: COMMITMENT,
   });
 

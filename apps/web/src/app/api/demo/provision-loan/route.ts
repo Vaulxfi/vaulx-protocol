@@ -47,11 +47,11 @@ import {
   AnchorProvider,
   BN,
   Program,
-  Wallet,
   type Idl,
 } from "@coral-xyz/anchor";
 import { Keypair, PublicKey, SystemProgram, Connection } from "@solana/web3.js";
 import { loan as loanFacade, trdc as trdcFacade } from "@vaulx/anchor-client";
+import { walletFromKeypair } from "@/lib/admin/demo";
 import { rateForTermDays } from "@vaulx/terms";
 
 import {
@@ -153,7 +153,7 @@ export async function POST(req: Request) {
 
     const rpc = process.env.SOLANA_RPC_URL ?? "https://api.devnet.solana.com";
     const conn = new Connection(rpc, "confirmed");
-    const provider = new AnchorProvider(conn, new Wallet(payer), {
+    const provider = new AnchorProvider(conn, walletFromKeypair(payer), {
       commitment: "confirmed",
     });
 
