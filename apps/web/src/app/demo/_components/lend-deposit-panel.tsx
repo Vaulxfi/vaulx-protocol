@@ -78,6 +78,10 @@ export function LendDepositPanel() {
   const [amountStr, setAmountStr] = useState("");
   const [lastSig, setLastSig] = useState<string | null>(null);
   const [errMsg, setErrMsg] = useState<string | null>(null);
+  // Phase E Wire 4: faucet button — same /api/demo/faucet-usdc as the
+  // borrower flow. Useful for lender testing on Devnet.
+  const [faucetPending, setFaucetPending] = useState(false);
+  const [faucetMsg, setFaucetMsg] = useState<string | null>(null);
 
   const amountAtoms = useMemo(() => parseUsdcInput(amountStr), [amountStr]);
   const insufficient =
@@ -189,6 +193,56 @@ export function LendDepositPanel() {
           smart-wallet signing through wallet-adapter is pending an SDK
           capability.
         </p>
+      )}
+
+      {/* Faucet — mints 1000 demo USDC to the connected wallet */}
+      {publicKey && (
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            disabled={faucetPending}
+            onClick={async () => {
+              setFaucetMsg(null);
+              setFaucetPending(true);
+              try {
+                const res = await fetch("/api/demo/faucet-usdc", {
+                  method: "POST",
+                  headers: { "content-type": "application/json" },
+                  body: JSON.stringify({
+                    recipientPubkey: publicKey.toBase58(),
+                    amount: 1000,
+                  }),
+                });
+                const json = (await res.json().catch(() => ({}))) as {
+                  ok?: boolean;
+                  detail?: string;
+                  error?: string;
+                };
+                if (!res.ok || !json.ok) {
+                  throw new Error(
+                    json.error ?? json.detail ?? `faucet failed (${res.status})`,
+                  );
+                }
+                setFaucetMsg(json.detail ?? "Minted 1000 demo USDC");
+                usdc.refetch();
+              } catch (err) {
+                setFaucetMsg(
+                  err instanceof Error ? `Error: ${err.message}` : String(err),
+                );
+              } finally {
+                setFaucetPending(false);
+              }
+            }}
+            className="rounded-md border border-[var(--rule)] bg-[var(--bg)] px-3 py-2 font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-dim)] disabled:cursor-not-allowed disabled:opacity-40 hover:border-[var(--brand)]/50 hover:text-[var(--brand)]"
+          >
+            {faucetPending ? "Minting…" : "Get 1000 test USDC"}
+          </button>
+          {faucetMsg && (
+            <span className="font-mono text-[10px] text-[var(--ink-muted)]">
+              {faucetMsg}
+            </span>
+          )}
+        </div>
       )}
 
       {/* Form */}

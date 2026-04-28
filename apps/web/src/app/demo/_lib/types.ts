@@ -26,6 +26,13 @@ export type DemoSession = {
     custody: { provider: "brinks" | "prosegur" | "loomis"; bookedSlot?: string; confirmedAt?: number };
     disbursedAt?: number;
     inAppBalanceAtoms: string;
+    // Phase E: real on-chain provisioning artefacts. Populated when the
+    // borrower has a connected wallet and /api/demo/provision-loan succeeds.
+    // Mock fallback paths leave these undefined.
+    trdcStatePda?: string;
+    createTx?: string;
+    custodyTx?: string;
+    provisionedOnChain?: boolean;
   };
   tour: { active: boolean; step: number; resumable: boolean; history: number[] };
   mocksDismissed: string[];
