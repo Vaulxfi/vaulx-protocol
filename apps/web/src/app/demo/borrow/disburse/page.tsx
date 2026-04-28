@@ -27,6 +27,7 @@ import { deriveTrdcStatePda } from "@/lib/chain/loan-accounts";
 import { useTrdcState } from "@/lib/chain/custody";
 import { useDisburse } from "@/lib/chain/loan";
 import { requireUsdcMint } from "@/lib/usdc";
+import { useKycGate, KycCancelledError } from "@/lib/use-kyc-gate";
 
 type DisburseState =
   | "ready"
@@ -71,6 +72,7 @@ export default function DisbursePage() {
   }, [session?.loan?.loanId]);
   const onchainTrdc = useTrdcState(trdcPda);
   const disburse = useDisburse();
+  const { guard, modalNode } = useKycGate("Disburse");
   const [chainSig, setChainSig] = useState<string | null>(null);
   const [chainErr, setChainErr] = useState<string | null>(null);
   const [chainPending, setChainPending] = useState(false);
@@ -160,6 +162,7 @@ export default function DisbursePage() {
 
   return (
     <DemoShell formFactor="phone">
+      {modalNode}
       <div className="px-6 py-8">
         <p className="eyebrow" style={{ color: "var(--brand)" }}>
           Step 10 / 14 · The aha moment
@@ -314,40 +317,44 @@ export default function DisbursePage() {
             setChainSig(null);
             setChainPending(true);
             try {
-              if (!trdcPda) throw new Error("Loan id missing in session");
-              const usdcMint = requireUsdcMint();
-              const refBytes = (onchainTrdc.data as unknown as {
-                refBytes?: number[];
-              })?.refBytes;
-              // Best-effort: if we have ref_bytes, refresh the price feed
-              // server-side. We don't fail the whole disburse on this — the
-              // operator may have configured oracle_admin = default, in
-              // which case publish-price returns an OracleNotInitialized
-              // error and disburse skips the oracle gate anyway.
-              if (Array.isArray(refBytes) && refBytes.length === 32) {
-                try {
-                  await fetch("/api/demo/publish-price", {
-                    method: "POST",
-                    headers: { "content-type": "application/json" },
-                    body: JSON.stringify({ refBytes }),
-                  });
-                } catch {
-                  // ignore — disburse will surface the real error
+              const txSig = await guard(async () => {
+                if (!trdcPda) throw new Error("Loan id missing in session");
+                const usdcMint = requireUsdcMint();
+                const refBytes = (onchainTrdc.data as unknown as {
+                  refBytes?: number[];
+                })?.refBytes;
+                // Best-effort: if we have ref_bytes, refresh the price feed
+                // server-side. We don't fail the whole disburse on this — the
+                // operator may have configured oracle_admin = default, in
+                // which case publish-price returns an OracleNotInitialized
+                // error and disburse skips the oracle gate anyway.
+                if (Array.isArray(refBytes) && refBytes.length === 32) {
+                  try {
+                    await fetch("/api/demo/publish-price", {
+                      method: "POST",
+                      headers: { "content-type": "application/json" },
+                      body: JSON.stringify({ refBytes }),
+                    });
+                  } catch {
+                    // ignore — disburse will surface the real error
+                  }
                 }
-              }
-              const principal = BigInt(session.loan!.principalAtoms);
-              const refBytesU8 =
-                Array.isArray(refBytes) && refBytes.length === 32
-                  ? Uint8Array.from(refBytes)
-                  : undefined;
-              const { txSig } = await disburse.mutateAsync({
-                trdcPda,
-                assetMint: usdcMint,
-                amount: principal,
-                refBytes: refBytesU8,
+                const principal = BigInt(session.loan!.principalAtoms);
+                const refBytesU8 =
+                  Array.isArray(refBytes) && refBytes.length === 32
+                    ? Uint8Array.from(refBytes)
+                    : undefined;
+                const result = await disburse.mutateAsync({
+                  trdcPda,
+                  assetMint: usdcMint,
+                  amount: principal,
+                  refBytes: refBytesU8,
+                });
+                return result.txSig;
               });
               setChainSig(txSig);
             } catch (err) {
+              if (err instanceof KycCancelledError) return;
               setChainErr(
                 err instanceof Error ? err.message : String(err),
               );
