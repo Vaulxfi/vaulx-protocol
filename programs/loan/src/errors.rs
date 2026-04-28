@@ -39,4 +39,5 @@ pub enum LoanError {
     /// SR-5 — `publish_price` rejects payloads observed against fewer than
     /// `PriceFeed::MIN_LISTINGS` independent sources.
     #[msg("Insufficient listings to publish a price")] InsufficientListings,
+    #[msg("Unauthorized")] Unauthorized,
 }

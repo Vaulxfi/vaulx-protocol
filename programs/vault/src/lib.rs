@@ -76,6 +76,25 @@ pub mod vault {
         Ok(())
     }
 
+    /// Admin-only: flip `vault_config.kyc_required` between true and false.
+    /// Gated on `signer == vault_config.admin`. Used by tests to exercise
+    /// the runtime revert path of the KYC gate against a fresh user with no
+    /// attestation, then flip back to false so the rest of the suite sees
+    /// the default-off behaviour.
+    pub fn set_kyc_required(ctx: Context<SetKycRequired>, required: bool) -> Result<()> {
+        require_keys_eq!(
+            ctx.accounts.admin.key(),
+            ctx.accounts.vault_config.admin,
+            VaultError::Unauthorized
+        );
+        ctx.accounts.vault_config.kyc_required = required;
+        emit!(KycRequiredChanged {
+            required,
+            by: ctx.accounts.admin.key(),
+        });
+        Ok(())
+    }
+
     pub fn initialize_vault(ctx: Context<InitializeVault>) -> Result<()> {
         let v = &mut ctx.accounts.vault;
         v.asset_mint = ctx.accounts.asset_mint.key();
@@ -492,6 +511,13 @@ pub struct IssueKycAttestation<'info> {
 }
 
 #[derive(Accounts)]
+pub struct SetKycRequired<'info> {
+    #[account(mut, seeds = [VaultConfig::SEED], bump = vault_config.bump)]
+    pub vault_config: Account<'info, VaultConfig>,
+    pub admin: Signer<'info>,
+}
+
+#[derive(Accounts)]
 pub struct InitializeVault<'info> {
     #[account(
         init, payer = payer, space = Vault::SIZE,
@@ -669,6 +695,12 @@ pub struct Disbursed {
     pub amount: u64,
     pub total_assets: u64,
     pub ts: i64,
+}
+
+#[event]
+pub struct KycRequiredChanged {
+    pub required: bool,
+    pub by: Pubkey,
 }
 
 pub use errors::*;

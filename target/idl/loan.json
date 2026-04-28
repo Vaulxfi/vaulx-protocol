@@ -1033,6 +1033,59 @@
       "args": []
     },
     {
+      "name": "set_kyc_required",
+      "docs": [
+        "Admin-only: flip `loan_config.kyc_required` between true and false.",
+        "Gated on `signer == loan_config.admin`. Mirrors `vault::set_kyc_required`."
+      ],
+      "discriminator": [
+        119,
+        53,
+        249,
+        92,
+        244,
+        131,
+        242,
+        154
+      ],
+      "accounts": [
+        {
+          "name": "loan_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  97,
+                  110,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "required",
+          "type": "bool"
+        }
+      ]
+    },
+    {
       "name": "set_oracle_admin",
       "docs": [
         "Admin-only ix: set (or rotate) the pubkey allowed to publish price",
@@ -1237,6 +1290,19 @@
       ]
     },
     {
+      "name": "KycRequiredChanged",
+      "discriminator": [
+        254,
+        170,
+        237,
+        198,
+        250,
+        94,
+        246,
+        73
+      ]
+    },
+    {
       "name": "OracleAdminSet",
       "discriminator": [
         210,
@@ -1343,6 +1409,11 @@
       "code": 6015,
       "name": "InsufficientListings",
       "msg": "Insufficient listings to publish a price"
+    },
+    {
+      "code": 6016,
+      "name": "Unauthorized",
+      "msg": "Unauthorized"
     }
   ],
   "types": [
@@ -1594,6 +1665,22 @@
           {
             "name": "bump",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "KycRequiredChanged",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "required",
+            "type": "bool"
+          },
+          {
+            "name": "by",
+            "type": "pubkey"
           }
         ]
       }

@@ -9,4 +9,5 @@ pub enum VaultError {
     #[msg("No valid Civic gateway token")] NoValidGatewayToken,
     #[msg("No valid KYC attestation")] NoKycAttestation,
     #[msg("Unauthorized attestor")] UnauthorizedAttestor,
+    #[msg("Unauthorized")] Unauthorized,
 }

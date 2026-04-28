@@ -537,6 +537,63 @@
       ]
     },
     {
+      "name": "set_kyc_required",
+      "docs": [
+        "Admin-only: flip `vault_config.kyc_required` between true and false.",
+        "Gated on `signer == vault_config.admin`. Used by tests to exercise",
+        "the runtime revert path of the KYC gate against a fresh user with no",
+        "attestation, then flip back to false so the rest of the suite sees",
+        "the default-off behaviour."
+      ],
+      "discriminator": [
+        119,
+        53,
+        249,
+        92,
+        244,
+        131,
+        242,
+        154
+      ],
+      "accounts": [
+        {
+          "name": "vault_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "required",
+          "type": "bool"
+        }
+      ]
+    },
+    {
       "name": "test_donate_assets",
       "discriminator": [
         14,
@@ -723,6 +780,19 @@
       ]
     },
     {
+      "name": "KycRequiredChanged",
+      "discriminator": [
+        254,
+        170,
+        237,
+        198,
+        250,
+        94,
+        246,
+        73
+      ]
+    },
+    {
       "name": "VaultInitialized",
       "discriminator": [
         180,
@@ -784,6 +854,11 @@
       "code": 6006,
       "name": "UnauthorizedAttestor",
       "msg": "Unauthorized attestor"
+    },
+    {
+      "code": 6007,
+      "name": "Unauthorized",
+      "msg": "Unauthorized"
     }
   ],
   "types": [
@@ -889,6 +964,22 @@
           {
             "name": "bump",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "KycRequiredChanged",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "required",
+            "type": "bool"
+          },
+          {
+            "name": "by",
+            "type": "pubkey"
           }
         ]
       }

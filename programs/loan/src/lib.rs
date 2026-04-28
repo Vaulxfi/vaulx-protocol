@@ -71,6 +71,22 @@ pub mod loan {
         Ok(())
     }
 
+    /// Admin-only: flip `loan_config.kyc_required` between true and false.
+    /// Gated on `signer == loan_config.admin`. Mirrors `vault::set_kyc_required`.
+    pub fn set_kyc_required(ctx: Context<SetKycRequired>, required: bool) -> Result<()> {
+        require_keys_eq!(
+            ctx.accounts.admin.key(),
+            ctx.accounts.loan_config.admin,
+            LoanError::Unauthorized
+        );
+        ctx.accounts.loan_config.kyc_required = required;
+        emit!(KycRequiredChanged {
+            required,
+            by: ctx.accounts.admin.key(),
+        });
+        Ok(())
+    }
+
     pub fn create_ccb_trdc(
         ctx: Context<CreateCcbTrdc>,
         loan_id: Pubkey,
@@ -1090,6 +1106,17 @@ pub struct ExecuteAfDefault<'info> {
 }
 
 #[derive(Accounts)]
+pub struct SetKycRequired<'info> {
+    #[account(
+        mut,
+        seeds = [LoanConfig::SEED],
+        bump = loan_config.bump,
+    )]
+    pub loan_config: Account<'info, LoanConfig>,
+    pub admin: Signer<'info>,
+}
+
+#[derive(Accounts)]
 pub struct SetOracleAdmin<'info> {
     #[account(
         mut,
@@ -1122,6 +1149,12 @@ pub struct PublishPrice<'info> {
     #[account(mut)]
     pub oracle_admin: Signer<'info>,
     pub system_program: Program<'info, System>,
+}
+
+#[event]
+pub struct KycRequiredChanged {
+    pub required: bool,
+    pub by: Pubkey,
 }
 
 #[event]
