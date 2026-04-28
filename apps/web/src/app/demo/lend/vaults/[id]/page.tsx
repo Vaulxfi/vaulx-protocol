@@ -1,12 +1,14 @@
 "use client";
 // Vault tranche detail. 7/5 editorial split — left: numerals + sparkline +
-// stat strip; right: deposit form. All deposit submissions are mocked.
+// stat strip; right: deposit form. Deposit submissions are mocked, but the
+// useKycGate intercept still fires so the lazy-KYC UX shows on first deposit.
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DemoShell } from "../../../_components/demo-shell";
 import { MockBadge } from "../../../_components/integration-badges";
 import { TRANCHES, type VaultTranche } from "../../../_fixtures/vault-tranches";
+import { useKycGate, KycCancelledError } from "@/lib/use-kyc-gate";
 
 const APY_FMT = new Intl.NumberFormat("en-US", {
   minimumFractionDigits: 1,
@@ -92,22 +94,42 @@ function VaultDetail({ tranche }: { tranche: VaultTranche }) {
   const [amount, setAmount] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const { guard, modalNode } = useKycGate(`Deposit ${tranche.currency}`);
 
-  function handleDeposit() {
+  async function handleDeposit() {
     if (!amount) return;
     setSubmitting(true);
-    setTimeout(() => {
+    try {
+      await guard(
+        () =>
+          new Promise<void>((resolve) => {
+            setTimeout(() => {
+              setToast(
+                `✓ Deposit confirmed (mock) · ${amount} ${tranche.currency}`,
+              );
+              setAmount("");
+              setTimeout(() => setToast(null), 4000);
+              resolve();
+            }, 2000);
+          }),
+      );
+    } catch (err) {
+      if (!(err instanceof KycCancelledError)) {
+        setToast(
+          `✗ ${err instanceof Error ? err.message : String(err)}`,
+        );
+        setTimeout(() => setToast(null), 4000);
+      }
+    } finally {
       setSubmitting(false);
-      setToast(`✓ Deposit confirmed (mock) · ${amount} ${tranche.currency}`);
-      setAmount("");
-      setTimeout(() => setToast(null), 4000);
-    }, 2000);
+    }
   }
 
   const isSenior = tranche.risk === "senior";
 
   return (
     <DemoShell formFactor="desktop">
+      {modalNode}
       <Link
         href="/demo/lend"
         className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--ink-muted)] hover:text-[var(--ink)]"
