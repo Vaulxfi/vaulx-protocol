@@ -10,7 +10,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useDeposit } from "@/lib/chain/vault";
-import { CivicAuthGate } from "@/components/vaulx/civic-auth-gate";
 
 const schema = z.object({
   amount: z.coerce
@@ -87,5 +86,5 @@ export function DepositForm({ assetMint }: { assetMint: PublicKey }) {
     </form>
   );
 
-  return <CivicAuthGate>{formEl}</CivicAuthGate>;
+  return formEl;
 }

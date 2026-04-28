@@ -16,8 +16,6 @@ import {
   SolflareWalletAdapter
 } from "@solana/wallet-adapter-wallets";
 
-import { CivicAuthRoot } from "@/components/vaulx/civic-auth-gate";
-
 import "@solana/wallet-adapter-react-ui/styles.css";
 
 export function WalletProvider({ children }: { children: ReactNode }) {
@@ -60,9 +58,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         retry.
       */}
       <SolanaWalletProvider wallets={wallets} onError={onError} autoConnect={false}>
-        <WalletModalProvider>
-          <CivicAuthRoot>{children}</CivicAuthRoot>
-        </WalletModalProvider>
+        <WalletModalProvider>{children}</WalletModalProvider>
       </SolanaWalletProvider>
     </ConnectionProvider>
   );
