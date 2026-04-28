@@ -59,6 +59,7 @@ import {
   demoErrorResponse,
   DemoEnvError,
   deriveLoanConfigPda,
+  derivePriceFeedPda,
   deriveTrdcStatePda,
   loadOperatorKeypair,
 } from "@/lib/admin/demo";
@@ -195,6 +196,40 @@ export async function POST(req: Request) {
       );
     }
     const custodianPk = new PublicKey(cfg.custodian);
+    const oracleAdminPk = new PublicKey(cfg.oracleAdmin ?? cfg.oracle_admin ?? PublicKey.default.toBase58());
+    const oracleOn = !oracleAdminPk.equals(PublicKey.default);
+
+    // --- 0. publish_price (oracle-on path) ------------------------------
+    // When loan_config.oracle_admin is set, create_ccb_trdc requires a
+    // canonical PriceFeed PDA derived from `ref_bytes` to exist on-chain
+    // (SR-2 binding: programs/loan/src/lib.rs:145). We publish the median
+    // price from the FE-supplied appraisal so the same operator who owns
+    // the loan-config also acts as oracle for the demo. In production this
+    // would be a separate oracle service (RedStone push model).
+    let priceFeedPda: PublicKey = SystemProgram.programId;
+    let publishPriceTx: string | null = null;
+    if (oracleOn) {
+      if (!oracleAdminPk.equals(payer.publicKey)) {
+        throw new DemoEnvError(
+          `loan_config.oracle_admin (${oracleAdminPk.toBase58()}) does not match operator (${payer.publicKey.toBase58()}). Set OPERATOR_KEYPAIR_JSON to the oracle-admin keypair.`,
+        );
+      }
+      priceFeedPda = derivePriceFeedPda(refBytes, loanProgramId);
+      publishPriceTx = await (loanProgram.methods as any)
+        .publishPrice(
+          Array.from(refBytes),
+          new BN(body.appraisalUsdCents),  // median_usd_cents
+          new BN(5),                       // listings (>=3 required by SR-5)
+          new BN(nowSec),                  // observed_at
+        )
+        .accounts({
+          priceFeed: priceFeedPda,
+          loanConfig: loanConfigPda,
+          oracleAdmin: payer.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc({ commitment: "confirmed" });
+    }
 
     // --- 1. create_ccb_trdc ---------------------------------------------
     // IDL args (loan.json): loan_id, appraisal_value, loan_amount, due_ts,
@@ -218,10 +253,11 @@ export async function POST(req: Request) {
         payer: payer.publicKey,
         systemProgram: SystemProgram.programId,
         loanConfig: loanConfigPda,
-        // KYC + oracle gates are off in demo mode — pass SystemProgram as
-        // the "any account" placeholder per the IDL docs.
+        // KYC gate is off in demo mode (kyc_required = false) — placeholder.
         kycAttestation: SystemProgram.programId,
-        priceFeed: SystemProgram.programId,
+        // Oracle gate: when on, pass the canonical PriceFeed PDA we just
+        // published; when off, pass SystemProgram per the IDL docs.
+        priceFeed: priceFeedPda,
       })
       .rpc({ commitment: "confirmed" });
 
@@ -263,6 +299,8 @@ export async function POST(req: Request) {
       loanId: loanId.toBase58(),
       trdcStatePda: trdcPda.toBase58(),
       refBytesHex: Buffer.from(refBytes).toString("hex"),
+      priceFeedPda: oracleOn ? priceFeedPda.toBase58() : null,
+      publishPriceTx,
       createTx,
       custodyTx,
       detail: `Provisioned loan ${loanId.toBase58().slice(0, 8)}… for borrower ${borrower

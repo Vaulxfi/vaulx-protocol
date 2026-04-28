@@ -331,6 +331,19 @@ export function deriveLoanConfigPda(programId: PublicKey): PublicKey {
   )[0];
 }
 
+export function derivePriceFeedPda(
+  refBytes: Uint8Array,
+  programId: PublicKey,
+): PublicKey {
+  if (refBytes.length !== 32) {
+    throw new Error("ref_bytes must be exactly 32 bytes");
+  }
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("price_feed"), Buffer.from(refBytes)],
+    programId,
+  )[0];
+}
+
 export function deriveLoanAuthorityPda(programId: PublicKey): PublicKey {
   return PublicKey.findProgramAddressSync(
     [Buffer.from("loan_authority")],
