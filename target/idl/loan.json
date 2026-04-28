@@ -683,6 +683,72 @@
       ]
     },
     {
+      "name": "migrate_loan_config_v2",
+      "docs": [
+        "Admin-only ix: set (or rotate) the pubkey allowed to publish price",
+        "feeds. Defaults to `Pubkey::default()` (oracle inert). Rotation is",
+        "allowed because operationally we expect the publisher key to be",
+        "rotated via Squads multisig, not by program upgrade; admin can also",
+        "reset to `Pubkey::default()` to disable the oracle in an emergency",
+        "(e.g. compromised publisher key, before a fresh keypair is provisioned).",
+        "",
+        "One-shot migration ix for upgrades coming from a pre-`oracle_admin`",
+        "LoanConfig layout (account data length 106 bytes; new layout is 138).",
+        "Reallocs the account to the new size, zero-fills the trailing bytes,",
+        "and pays the rent delta from `admin`. No-op when the account is",
+        "already at the new size. Admin-gated to prevent any other caller from",
+        "reallocating the program's config account. The admin pubkey lives at",
+        "the same offset in both layouts (offset 8, immediately after the",
+        "Anchor discriminator) so the byte read here is layout-stable."
+      ],
+      "discriminator": [
+        241,
+        205,
+        115,
+        190,
+        112,
+        57,
+        140,
+        113
+      ],
+      "accounts": [
+        {
+          "name": "loan_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  97,
+                  110,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "pay_installment",
       "docs": [
         "Moment 5 (partial) — borrower pays down principal in installments.",
@@ -1175,14 +1241,6 @@
     },
     {
       "name": "set_oracle_admin",
-      "docs": [
-        "Admin-only ix: set (or rotate) the pubkey allowed to publish price",
-        "feeds. Defaults to `Pubkey::default()` (oracle inert). Rotation is",
-        "allowed because operationally we expect the publisher key to be",
-        "rotated via Squads multisig, not by program upgrade; admin can also",
-        "reset to `Pubkey::default()` to disable the oracle in an emergency",
-        "(e.g. compromised publisher key, before a fresh keypair is provisioned)."
-      ],
       "discriminator": [
         42,
         121,
@@ -1515,6 +1573,11 @@
       "code": 6016,
       "name": "Unauthorized",
       "msg": "Unauthorized"
+    },
+    {
+      "code": 6017,
+      "name": "AccountTooSmall",
+      "msg": "Account data too small for migration"
     }
   ],
   "types": [

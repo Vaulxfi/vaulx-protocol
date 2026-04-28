@@ -195,6 +195,69 @@
       ]
     },
     {
+      "name": "init_trdc_config",
+      "docs": [
+        "Admin one-shot — initializes the singleton `TrdcConfig` PDA that pins",
+        "the merkle tree `mint_trdc_cnft` is allowed to write into. The signer",
+        "becomes the admin (and is the only identity that can ever rotate the",
+        "merkle tree via a future ix). Initializing twice is impossible because",
+        "Anchor's `init` constraint fails if the PDA is already in use. There",
+        "is intentionally no rotation ix in this commit (SR-7: no admin",
+        "override / backdoor mint paths)."
+      ],
+      "discriminator": [
+        160,
+        89,
+        220,
+        71,
+        61,
+        17,
+        12,
+        249
+      ],
+      "accounts": [
+        {
+          "name": "trdc_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  114,
+                  100,
+                  99,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "merkle_tree",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
       "name": "initialize_trdc_state",
       "discriminator": [
         162,
@@ -264,11 +327,40 @@
         {
           "name": "rate_bps",
           "type": "u64"
+        },
+        {
+          "name": "ref_bytes",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         }
       ]
     },
     {
       "name": "mint_trdc_cnft",
+      "docs": [
+        "Task 4.2 — Bubblegum cNFT mint with all 8 security mitigations wired:",
+        "",
+        "* SR-1 tree-authority hijack: tree authority is the trdc-program PDA",
+        "`b\"trdc_tree_authority\"`. The PDA signs the CPI via `invoke_signed`.",
+        "* SR-2 permissionless mint: the borrower must sign; the trdc_state",
+        "must be in `PendingCustody` and not yet minted.",
+        "* SR-3 asset id: derived deterministically from `(merkle_tree,",
+        "num_minted)` BEFORE the CPI; written AFTER the CPI succeeds.",
+        "* SR-4 account substitution: `merkle_tree` is locked to",
+        "`trdc_config.merkle_tree`; `tree_config` derived under bubblegum's",
+        "program id; bubblegum / compression / log_wrapper pinned by address.",
+        "* SR-5 partial state on failure: writes only happen after CPI returns",
+        "Ok; Anchor rolls back on Err.",
+        "* SR-6 metadata uri tamper: `name` encodes loan_id + appraisal hash",
+        "short-form; `uri` is a fixed pattern keyed off loan_id (Task 4.3",
+        "serves it from on-chain state, never URL params).",
+        "* SR-7 no backdoor: there is exactly one mint path; no admin override.",
+        "* SR-8 tree exhaustion: explicit `TreeFull` revert pre-CPI."
+      ],
       "discriminator": [
         43,
         103,
@@ -285,13 +377,155 @@
           "writable": true
         },
         {
-          "name": "authority",
+          "name": "borrower",
+          "docs": [
+            "Borrower signs as the leaf owner / payer for the mint. Must match",
+            "`trdc_state.borrower` (enforced in the ix body, SR-2)."
+          ],
+          "writable": true,
           "signer": true
+        },
+        {
+          "name": "trdc_config",
+          "docs": [
+            "SR-4: pin the canonical merkle tree via the singleton TrdcConfig."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  114,
+                  100,
+                  99,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "merkle_tree",
+          "docs": [
+            "SR-4: must equal the merkle tree pubkey stored in `trdc_config`."
+          ],
+          "writable": true
+        },
+        {
+          "name": "tree_config",
+          "docs": [
+            "Bubblegum's TreeConfig PDA — derived from `merkle_tree.key()` under",
+            "the bubblegum program. Anchor enforces the derivation; we deserialize",
+            "it inside the ix to read `num_minted`."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "merkle_tree"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                152,
+                139,
+                128,
+                235,
+                121,
+                53,
+                40,
+                105,
+                178,
+                36,
+                116,
+                95,
+                89,
+                221,
+                191,
+                138,
+                38,
+                88,
+                202,
+                19,
+                220,
+                104,
+                129,
+                33,
+                38,
+                53,
+                28,
+                174,
+                7,
+                193,
+                165,
+                165
+              ]
+            }
+          }
+        },
+        {
+          "name": "tree_authority",
+          "docs": [
+            "SR-1: trdc-program PDA that signs the CPI as `tree_creator_or_delegate`."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  114,
+                  100,
+                  99,
+                  95,
+                  116,
+                  114,
+                  101,
+                  101,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "log_wrapper",
+          "address": "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV"
+        },
+        {
+          "name": "compression_program",
+          "address": "cmtDvXumGCrqC1Age74AVPhSRVXJMd8PJS91L8KbNCK"
+        },
+        {
+          "name": "bubblegum_program",
+          "address": "BGUMAp9Gq7iTEuizy4pqaxsTyUCBK68MDfK752saRPUY"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
         {
-          "name": "asset_hint",
+          "name": "appraisal_hash",
           "type": {
             "array": [
               "u8",
@@ -527,9 +761,35 @@
         245,
         236
       ]
+    },
+    {
+      "name": "TrdcConfig",
+      "discriminator": [
+        77,
+        77,
+        46,
+        233,
+        111,
+        66,
+        124,
+        96
+      ]
     }
   ],
   "events": [
+    {
+      "name": "TrdcMinted",
+      "discriminator": [
+        189,
+        80,
+        59,
+        232,
+        96,
+        82,
+        135,
+        28
+      ]
+    },
     {
       "name": "TrdcStateInitialized",
       "discriminator": [
@@ -567,6 +827,36 @@
       "code": 6001,
       "name": "MathOverflow",
       "msg": "Math overflow"
+    },
+    {
+      "code": 6002,
+      "name": "BorrowerMismatch",
+      "msg": "Signer does not match the loan's borrower"
+    },
+    {
+      "code": 6003,
+      "name": "LoanNotReady",
+      "msg": "Loan is not in the awaiting-mint state"
+    },
+    {
+      "code": 6004,
+      "name": "AlreadyMinted",
+      "msg": "TRDC cNFT has already been minted for this loan"
+    },
+    {
+      "code": 6005,
+      "name": "TreeFull",
+      "msg": "Merkle tree has no remaining capacity"
+    },
+    {
+      "code": 6006,
+      "name": "Unauthorized",
+      "msg": "Caller is not the trdc-config admin"
+    },
+    {
+      "code": 6007,
+      "name": "InvalidTreeConfig",
+      "msg": "Failed to deserialize Bubblegum TreeConfig"
     }
   ],
   "types": [
@@ -640,6 +930,10 @@
           },
           {
             "name": "asset_id",
+            "docs": [
+              "Bubblegum cNFT asset id assigned by `mint_trdc_cnft`. `Pubkey::default`",
+              "until the mint succeeds; written exactly once."
+            ],
             "type": "pubkey"
           },
           {
@@ -672,6 +966,34 @@
             "type": "u64"
           },
           {
+            "name": "borrower",
+            "docs": [
+              "Borrower pubkey captured at `initialize_trdc_state`. Used by",
+              "`mint_trdc_cnft` to require that the signer is the same identity that",
+              "originated the loan (SR-2)."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "ref_bytes",
+            "docs": [
+              "SR-2 (price-feed binding) — sha256(watch_ref) captured at",
+              "`initialize_trdc_state`. `disburse_from_vault` re-derives the canonical",
+              "`PriceFeed` PDA from this value and Anchor address-checks the supplied",
+              "price_feed account against it. Without this binding an attacker could",
+              "substitute a fresh feed for a *different* (more expensive) watch and",
+              "over-collateralise. Stored zeroed when the loan was created with the",
+              "oracle off; consumers MUST treat zero as \"no binding\" and skip the",
+              "derived-PDA check."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
             "name": "_reserved",
             "type": {
               "array": [
@@ -679,6 +1001,66 @@
                 16
               ]
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "TrdcConfig",
+      "docs": [
+        "Singleton config PDA. Pins which merkle tree `mint_trdc_cnft` is allowed",
+        "to write into and identifies the admin authorized to (re)set it."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "merkle_tree",
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TrdcMinted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "trdc_state",
+            "type": "pubkey"
+          },
+          {
+            "name": "loan_id",
+            "type": "pubkey"
+          },
+          {
+            "name": "asset_id",
+            "type": "pubkey"
+          },
+          {
+            "name": "leaf_owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "tree",
+            "type": "pubkey"
+          },
+          {
+            "name": "num_minted",
+            "type": "u64"
+          },
+          {
+            "name": "ts",
+            "type": "i64"
           }
         ]
       }

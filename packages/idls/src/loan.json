@@ -7,6 +7,94 @@
   },
   "instructions": [
     {
+      "name": "close_kyc_attestation",
+      "docs": [
+        "Admin-only: close a `KycAttestation` PDA and refund rent to the admin.",
+        "Mirrors `vault::close_kyc_attestation`. Required for revocation /",
+        "re-issuance — PDA seeds are deterministic per owner, so the only way",
+        "to re-issue with a fresh `jwt_hash` is to close the existing account",
+        "first."
+      ],
+      "discriminator": [
+        92,
+        214,
+        228,
+        119,
+        181,
+        84,
+        94,
+        68
+      ],
+      "accounts": [
+        {
+          "name": "loan_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  97,
+                  110,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "kyc_attestation",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  107,
+                  121,
+                  99,
+                  95,
+                  97,
+                  116,
+                  116,
+                  101,
+                  115,
+                  116,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "_owner",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
       "name": "confirm_custody",
       "discriminator": [
         87,
@@ -595,6 +683,72 @@
       ]
     },
     {
+      "name": "migrate_loan_config_v2",
+      "docs": [
+        "Admin-only ix: set (or rotate) the pubkey allowed to publish price",
+        "feeds. Defaults to `Pubkey::default()` (oracle inert). Rotation is",
+        "allowed because operationally we expect the publisher key to be",
+        "rotated via Squads multisig, not by program upgrade; admin can also",
+        "reset to `Pubkey::default()` to disable the oracle in an emergency",
+        "(e.g. compromised publisher key, before a fresh keypair is provisioned).",
+        "",
+        "One-shot migration ix for upgrades coming from a pre-`oracle_admin`",
+        "LoanConfig layout (account data length 106 bytes; new layout is 138).",
+        "Reallocs the account to the new size, zero-fills the trailing bytes,",
+        "and pays the rent delta from `admin`. No-op when the account is",
+        "already at the new size. Admin-gated to prevent any other caller from",
+        "reallocating the program's config account. The admin pubkey lives at",
+        "the same offset in both layouts (offset 8, immediately after the",
+        "Anchor discriminator) so the byte read here is layout-stable."
+      ],
+      "discriminator": [
+        241,
+        205,
+        115,
+        190,
+        112,
+        57,
+        140,
+        113
+      ],
+      "accounts": [
+        {
+          "name": "loan_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  97,
+                  110,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "pay_installment",
       "docs": [
         "Moment 5 (partial) — borrower pays down principal in installments.",
@@ -1033,15 +1187,60 @@
       "args": []
     },
     {
-      "name": "set_oracle_admin",
+      "name": "set_kyc_required",
       "docs": [
-        "Admin-only ix: set (or rotate) the pubkey allowed to publish price",
-        "feeds. Defaults to `Pubkey::default()` (oracle inert). Rotation is",
-        "allowed because operationally we expect the publisher key to be",
-        "rotated via Squads multisig, not by program upgrade; admin can also",
-        "reset to `Pubkey::default()` to disable the oracle in an emergency",
-        "(e.g. compromised publisher key, before a fresh keypair is provisioned)."
+        "Admin-only: flip `loan_config.kyc_required` between true and false.",
+        "Gated on `signer == loan_config.admin`. Mirrors `vault::set_kyc_required`."
       ],
+      "discriminator": [
+        119,
+        53,
+        249,
+        92,
+        244,
+        131,
+        242,
+        154
+      ],
+      "accounts": [
+        {
+          "name": "loan_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  97,
+                  110,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "required",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "set_oracle_admin",
       "discriminator": [
         42,
         121,
@@ -1237,6 +1436,32 @@
       ]
     },
     {
+      "name": "KycAttestationClosed",
+      "discriminator": [
+        141,
+        38,
+        15,
+        236,
+        37,
+        28,
+        110,
+        224
+      ]
+    },
+    {
+      "name": "KycRequiredChanged",
+      "discriminator": [
+        254,
+        170,
+        237,
+        198,
+        250,
+        94,
+        246,
+        73
+      ]
+    },
+    {
       "name": "OracleAdminSet",
       "discriminator": [
         210,
@@ -1343,6 +1568,16 @@
       "code": 6015,
       "name": "InsufficientListings",
       "msg": "Insufficient listings to publish a price"
+    },
+    {
+      "code": 6016,
+      "name": "Unauthorized",
+      "msg": "Unauthorized"
+    },
+    {
+      "code": 6017,
+      "name": "AccountTooSmall",
+      "msg": "Account data too small for migration"
     }
   ],
   "types": [
@@ -1594,6 +1829,38 @@
           {
             "name": "bump",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "KycAttestationClosed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "admin",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "KycRequiredChanged",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "required",
+            "type": "bool"
+          },
+          {
+            "name": "by",
+            "type": "pubkey"
           }
         ]
       }
@@ -1869,6 +2136,25 @@
               "originated the loan (SR-2)."
             ],
             "type": "pubkey"
+          },
+          {
+            "name": "ref_bytes",
+            "docs": [
+              "SR-2 (price-feed binding) — sha256(watch_ref) captured at",
+              "`initialize_trdc_state`. `disburse_from_vault` re-derives the canonical",
+              "`PriceFeed` PDA from this value and Anchor address-checks the supplied",
+              "price_feed account against it. Without this binding an attacker could",
+              "substitute a fresh feed for a *different* (more expensive) watch and",
+              "over-collateralise. Stored zeroed when the loan was created with the",
+              "oracle off; consumers MUST treat zero as \"no binding\" and skip the",
+              "derived-PDA check."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
           },
           {
             "name": "_reserved",

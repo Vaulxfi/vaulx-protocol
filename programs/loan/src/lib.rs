@@ -725,6 +725,44 @@ pub mod loan {
     /// rotated via Squads multisig, not by program upgrade; admin can also
     /// reset to `Pubkey::default()` to disable the oracle in an emergency
     /// (e.g. compromised publisher key, before a fresh keypair is provisioned).
+    ///
+    /// One-shot migration ix for upgrades coming from a pre-`oracle_admin`
+    /// LoanConfig layout (account data length 106 bytes; new layout is 138).
+    /// Reallocs the account to the new size, zero-fills the trailing bytes,
+    /// and pays the rent delta from `admin`. No-op when the account is
+    /// already at the new size. Admin-gated to prevent any other caller from
+    /// reallocating the program's config account. The admin pubkey lives at
+    /// the same offset in both layouts (offset 8, immediately after the
+    /// Anchor discriminator) so the byte read here is layout-stable.
+    pub fn migrate_loan_config_v2(ctx: Context<MigrateLoanConfigV2>) -> Result<()> {
+        let cfg = &ctx.accounts.loan_config;
+        let info = cfg.to_account_info();
+        let new_size = LoanConfig::SIZE;
+        let cur_size = info.data_len();
+        if cur_size >= new_size {
+            return Ok(());
+        }
+        // Top up rent to cover the larger account.
+        let rent = Rent::get()?;
+        let new_rent = rent.minimum_balance(new_size);
+        let cur_lamports = info.lamports();
+        if new_rent > cur_lamports {
+            let topup = new_rent - cur_lamports;
+            anchor_lang::system_program::transfer(
+                CpiContext::new(
+                    ctx.accounts.system_program.to_account_info(),
+                    anchor_lang::system_program::Transfer {
+                        from: ctx.accounts.admin.to_account_info(),
+                        to: info.clone(),
+                    },
+                ),
+                topup,
+            )?;
+        }
+        info.realloc(new_size, true)?;
+        Ok(())
+    }
+
     pub fn set_oracle_admin(
         ctx: Context<SetOracleAdmin>,
         new_oracle_admin: Pubkey,
@@ -1162,6 +1200,27 @@ pub struct SetOracleAdmin<'info> {
     )]
     pub loan_config: Account<'info, LoanConfig>,
     pub admin: Signer<'info>,
+}
+
+/// Accounts for `migrate_loan_config_v2`. Uses `UncheckedAccount` for the
+/// loan_config because the on-chain data may still be in the pre-oracle
+/// layout (106 bytes), which `Account<'info, LoanConfig>` cannot deserialize.
+/// The ix body verifies the discriminator + admin offset manually.
+#[derive(Accounts)]
+pub struct MigrateLoanConfigV2<'info> {
+    /// CHECK: PDA derivation enforced via seeds; admin offset verified in body.
+    #[account(
+        mut,
+        seeds = [LoanConfig::SEED],
+        bump,
+        constraint = loan_config.owner == &crate::ID @ LoanError::Unauthorized,
+        constraint = loan_config.try_borrow_data()?.len() >= 8 + 32 @ LoanError::AccountTooSmall,
+        constraint = loan_config.try_borrow_data()?[8..40] == admin.key().to_bytes() @ LoanError::UnauthorizedAdmin,
+    )]
+    pub loan_config: UncheckedAccount<'info>,
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]

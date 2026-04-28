@@ -1,0 +1,21 @@
+{
+  "tree_pubkey": "DcKh8sdovYPPdhAUbsqM5PqNSP93EHwF1L44PfJWYKpZ",
+  "tree_authority_pda": "Ey72szrc5QpFk3GKH9onA8vGp11boj1gzycmXt635QwK",
+  "tree_authority_bump": 255,
+  "tree_authority_seed": "trdc_tree_authority",
+  "bubblegum_tree_config_pda": "Aop8XH4SsFvq6b6goBBufvJgiwysaFRCA7P49Fosu7js",
+  "bubblegum_program_id": "BGUMAp9Gq7iTEuizy4pqaxsTyUCBK68MDfK752saRPUY",
+  "max_depth": 14,
+  "max_buffer_size": 64,
+  "canopy_depth": 9,
+  "leaf_capacity": 16384,
+  "public": false,
+  "trdc_program_id": "FcDPvRaixjAz7LeC64h9xkXPzvHT7dusbNmg83eJfr7R",
+  "cluster": "devnet",
+  "created_slot": 458657326,
+  "created_alloc_tx": "4LrWbqPxJDFLXizhmQHvWxYQmReiwaTvBC68ignCZ1GHN5G1aS57xJ2NNkvyJc9L5xn1F18B1j5h2SKN4mF7CUkc",
+  "created_init_tx": "5RvAiJwicKTewp78QeCgdGRkPsSGdecymi91JYJJeoEoYL6iDDoAP5gw7Zt9EKnNtK2fkThVG8Xucxu9e2yqXbNA",
+  "created_at": "2026-04-28T11:56:47.855Z",
+  "creator_was": "2HYjytRc4oKY2ndmJfAq2XdGhPqYB7VdDPLzA18QEiAH",
+  "note": "Tree authority is a trdc-program PDA, not the payer. Payer paid rent and submitted the create tx, but the on-chain TreeConfig.tree_creator is the PDA — so only the trdc program can sign mints."
+}

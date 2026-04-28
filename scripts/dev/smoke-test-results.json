@@ -1,0 +1,19 @@
+{
+  "publishPrice": {
+    "priceFeedPda": "GTNbakdWYqT1zPpYkgGKV2vrbAJM6CtQEwnDj5a87C1r",
+    "sig": "22CYgACXhy2jFofAoZphjLRnTfB6VCZGSvvHA7sQFq5y4jpXxWhkqDC5wZBU88ZNXD5UEHSYiWdUyALkrULy2zvz",
+    "refBytes": "e3ed5ee770989cf16de90968dd7480c0afc0aa4d3eb69d8c300b279cfa3aa5ae"
+  },
+  "issueKyc": {
+    "kycPda": "56Rjxe227Mi7SP1Ln6VK7VbukEajjQGKsTnmqKA7i1BQ",
+    "owner": "9jY99VjXu1VuHwXE8VSGu85sBQRQgWYEiBNK1S5ppKHf",
+    "sig": "3rVRcPbVHSzMqFYhQ4sz5Vjmgs8siQbX8aZBA5Hr34Vu4M1qDcsvEyFyqXC1iwbpvJwB71x2P87UhnkNQ4jzk6su"
+  },
+  "mintCnft": {
+    "loanId": "HG68yug813dDS3d6Pqa4KWDr2PVLKYcBkdtxEDzK5Ywt",
+    "trdcStatePda": "HcQ9nVGLv9HNXhRtdVYXtNwqRojUwBRDeEQmzkWjnPhe",
+    "assetId": "2T9XsTSdvNLvRYKtCCgACafbS1op5Mf88koskGzifuEw",
+    "initSig": "34BquRYYM8PKH7GGp63aCZavhV2WgRFAZukh62MkFM5qH9EcrAG63MwYtGizW2uvXhGdSGEyXRn7ZxNAruUDZr5R",
+    "mintSig": "5UwtTb3MsqLJfhwBpqi6bMK4hdPnZmiWHnCWqaE8gNhZxxift5yiKHLM8HPMQjVBPgD35GJJkeMeqq6vTJC5Y4sK"
+  }
+}

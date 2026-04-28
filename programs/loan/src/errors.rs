@@ -40,4 +40,8 @@ pub enum LoanError {
     /// `PriceFeed::MIN_LISTINGS` independent sources.
     #[msg("Insufficient listings to publish a price")] InsufficientListings,
     #[msg("Unauthorized")] Unauthorized,
+    /// Migration ix found the on-chain account smaller than expected (the
+    /// smaller layout never even had room for `admin`). Bail out instead of
+    /// reading garbage.
+    #[msg("Account data too small for migration")] AccountTooSmall,
 }

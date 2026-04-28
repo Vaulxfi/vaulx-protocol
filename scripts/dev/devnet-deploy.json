@@ -51,5 +51,56 @@
     "loan": "6cuFPdG2KU6vnqqU2s2pUS5hXTGUKemYr2jLoq2eC4uwWZjHHFRrmdW2N9GVb6KNcpmSM9XnmTut6cfCyMidEPA",
     "auction": "64t8PCUkZCr4mvtCy4jxAwb8migva47AQ9Qi1qTKm5vLkoGwjjDFe1gaBfrVPg2uZKE42h1VNqAXcnZBsHp7ueJT"
   },
-  "transferred_at": "2026-04-28T07:10:34.864Z"
+  "transferred_at": "2026-04-28T07:10:34.864Z",
+  "wave_d_squads_upgrades": {
+    "summary": "Wave D — Squads V4 2/3 multisig vote upgraded trdc + vault + loan to ship Items 4 + 5 + B.1 + B.2. Authority chain enforced: payer -> Squads multisig -> vault PDA -> upgrade.",
+    "executed_at": "2026-04-28T12:00:25Z",
+    "trdc": {
+      "previous_data_length_bytes": 251088,
+      "new_data_length_bytes": 354464,
+      "deploy_slot": 458657199,
+      "squads_transaction_index": 1,
+      "squads_execute_signature": "aptv7cLhuCosgaQnypoH71juKwB6kYt82jJs665wHRSeziJpwVy3obivWBphXRaYfMimjYTGZHtrXoTXrG764Sj",
+      "buffer": "4LVEBBGPycB99CZ3SRNpQQsc71fwtxndyykH9aouzyS3"
+    },
+    "vault": {
+      "previous_data_length_bytes": 397688,
+      "new_data_length_bytes": 414056,
+      "deploy_slot": 458657239,
+      "squads_transaction_index": 2,
+      "squads_execute_signature": "XFnjBuB2PsVJvQw1yYr6UZft6qLEbbz4UcPNYPoiY5CDp2PoGnVtUoVkUc28aPetv19JaYHgqaLumTdHfhME4kK",
+      "buffer": "GqFL1M7sESo5HPHU8Dm25yxPnAsh36JgCy7qsRyM9qXQ"
+    },
+    "loan": {
+      "previous_data_length_bytes": 451800,
+      "intermediate_data_length_bytes": 521312,
+      "new_data_length_bytes": 527832,
+      "deploy_slot_intermediate": 458657285,
+      "deploy_slot_final": 458657901,
+      "squads_transaction_index_intermediate": 3,
+      "squads_transaction_index_final": 4,
+      "squads_execute_signature_intermediate": "ZZS2mfiTz57w9LqMmor8AqvzeAu6JHTVBtPrD84GFGa6YZg4fgi3zebBivEMiQDLixGi6G3p2c7bdSAYfZ8HJxy",
+      "squads_execute_signature_final": "j449KQpwNf1VdxAS4VLu2GTUTPHBkttfdLD4YjqNjouKbtCFN1GC6ihvUEsMHkpt2svsXs9YWBU8vCtqon9Bn5N",
+      "buffer_intermediate": "HsXtRahRpr5amnyTDbG8TGzBb9katzM1RYwPbaw2w1YY",
+      "buffer_final": "7xRGkPomPDCo87jP2wVzonsNWVpntbGwK6Gm34NvWJoi",
+      "note": "Two upgrades: the first shipped publish_price + set_oracle_admin + KYC ixs but failed to deserialize the pre-existing loan_config (106 bytes vs new 138-byte layout). The second adds migrate_loan_config_v2, an admin-gated one-shot that reallocs the account to v2 size."
+    },
+    "auction": {
+      "note": "auction program has no new ixs in this wave; not redeployed. Authority remains vault PDA."
+    },
+    "post_upgrade_init": {
+      "merkle_tree_pubkey": "DcKh8sdovYPPdhAUbsqM5PqNSP93EHwF1L44PfJWYKpZ",
+      "merkle_tree_alloc_tx": "4LrWbqPxJDFLXizhmQHvWxYQmReiwaTvBC68ignCZ1GHN5G1aS57xJ2NNkvyJc9L5xn1F18B1j5h2SKN4mF7CUkc",
+      "merkle_tree_init_tx": "5RvAiJwicKTewp78QeCgdGRkPsSGdecymi91JYJJeoEoYL6iDDoAP5gw7Zt9EKnNtK2fkThVG8Xucxu9e2yqXbNA",
+      "trdc_config_pda": "EVJ5y14yR4CkDWprHjcTESePSkiLMaNXeQzBQQt1hXdH",
+      "trdc_config_init_tx": "L1679HFuBscoACVNfRNEhHpzumH4YW8kVPpfSNqCrnUmerBMbXTDZHG8BdYbxvTVA5Ko5e5naQygqyeAxoZg7h9",
+      "loan_config_migrate_v2_tx": "28zj8pZbh8p3TaYtoW8UiVUEjtactjb8wCVVV32NTxHTpjmHFb8TFvCMsHsjA9H9GZ5ey3euF5qED2MPvrCeSbe2",
+      "loan_set_oracle_admin_tx": "5XM8N1Ze3dzJouaCkiKwxm9W3S5jU9FXLzV5xtbzWo6JPMRkn7tKXFmngbNR1MQXykTE2b9dHCZEB6K7hHaMpyc1"
+    },
+    "smoke_tests": {
+      "publish_price": "22CYgACXhy2jFofAoZphjLRnTfB6VCZGSvvHA7sQFq5y4jpXxWhkqDC5wZBU88ZNXD5UEHSYiWdUyALkrULy2zvz",
+      "issue_kyc_attestation": "3rVRcPbVHSzMqFYhQ4sz5Vjmgs8siQbX8aZBA5Hr34Vu4M1qDcsvEyFyqXC1iwbpvJwB71x2P87UhnkNQ4jzk6su",
+      "mint_trdc_cnft": "5UwtTb3MsqLJfhwBpqi6bMK4hdPnZmiWHnCWqaE8gNhZxxift5yiKHLM8HPMQjVBPgD35GJJkeMeqq6vTJC5Y4sK"
+    }
+  }
 }
