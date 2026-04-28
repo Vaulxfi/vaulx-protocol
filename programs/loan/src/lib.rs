@@ -13,7 +13,6 @@ use vault::program::Vault as VaultProgram;
 use vault::state::Vault as VaultAccount;
 
 pub mod attestation;
-pub mod civic;
 pub mod errors;
 pub mod math;
 pub mod state;

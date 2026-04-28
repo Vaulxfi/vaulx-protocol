@@ -2,7 +2,6 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Burn, Mint, MintTo, Token, TokenAccount, Transfer};
 
 pub mod attestation;
-pub mod civic;
 pub mod errors;
 pub mod state;
 
