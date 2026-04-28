@@ -13,6 +13,7 @@ import { createRequire } from "node:module";
 import { insertEvent } from "./supabase.js";
 import { RedstonePublisher, type AppraisalQuery } from "./redstone-publisher.js";
 import { startGraphqlServer } from "./graphql/server.js";
+import { KaminoRouter, type KaminoCluster } from "./kamino-router.js";
 
 // Load IDL JSONs via createRequire to sidestep a Node 24 ESM regression where
 // re-exported JSON named-exports from @vaulx/idls fail at module-instantiation
@@ -162,6 +163,60 @@ async function main(): Promise<void> {
   } else {
     console.log(
       "[indexer] REDSTONE_SIGNER_KEYPAIR_PATH not set — publisher disabled",
+    );
+  }
+
+  // Item 7 — Kamino USDC float yield routing (DRY-RUN by default).
+  // Gated by KAMINO_VAULT_ADDRESS + KAMINO_SIGNER_KEYPAIR_PATH +
+  // KAMINO_VAULT_PDA + KAMINO_VAULT_USDC_ACCOUNT. The router observes idle
+  // USDC and logs the routing action it would have taken; real execution
+  // requires a `vault.route_idle_to_kamino` ix on the vault program.
+  const kaminoVaultAddr = process.env.KAMINO_VAULT_ADDRESS;
+  const kaminoSignerPath = process.env.KAMINO_SIGNER_KEYPAIR_PATH;
+  const kaminoVaultPda = process.env.KAMINO_VAULT_PDA;
+  const kaminoVaultUsdc = process.env.KAMINO_VAULT_USDC_ACCOUNT;
+  if (
+    kaminoVaultAddr &&
+    kaminoSignerPath &&
+    kaminoVaultPda &&
+    kaminoVaultUsdc
+  ) {
+    const cluster: KaminoCluster =
+      (process.env.KAMINO_CLUSTER as KaminoCluster | undefined) ?? "mainnet";
+    const dryRun = (process.env.KAMINO_DRY_RUN ?? "true") !== "false";
+    try {
+      const router = new KaminoRouter({
+        rpcUrl: RPC,
+        signerKeypairPath: kaminoSignerPath,
+        vaultPda: kaminoVaultPda,
+        vaultUsdcAccount: kaminoVaultUsdc,
+        kaminoVault: kaminoVaultAddr,
+        cluster,
+        dryRun,
+        // The plan defers a real outstanding-loans aggregate to the same
+        // follow-up that lands the vault ix. Until then we use 0 — i.e.
+        // treat all USDC in the vault as idle. Override by setting
+        // KAMINO_OUTSTANDING_LOANS_USDC_BASE.
+        outstandingLoansProvider: async () => {
+          const env = process.env.KAMINO_OUTSTANDING_LOANS_USDC_BASE;
+          if (!env) return 0n;
+          try {
+            return BigInt(env);
+          } catch {
+            return 0n;
+          }
+        },
+      });
+      router.start();
+    } catch (err) {
+      console.error(
+        "[indexer] failed to start kamino router:",
+        (err as Error).message,
+      );
+    }
+  } else {
+    console.log(
+      "[indexer] KAMINO_* env not fully set — kamino router disabled",
     );
   }
 }
