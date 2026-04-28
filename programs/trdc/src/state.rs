@@ -1,5 +1,16 @@
 use anchor_lang::prelude::*;
 
+/// Seed for the trdc-program-owned PDA that acts as the Bubblegum tree
+/// `tree_creator_or_delegate`. The PDA — not the payer keypair — signs all
+/// mints into the trdc merkle tree. This means no single key can forge TRDCs;
+/// only program execution can.
+pub const TREE_AUTHORITY_SEED: &[u8] = b"trdc_tree_authority";
+
+/// Derive the trdc tree-authority PDA.
+pub fn tree_authority_pda(program_id: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(&[TREE_AUTHORITY_SEED], program_id)
+}
+
 /// 8-state enum — mirrors `packages/types/src/index.ts` `TRDCStatus`.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Status {

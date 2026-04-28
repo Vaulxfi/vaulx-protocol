@@ -1,9 +1,10 @@
 use anchor_lang::prelude::*;
+use mpl_bubblegum::instructions::CreateTreeConfigCpiBuilder;
 
 pub mod errors;
 pub mod state;
 
-use state::{Status, TRDCState};
+use state::{Status, TRDCState, TREE_AUTHORITY_SEED};
 
 declare_id!("FcDPvRaixjAz7LeC64h9xkXPzvHT7dusbNmg83eJfr7R");
 
@@ -231,6 +232,53 @@ pub mod trdc {
         Ok(())
     }
 
+    /// Task 4.1 — create the Bubblegum merkle tree with `tree_creator` set to
+    /// the trdc-program PDA (`b"trdc_tree_authority"`). The PDA signs the
+    /// `create_tree_config` CPI via `invoke_signed`, so even though the payer
+    /// pays rent, the payer keypair is NOT the tree creator on-chain. This
+    /// means no off-chain signer can mint into this tree — only this program
+    /// can, via Task 4.2's `mint_trdc_cnft`.
+    ///
+    /// The merkle_tree account itself must be pre-allocated by the client
+    /// (zero-initialized, owned by spl-account-compression). Bubblegum's
+    /// `create_tree_config` then `init`s the `tree_authority` (TreeConfig PDA
+    /// derived from `merkle_tree.key()`) and CPIs into spl-account-compression
+    /// to write the empty merkle root.
+    pub fn init_merkle_tree(
+        ctx: Context<InitMerkleTree>,
+        max_depth: u32,
+        max_buffer_size: u32,
+        public: bool,
+    ) -> Result<()> {
+        let bubblegum_program = ctx.accounts.bubblegum_program.to_account_info();
+        let tree_config = ctx.accounts.tree_config.to_account_info();
+        let merkle_tree = ctx.accounts.merkle_tree.to_account_info();
+        let payer_info = ctx.accounts.payer.to_account_info();
+        let tree_authority_info = ctx.accounts.tree_authority.to_account_info();
+        let log_wrapper = ctx.accounts.log_wrapper.to_account_info();
+        let compression_program = ctx.accounts.compression_program.to_account_info();
+        let system_program = ctx.accounts.system_program.to_account_info();
+
+        let bump = ctx.bumps.tree_authority;
+        let signer_seeds: &[&[u8]] = &[TREE_AUTHORITY_SEED, &[bump]];
+        let signer_seeds_arr: &[&[&[u8]]] = &[signer_seeds];
+
+        CreateTreeConfigCpiBuilder::new(&bubblegum_program)
+            .tree_config(&tree_config)
+            .merkle_tree(&merkle_tree)
+            .payer(&payer_info)
+            .tree_creator(&tree_authority_info)
+            .log_wrapper(&log_wrapper)
+            .compression_program(&compression_program)
+            .system_program(&system_program)
+            .max_depth(max_depth)
+            .max_buffer_size(max_buffer_size)
+            .public(public)
+            .invoke_signed(signer_seeds_arr)?;
+
+        Ok(())
+    }
+
     pub fn mint_trdc_cnft(ctx: Context<MintTrdcCnft>, asset_hint: [u8; 32]) -> Result<()> {
         // PHASE_2_TODO: replace this stub with a real Bubblegum CPI (mpl-bubblegum
         // `mint_to_collection_v1`). Phase 1 does not need a real cNFT to ship
@@ -294,6 +342,49 @@ pub struct TransitionAuth<'info> {
     #[account(mut)]
     pub trdc_state: Account<'info, TRDCState>,
     pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct InitMerkleTree<'info> {
+    /// trdc-program PDA that becomes the Bubblegum `tree_creator` (and
+    /// therefore `tree_delegate`). Signed via `invoke_signed`. There is no
+    /// off-chain keypair that can sign as this account.
+    /// CHECK: address derived from fixed seeds; not deserialized.
+    #[account(
+        seeds = [TREE_AUTHORITY_SEED],
+        bump,
+    )]
+    pub tree_authority: UncheckedAccount<'info>,
+
+    /// Bubblegum's `TreeConfig` PDA — Bubblegum init's this with seeds
+    /// `[merkle_tree.key()]` under its own program ID. We pass it through
+    /// unchecked; Bubblegum validates the derivation.
+    /// CHECK: validated by mpl_bubblegum::create_tree_config.
+    #[account(mut)]
+    pub tree_config: UncheckedAccount<'info>,
+
+    /// Pre-allocated, zero-initialized merkle tree account, owned by
+    /// spl-account-compression. The TS script creates this account with the
+    /// correct rent-exempt size in a separate ix in the same tx.
+    /// CHECK: validated by spl-account-compression via Bubblegum CPI.
+    #[account(mut)]
+    pub merkle_tree: UncheckedAccount<'info>,
+
+    /// Pays rent for `tree_config`. Does NOT become the tree creator.
+    #[account(mut)]
+    pub payer: Signer<'info>,
+
+    /// CHECK: spl-noop program ID; checked by Bubblegum.
+    pub log_wrapper: UncheckedAccount<'info>,
+
+    /// CHECK: spl-account-compression program ID; checked by Bubblegum.
+    pub compression_program: UncheckedAccount<'info>,
+
+    /// CHECK: address-checked against mpl_bubblegum::ID.
+    #[account(address = mpl_bubblegum::ID)]
+    pub bubblegum_program: UncheckedAccount<'info>,
+
+    pub system_program: Program<'info, System>,
 }
 
 #[event]

@@ -76,6 +76,125 @@
       ]
     },
     {
+      "name": "init_merkle_tree",
+      "docs": [
+        "Task 4.1 — create the Bubblegum merkle tree with `tree_creator` set to",
+        "the trdc-program PDA (`b\"trdc_tree_authority\"`). The PDA signs the",
+        "`create_tree_config` CPI via `invoke_signed`, so even though the payer",
+        "pays rent, the payer keypair is NOT the tree creator on-chain. This",
+        "means no off-chain signer can mint into this tree — only this program",
+        "can, via Task 4.2's `mint_trdc_cnft`.",
+        "",
+        "The merkle_tree account itself must be pre-allocated by the client",
+        "(zero-initialized, owned by spl-account-compression). Bubblegum's",
+        "`create_tree_config` then `init`s the `tree_authority` (TreeConfig PDA",
+        "derived from `merkle_tree.key()`) and CPIs into spl-account-compression",
+        "to write the empty merkle root."
+      ],
+      "discriminator": [
+        8,
+        60,
+        17,
+        151,
+        102,
+        104,
+        35,
+        253
+      ],
+      "accounts": [
+        {
+          "name": "tree_authority",
+          "docs": [
+            "trdc-program PDA that becomes the Bubblegum `tree_creator` (and",
+            "therefore `tree_delegate`). Signed via `invoke_signed`. There is no",
+            "off-chain keypair that can sign as this account."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  114,
+                  100,
+                  99,
+                  95,
+                  116,
+                  114,
+                  101,
+                  101,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "tree_config",
+          "docs": [
+            "Bubblegum's `TreeConfig` PDA — Bubblegum init's this with seeds",
+            "`[merkle_tree.key()]` under its own program ID. We pass it through",
+            "unchecked; Bubblegum validates the derivation."
+          ],
+          "writable": true
+        },
+        {
+          "name": "merkle_tree",
+          "docs": [
+            "Pre-allocated, zero-initialized merkle tree account, owned by",
+            "spl-account-compression. The TS script creates this account with the",
+            "correct rent-exempt size in a separate ix in the same tx."
+          ],
+          "writable": true
+        },
+        {
+          "name": "payer",
+          "docs": [
+            "Pays rent for `tree_config`. Does NOT become the tree creator."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "log_wrapper"
+        },
+        {
+          "name": "compression_program"
+        },
+        {
+          "name": "bubblegum_program",
+          "address": "BGUMAp9Gq7iTEuizy4pqaxsTyUCBK68MDfK752saRPUY"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "max_depth",
+          "type": "u32"
+        },
+        {
+          "name": "max_buffer_size",
+          "type": "u32"
+        },
+        {
+          "name": "public",
+          "type": "bool"
+        }
+      ]
+    },
+    {
       "name": "initialize_trdc_state",
       "discriminator": [
         162,
