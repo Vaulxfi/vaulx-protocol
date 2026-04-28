@@ -27,7 +27,22 @@ These keypairs sign program upgrades and treasury actions via the Squads multisi
 
 ---
 
-## Active items as of 2026-04-27
+## Active items as of 2026-04-28
+
+### Crossmint API key — set in Vercel to flip mock → live wallet
+
+The `<CrossmintWallet>` component on `/demo/borrow/wallet` is fully wired against `@crossmint/client-sdk-react-ui@4.1.5` (real OAuth, real Solana smart-wallet provisioning with email recovery, passkey-ready). It just falls back to a clearly-labeled MOCK demo path when the API key is unset.
+
+To flip to real Crossmint:
+
+1. Sign up at [console.crossmint.com](https://console.crossmint.com) (free dev tier; no card required for testnet).
+2. Create a Solana **Devnet** project; copy the **client-side** API key (starts with `ck_development_...` for staging, `ck_production_...` for prod).
+3. In Vercel project settings → **Environment Variables** → add `NEXT_PUBLIC_CROSSMINT_API_KEY=<your-key>` for **Production + Preview**.
+4. Redeploy (next push triggers automatically).
+
+After this, `/demo/borrow/wallet` shows the real Crossmint sign-in (Google / Apple / email) and provisions a real Solana smart wallet bound to the user's email. The `wallet.pubkey` saved in the demo session becomes a real on-chain pubkey usable by downstream Anchor ixs.
+
+- [ ] Crossmint API key set in Vercel (P1 for live demo; demo flow works in mock mode without it).
 
 ### Devnet contracts deploy — AUTHORIZED (upgradeable, real Vaulx name)
 
