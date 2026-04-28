@@ -159,6 +159,11 @@ function TrancheTile({ tranche }: { tranche: VaultTranche }) {
           </span>
           <h3 className="mt-4 font-display text-[clamp(1.25rem,2vw,1.75rem)] font-semibold leading-[1.15] tracking-[-0.01em] text-[var(--ink)]">
             {tranche.name}
+            {tranche.kaminoFloat && (
+              <span className="ml-2 inline-flex items-center rounded bg-emerald-50 px-2 py-1 align-middle font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-emerald-700">
+                +{tranche.kaminoFloatApy}% Kamino float
+              </span>
+            )}
           </h3>
           <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--ink-muted)]">
             {tranche.audience}
