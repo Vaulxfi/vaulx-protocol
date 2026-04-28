@@ -1,0 +1,47 @@
+{
+  "cluster": "devnet",
+  "rpc_url": "https://api.devnet.solana.com",
+  "deployed_at": "2026-04-28T00:50:00Z",
+  "deploy_mode": "upgradeable",
+  "upgrade_authority": "2HYjytRc4oKY2ndmJfAq2XdGhPqYB7VdDPLzA18QEiAH",
+  "payer": "2HYjytRc4oKY2ndmJfAq2XdGhPqYB7VdDPLzA18QEiAH",
+  "anchor_version": "0.30.1",
+  "solana_cli_version": "1.18.26",
+  "programs": {
+    "trdc": {
+      "program_id": "FcDPvRaixjAz7LeC64h9xkXPzvHT7dusbNmg83eJfr7R",
+      "programdata_address": "5qHePPdWbYvC4CW3J9Y2JGcNa4EPfFw1gVFzuP7styji",
+      "deploy_slot": 458611018,
+      "deploy_signature": "5Cn153wa8y9CkdScsvyajJdzW3MPhJ6bnvHP5zpQpGaxwabjzH6AcNxopKBgr8ia7a7rqA6mmYqP1gtU11Zhmaza",
+      "data_length_bytes": 251088,
+      "rent_balance_sol": 1.74877656
+    },
+    "vault": {
+      "program_id": "4PPyUvazjDBvFndGUL2rgKTwZrFbsSP1tk4a2uMhE9MS",
+      "programdata_address": "fN4K3kgtg717Me3a6Qysys2Uc2ptuV3GnZzVStsBMxZ",
+      "deploy_slot": 458611063,
+      "deploy_signature": "2nJh9HXxuoAFiYkM7FGiBR5T9LRsfkoDmH6F6CWv9emCf3BJ48cmDsz56aCY9YgjFsFJwKyMYZnC2mpzACuhFEyG",
+      "data_length_bytes": 397688,
+      "rent_balance_sol": 2.76911256
+    },
+    "loan": {
+      "program_id": "BHdxEKkfsyjERiz5XiUybDLquvoWRtF7r1zDgVCDZJow",
+      "programdata_address": "96M7YEXAuoEi7SNs8khoKEkJBrjTSZz56UR9vb6AnMjo",
+      "deploy_slot": 458611105,
+      "deploy_signature": "GzdBEXM1Ko5DYbQAqGKgcK5WD5bWZpKzXTVKZ8w49HkdNU6xtYcvMyt29QHHUofpPcDSQYYN1D3feqkh4qMgosd",
+      "data_length_bytes": 451800,
+      "rent_balance_sol": 3.14573208
+    },
+    "auction": {
+      "program_id": "8FRBHN14CsA2y21hMeJJ2oxbEXNRXicVKMEDHRGyGefj",
+      "programdata_address": "EKnTbgxrECUGFHv5Kw3Nz4TTnFGo58Q4pkhUhJZpaw4V",
+      "deploy_slot": 458611145,
+      "deploy_signature": "3Pt7d8B8AcC65cZPeptKCL9HvGVubw8tnJ1L8Foa2ycgc5sYgqghAMY7qr9iQt83AWFraeAMEuYVCwDNen4R9Nxy",
+      "data_length_bytes": 314784,
+      "rent_balance_sol": 2.19210072
+    }
+  },
+  "balance_before_sol": 27.98604272,
+  "balance_after_sol": 18.11867004,
+  "total_cost_sol": 9.86737268
+}
