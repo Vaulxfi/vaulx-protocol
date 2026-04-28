@@ -29,6 +29,33 @@ These keypairs sign program upgrades and treasury actions via the Squads multisi
 
 ## Active items as of 2026-04-28
 
+### Operator keypair on Vercel — set `OPERATOR_KEYPAIR_JSON` to flip server-side demo routes from local-only to Vercel-ready
+
+The full E2E demo needs a few server-side routes to sign txs on behalf of the borrower (mint demo USDC for repayments, create + confirm-custody a TRDC, publish a PriceFeed). All of those use the **operator keypair** — the Devnet `2HYjytRc4oKY2ndmJfAq2XdGhPqYB7VdDPLzA18QEiAH` you've been using as the deploy payer + USDC mint authority + `loan_config.admin` / `oracle_admin`.
+
+Locally those routes read `~/.config/solana/id.json`. On Vercel that file doesn't exist, so the routes 503. The fix: paste the keypair file contents into a single Vercel env var.
+
+To enable on Vercel:
+
+1. Open the local keypair: `cat ~/.config/solana/id.json` — output is a JSON array of 64 numbers, e.g. `[12,34,56,...,255]`.
+2. Vercel project settings → **Environment Variables** → add for **Production + Preview**:
+   - Name: `OPERATOR_KEYPAIR_JSON`
+   - Value: paste the *exact* JSON-array string from step 1 (no quotes, no whitespace)
+   - Sensitive: yes (Vercel encrypts at rest)
+3. Redeploy.
+
+After this, `/api/demo/provision-loan`, `/api/demo/faucet-usdc`, `/api/demo/publish-price`, and the entire `/api/admin/demo/*` cockpit work on Vercel.
+
+**Why this is acceptable risk for Devnet:**
+- Program **upgrade authority** for all 4 programs is the Squads V4 vault PDA (commit `5e90d81`). The operator key cannot redeploy programs even if leaked.
+- The operator key only carries: USDC mint authority (Devnet demo mint, no value), `loan_config.admin` (config writes), `oracle_admin` (price publishing), and on Vercel deploys also `loan_config.custodian` so the provision-loan route can confirm-custody on behalf of the demo flow.
+- Mainnet rotates this to a hardened deploy with separate admin / custodian / oracle / mint keys per role; this concentration is intentional only for the hackathon Devnet demo.
+
+**Caveat — `loan_config.custodian` must equal the operator pubkey on Vercel.** Locally the bootstrap (`pnpm init:civic`) sets `custodian = demo-wallets[2]`; on Vercel that wallet doesn't exist, so re-run the init with `--custodian <operator-pubkey>` against the live cluster (or use the upcoming `set_loan_custodian` admin ix when shipped).
+
+- [ ] `OPERATOR_KEYPAIR_JSON` set in Vercel (P1 for live demo; existing Vercel deploy works without it for the read-only flows).
+- [ ] `loan_config.custodian` set to operator pubkey on the cluster Vercel points at (otherwise `/api/demo/provision-loan` errors at the confirm-custody step).
+
 ### Crossmint API key — set in Vercel to flip mock → live wallet
 
 The `<CrossmintWallet>` component on `/demo/borrow/wallet` is fully wired against `@crossmint/client-sdk-react-ui@4.1.5` (real OAuth, real Solana smart-wallet provisioning with email recovery, passkey-ready). It falls back to a clearly-labeled MOCK demo path when the API key OR `NEXT_PUBLIC_CROSSMINT_ENV` is unset / set to `"mock"`.

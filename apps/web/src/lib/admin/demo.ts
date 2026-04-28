@@ -7,14 +7,16 @@
  *   1. Load the devnet USDC mint (`scripts/dev/devnet-usdc.json`).
  *   2. Load the gitignored demo wallets (`scripts/dev/demo-wallets.json`)
  *      seeded by `pnpm seed:usdc`.
- *   3. Load the operator keypair from `~/.config/solana/id.json` as the fee
- *      payer + Anchor provider wallet.
+ *   3. Load the operator keypair via `loadOperatorKeypair()` — first from the
+ *      `OPERATOR_KEYPAIR_JSON` env var (Vercel-friendly), then falling back
+ *      to `~/.config/solana/id.json` for local dev.
  *   4. Build a single `AnchorProvider` + typed `Program` handles for the four
  *      programs we interact with (vault, loan, trdc, auction).
  *
- * The cockpit is a local-only surface — none of these files exist on Vercel.
- * We throw `DemoEnvError` with a helpful `detail` so the route can translate
- * it to a 503 response.
+ * The cockpit is a local-only surface unless `OPERATOR_KEYPAIR_JSON` is set
+ * (and `NEXT_PUBLIC_USDC_MINT` is populated for the public demo routes that
+ * skip the demo-wallets file). On 503 we surface the missing piece via
+ * `demoErrorResponse`.
  *
  * Auth pattern matches `/api/admin/tests/stream`: if
  * `NEXT_PUBLIC_VAULX_ADMIN_PUBKEY` is set we require a matching cookie or
@@ -85,6 +87,74 @@ function readJson<T>(file: string): T {
   return JSON.parse(fs.readFileSync(file, "utf8")) as T;
 }
 
+/**
+ * Resolve the operator keypair (loan admin + USDC mint authority on Devnet).
+ *
+ * Resolution order:
+ *   1. `OPERATOR_KEYPAIR_JSON` env var — JSON-array form (e.g. "[12,34,...]").
+ *      This is what we set in Vercel; lets server routes that need the admin
+ *      key (`/api/demo/provision-loan`, `/api/demo/faucet-usdc`, the
+ *      `/api/admin/demo/*` cockpit) work without filesystem access.
+ *   2. `~/.config/solana/id.json` — Solana CLI default; preserves existing
+ *      local-dev behavior.
+ *
+ * Throws `DemoEnvError` if neither source is available. Devnet-only — the
+ * upgrade authority for all 4 programs lives on the Squads V4 vault PDA per
+ * commit `5e90d81`, so this key only carries program-admin + mint-authority
+ * permissions, not upgrade authority.
+ */
+let _operatorKeypairCache: Keypair | null = null;
+let _operatorKeypairCacheKey: string | null = null;
+
+export function loadOperatorKeypair(): Keypair {
+  const envSecret = process.env.OPERATOR_KEYPAIR_JSON?.trim();
+  if (envSecret) {
+    if (_operatorKeypairCache && _operatorKeypairCacheKey === envSecret) {
+      return _operatorKeypairCache;
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(envSecret);
+    } catch (e) {
+      throw new DemoEnvError(
+        `OPERATOR_KEYPAIR_JSON is not valid JSON: ${(e as Error).message}`,
+      );
+    }
+    if (!Array.isArray(parsed) || parsed.some((n) => typeof n !== "number")) {
+      throw new DemoEnvError(
+        "OPERATOR_KEYPAIR_JSON must be a JSON array of bytes (e.g. [12,34,...]).",
+      );
+    }
+    try {
+      const kp = Keypair.fromSecretKey(new Uint8Array(parsed as number[]));
+      _operatorKeypairCache = kp;
+      _operatorKeypairCacheKey = envSecret;
+      return kp;
+    } catch (e) {
+      throw new DemoEnvError(
+        `OPERATOR_KEYPAIR_JSON could not be parsed as a Solana keypair: ${(e as Error).message}`,
+      );
+    }
+  }
+
+  const payerFile = path.join(os.homedir(), ".config", "solana", "id.json");
+  if (!fs.existsSync(payerFile)) {
+    throw new DemoEnvError(
+      `Operator keypair not found. Set OPERATOR_KEYPAIR_JSON env var (recommended for Vercel) or place a Solana CLI keypair at ${payerFile}.`,
+    );
+  }
+  const cacheKey = `file:${payerFile}`;
+  if (_operatorKeypairCache && _operatorKeypairCacheKey === cacheKey) {
+    return _operatorKeypairCache;
+  }
+  const kp = Keypair.fromSecretKey(
+    new Uint8Array(readJson<number[]>(payerFile)),
+  );
+  _operatorKeypairCache = kp;
+  _operatorKeypairCacheKey = cacheKey;
+  return kp;
+}
+
 /** Express `{ ok: false, detail, ... }` on expected env failures. */
 export function demoErrorResponse(err: unknown): Response {
   if (err instanceof DemoEnvError) {
@@ -126,23 +196,31 @@ export async function loadDemoEnv(): Promise<DemoEnv> {
   const root = repoRoot();
   const mintFile = path.join(root, "scripts", "dev", "devnet-usdc.json");
   const walletsFile = path.join(root, "scripts", "dev", "demo-wallets.json");
-  const payerFile = path.join(os.homedir(), ".config", "solana", "id.json");
 
-  if (!fs.existsSync(mintFile)) {
+  // Operator keypair: prefer env var (Vercel), fall back to ~/.config/solana/id.json.
+  const payer = loadOperatorKeypair();
+
+  // USDC mint: prefer the file (local dev with seeded wallets), fall back to
+  // NEXT_PUBLIC_USDC_MINT (Vercel where the file isn't present).
+  let usdcMint: PublicKey;
+  if (fs.existsSync(mintFile)) {
+    usdcMint = new PublicKey(readJson<{ mint: string }>(mintFile).mint);
+  } else if (process.env.NEXT_PUBLIC_USDC_MINT?.trim()) {
+    usdcMint = new PublicKey(process.env.NEXT_PUBLIC_USDC_MINT.trim());
+  } else {
     throw new DemoEnvError(
-      `Missing ${path.relative(root, mintFile)}. Run \`pnpm seed:usdc\` first.`,
+      `Missing ${path.relative(root, mintFile)} and NEXT_PUBLIC_USDC_MINT is unset. Run \`pnpm seed:usdc\` locally or set the env var on Vercel.`,
     );
   }
+
+  // demo-wallets.json is local-only — the cockpit needs it; the public
+  // /api/demo/* routes don't, so they should call the lower-level helpers
+  // (loadOperatorKeypair) directly instead of loadDemoEnv.
   if (!fs.existsSync(walletsFile)) {
     throw new DemoEnvError(
       `Missing ${path.relative(root, walletsFile)}. Run \`pnpm seed:usdc\` first.`,
     );
   }
-  if (!fs.existsSync(payerFile)) {
-    throw new DemoEnvError(`Missing payer keypair at ${payerFile}`);
-  }
-
-  const usdcMint = new PublicKey(readJson<{ mint: string }>(mintFile).mint);
   const demoWalletsRaw = readJson<DemoWallet[]>(walletsFile);
   if (demoWalletsRaw.length < 4) {
     throw new DemoEnvError(
@@ -151,10 +229,6 @@ export async function loadDemoEnv(): Promise<DemoEnv> {
   }
   const demoWallets = demoWalletsRaw.map((w) =>
     Keypair.fromSecretKey(new Uint8Array(w.secretKey)),
-  );
-
-  const payer = Keypair.fromSecretKey(
-    new Uint8Array(readJson<number[]>(payerFile)),
   );
 
   const rpc = process.env.SOLANA_RPC_URL ?? "https://api.devnet.solana.com";
