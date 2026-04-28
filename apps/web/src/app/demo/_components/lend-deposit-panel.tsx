@@ -26,6 +26,7 @@ import {
   useUnifiedWallet,
   formatWalletLabel,
 } from "@/components/providers/crossmint-wallet-adapter";
+import { useKycGate, KycCancelledError } from "@/lib/use-kyc-gate";
 
 const WalletMultiButton = dynamic(
   async () =>
@@ -68,6 +69,7 @@ export function LendDepositPanel() {
 
   const { publicKey } = useWallet();
   const unified = useUnifiedWallet();
+  const { guard, modalNode } = useKycGate("Deposit USDC");
 
   const vault = useVaultData(assetMint);
   const shareMint = vault.data?.shareMint;
@@ -104,30 +106,36 @@ export function LendDepositPanel() {
     setLastSig(null);
     if (!amountAtoms) return;
     try {
-      const sig = await deposit.mutateAsync(amountAtoms);
+      const sig = await guard(() => deposit.mutateAsync(amountAtoms));
       setLastSig(sig);
       setAmountStr("");
     } catch (err) {
+      if (err instanceof KycCancelledError) return; // user backed out of KYC
       setErrMsg(err instanceof Error ? err.message : String(err));
     }
   }
 
   if (!assetMint) {
     return (
-      <div className="border border-[var(--rule)] bg-[var(--bg-elev-1)] p-6">
-        <span className="eyebrow">Live Devnet deposit</span>
-        <p className="mt-3 font-mono text-xs text-[var(--ink-muted)]">
-          NEXT_PUBLIC_USDC_MINT is not set. Populate it from{" "}
-          <code className="text-[var(--brand)]">
-            scripts/dev/devnet-usdc.json
-          </code>{" "}
-          to enable the on-chain deposit.
-        </p>
-      </div>
+      <>
+        {modalNode}
+        <div className="border border-[var(--rule)] bg-[var(--bg-elev-1)] p-6">
+          <span className="eyebrow">Live Devnet deposit</span>
+          <p className="mt-3 font-mono text-xs text-[var(--ink-muted)]">
+            NEXT_PUBLIC_USDC_MINT is not set. Populate it from{" "}
+            <code className="text-[var(--brand)]">
+              scripts/dev/devnet-usdc.json
+            </code>{" "}
+            to enable the on-chain deposit.
+          </p>
+        </div>
+      </>
     );
   }
 
   return (
+    <>
+    {modalNode}
     <div className="border border-[var(--rule)] bg-[var(--bg-elev-1)] p-6 md:p-8">
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -302,6 +310,7 @@ export function LendDepositPanel() {
         </form>
       )}
     </div>
+    </>
   );
 }
 
