@@ -153,6 +153,7 @@ describe("auction / default flow (Task 3.2)", () => {
         tokenProgram: TOKEN_PROGRAM_ID,
         vaultConfig: vaultConfigPda(vaultProgram.programId),
         kycAttestation: SystemProgram.programId,
+          priceFeed: SystemProgram.programId,
       })
       .signers([lender])
       .rpc();
@@ -179,6 +180,7 @@ describe("auction / default flow (Task 3.2)", () => {
         systemProgram: SystemProgram.programId,
         loanConfig: loanConfigPda,
         kycAttestation: SystemProgram.programId,
+          priceFeed: SystemProgram.programId,
       })
       .rpc();
 
@@ -223,6 +225,7 @@ describe("auction / default flow (Task 3.2)", () => {
         vaultProgram: vaultProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
         instructionsSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
+        priceFeed: SystemProgram.programId,
       })
       .signers([borrower])
       .rpc();

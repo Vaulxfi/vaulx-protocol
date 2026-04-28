@@ -167,6 +167,7 @@ export async function POST(req: Request) {
           systemProgram: SystemProgram.programId,
           loanConfig: loanConfigPda,
           kycAttestation: SystemProgram.programId,
+          priceFeed: SystemProgram.programId,
         })
         .rpc({ commitment: "confirmed" });
       signatures.create = sigCreate;
@@ -207,6 +208,7 @@ export async function POST(req: Request) {
           vaultProgram: vaultProgramId,
           tokenProgram: TOKEN_PROGRAM_ID,
           instructionsSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
+          priceFeed: SystemProgram.programId,
         })
         .signers([borrower])
         .rpc({ commitment: "confirmed" });

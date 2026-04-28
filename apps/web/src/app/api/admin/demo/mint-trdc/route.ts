@@ -127,6 +127,7 @@ export async function POST(req: Request) {
         systemProgram: SystemProgram.programId,
         loanConfig: loanConfigPda,
         kycAttestation: SystemProgram.programId,
+          priceFeed: SystemProgram.programId,
       })
       .rpc({ commitment: "confirmed" });
 

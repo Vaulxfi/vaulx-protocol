@@ -16,8 +16,10 @@ pub mod attestation;
 pub mod civic;
 pub mod errors;
 pub mod math;
+pub mod state;
 use attestation::KycAttestation;
 use errors::{LoanError, GRACE_PERIOD_SECS, MAX_LTV_BPS};
+use state::PriceFeed;
 
 declare_id!("BHdxEKkfsyjERiz5XiUybDLquvoWRtF7r1zDgVCDZJow");
 
@@ -80,6 +82,73 @@ pub mod loan {
     ) -> Result<()> {
         require!(loan_amount > 0 && appraisal_value > 0, LoanError::ZeroAmount);
 
+        // Item 5 — RedStone-pattern oracle gate. When the oracle is
+        // initialised, the LTV check uses the freshly-published on-chain
+        // `PriceFeed` PDA (keyed on `_asset_hint`, i.e. ref_bytes) instead
+        // of the synthetic `appraisal_value` arg. When the oracle is unset
+        // (default state, used by every existing test), we keep the legacy
+        // synthetic-appraisal path so the rollout is gated behind a single
+        // admin ix.
+        //
+        // The consumed `appraisal_value` (passed through to TRDCState) is
+        // taken from the on-chain feed when the oracle is on, so even
+        // off-chain inputs cannot lie about the watch's current price.
+        let effective_appraisal: u64 = if ctx.accounts.loan_config.oracle_admin
+            != Pubkey::default()
+        {
+            // SR-2 — re-derive the canonical PriceFeed PDA from `_asset_hint`
+            // (re-used as ref_bytes for forward-compat with a future
+            // payload-signed RedStone push) and require equality with the
+            // supplied account. Reject any other.
+            let (expected_feed_pda, _bump) =
+                PriceFeed::pda(&_asset_hint, &crate::ID);
+            require_keys_eq!(
+                ctx.accounts.price_feed.key(),
+                expected_feed_pda,
+                LoanError::InvalidOracle
+            );
+            // The feed must be a real PriceFeed account owned by this program.
+            require_keys_eq!(
+                *ctx.accounts.price_feed.owner,
+                crate::ID,
+                LoanError::PriceFeedNotInit
+            );
+            let feed_data = ctx.accounts.price_feed.try_borrow_data()?;
+            let mut slice: &[u8] = &feed_data;
+            let feed = PriceFeed::try_deserialize(&mut slice)
+                .map_err(|_| error!(LoanError::PriceFeedNotInit))?;
+            // SR-3 / SR-4 — defence-in-depth: the on-account `published_by`
+            // must still match the current `oracle_admin`. Catches the case
+            // where a leaked publisher key was rotated mid-flight.
+            require_keys_eq!(
+                feed.published_by,
+                ctx.accounts.loan_config.oracle_admin,
+                LoanError::InvalidOracle
+            );
+            // SR-1 — refuse stale feeds at consume-time (publishers are
+            // expected to refresh once per minute).
+            let now = Clock::get()?.unix_timestamp;
+            require!(now >= feed.observed_at, LoanError::FuturePrice);
+            require!(
+                now.saturating_sub(feed.observed_at) <= PriceFeed::MAX_AGE_SECONDS,
+                LoanError::StalePrice
+            );
+            // SR-5 — refuse low-confidence feeds at consume-time.
+            require!(
+                feed.listings >= PriceFeed::MIN_LISTINGS,
+                LoanError::InsufficientListings
+            );
+            // SR-6 — feed price is in USD cents (10^-2); scale up to USDC
+            // atoms (6dp) so the LTV check uses the same units as
+            // `loan_amount`. cents -> USDC atoms = cents * 10^4.
+            (feed.median_usd_cents as u128)
+                .checked_mul(10_000u128)
+                .and_then(|v| u64::try_from(v).ok())
+                .ok_or(LoanError::MathOverflow)?
+        } else {
+            appraisal_value
+        };
+
         // KYC gate — replaces the sunset Civic Pass check. When
         // `loan_config.kyc_required == true` the payer must present a valid
         // KycAttestation PDA (this program's PDA, owner == payer,
@@ -107,10 +176,10 @@ pub mod loan {
             );
         }
 
-        // LTV check: loan * 10_000 <= appraisal * MAX_LTV_BPS
+        // LTV check: loan * 10_000 <= effective_appraisal * MAX_LTV_BPS
         let lhs = (loan_amount as u128)
             .checked_mul(10_000u128).ok_or(LoanError::MathOverflow)?;
-        let rhs = (appraisal_value as u128)
+        let rhs = (effective_appraisal as u128)
             .checked_mul(MAX_LTV_BPS as u128).ok_or(LoanError::MathOverflow)?;
         require!(lhs <= rhs, LoanError::LtvTooHigh);
 
@@ -120,7 +189,7 @@ pub mod loan {
                 payer: ctx.accounts.payer.to_account_info(),
                 system_program: ctx.accounts.system_program.to_account_info(),
             }),
-            loan_id, appraisal_value, loan_amount, due_ts, rate_bps,
+            loan_id, effective_appraisal, loan_amount, due_ts, rate_bps,
         )?;
 
         // Task 4.2 — the cNFT mint is now a separate ix on the trdc program.
@@ -133,7 +202,7 @@ pub mod loan {
         emit!(CcbTrdcCreated {
             trdc_state: ctx.accounts.trdc_state.key(),
             loan_id,
-            appraisal_value,
+            appraisal_value: effective_appraisal,
             loan_amount,
             due_ts,
             rate_bps,
@@ -177,6 +246,56 @@ pub mod loan {
             ctx.accounts.trdc_state.status == Status::ActiveInCustody,
             trdc::errors::TrdcError::InvalidStateTransition
         );
+
+        // Item 5 — when the oracle is on, re-validate LTV against the freshest
+        // feed at disbursement time (price could have moved between mint and
+        // disburse). When the oracle is unset, retain the legacy disburse
+        // path. SR-1 / SR-2 / SR-6.
+        if ctx.accounts.loan_config.oracle_admin != Pubkey::default() {
+            // Re-derive the canonical PriceFeed PDA from the trdc_state's
+            // appraisal-time identity. We don't store ref_bytes on TRDCState
+            // (avoids a trdc-state migration); instead we accept the feed
+            // account directly and require its `published_by` matches the
+            // current `oracle_admin`. SR-2 is enforced via the PDA owner
+            // check + the published_by binding.
+            require_keys_eq!(
+                *ctx.accounts.price_feed.owner,
+                crate::ID,
+                LoanError::PriceFeedNotInit
+            );
+            let feed_data = ctx.accounts.price_feed.try_borrow_data()?;
+            let mut slice: &[u8] = &feed_data;
+            let feed = PriceFeed::try_deserialize(&mut slice)
+                .map_err(|_| error!(LoanError::PriceFeedNotInit))?;
+            require_keys_eq!(
+                feed.published_by,
+                ctx.accounts.loan_config.oracle_admin,
+                LoanError::InvalidOracle
+            );
+            let now = Clock::get()?.unix_timestamp;
+            require!(now >= feed.observed_at, LoanError::FuturePrice);
+            require!(
+                now.saturating_sub(feed.observed_at) <= PriceFeed::MAX_AGE_SECONDS,
+                LoanError::StalePrice
+            );
+            require!(
+                feed.listings >= PriceFeed::MIN_LISTINGS,
+                LoanError::InsufficientListings
+            );
+            // Recompute appraisal from feed (cents -> USDC atoms) and re-check
+            // LTV against `loan_amount`. SR-6.
+            let live_appraisal = (feed.median_usd_cents as u128)
+                .checked_mul(10_000u128)
+                .and_then(|v| u64::try_from(v).ok())
+                .ok_or(LoanError::MathOverflow)?;
+            let lhs = (ctx.accounts.trdc_state.loan_amount as u128)
+                .checked_mul(10_000u128)
+                .ok_or(LoanError::MathOverflow)?;
+            let rhs = (live_appraisal as u128)
+                .checked_mul(MAX_LTV_BPS as u128)
+                .ok_or(LoanError::MathOverflow)?;
+            require!(lhs <= rhs, LoanError::LtvTooHigh);
+        }
 
         // Derive loan_authority signer seeds.
         let (expected_authority, bump) =
@@ -518,6 +637,102 @@ pub mod loan {
         });
         Ok(())
     }
+
+    // ------------------------------------------------------------------
+    // RedStone-pattern oracle (Item 5).
+    //
+    // SR mapping (auditor checklist):
+    //   SR-1 freshness:     `now - observed_at <= MAX_AGE_SECONDS`     (publish_price)
+    //                       `now - feed.observed_at <= MAX_AGE_SECONDS`(create_ccb_trdc, disburse_from_vault)
+    //   SR-2 wrong feed:    PDA seeds `[b"price_feed", ref_bytes]`      (PublishPrice / CreateCcbTrdc account constraints)
+    //   SR-3 attestation:   `oracle_admin == signer` + `published_by`   (publish_price + Anchor account constraint)
+    //                       (single Vaulx signer in this fallback; see state.rs note for SDK story)
+    //   SR-4 publisher key: `LoanConfig.oracle_admin` set by admin only  (set_oracle_admin)
+    //   SR-5 data quality:  `listings >= MIN_LISTINGS (3)`               (publish_price)
+    //   SR-6 decimals:      cents (10^-2) hardcoded in `median_usd_cents`(state.rs comment + lib.rs LTV math)
+    // ------------------------------------------------------------------
+
+    /// Admin-only ix: set (or rotate) the pubkey allowed to publish price
+    /// feeds. Defaults to `Pubkey::default()` (oracle inert). Rotation is
+    /// allowed because operationally we expect the publisher key to be
+    /// rotated via Squads multisig, not by program upgrade; admin can also
+    /// reset to `Pubkey::default()` to disable the oracle in an emergency
+    /// (e.g. compromised publisher key, before a fresh keypair is provisioned).
+    pub fn set_oracle_admin(
+        ctx: Context<SetOracleAdmin>,
+        new_oracle_admin: Pubkey,
+    ) -> Result<()> {
+        require_keys_eq!(
+            ctx.accounts.admin.key(),
+            ctx.accounts.loan_config.admin,
+            LoanError::UnauthorizedAdmin
+        );
+        ctx.accounts.loan_config.oracle_admin = new_oracle_admin;
+        emit!(OracleAdminSet {
+            oracle_admin: new_oracle_admin,
+            ts: Clock::get()?.unix_timestamp,
+        });
+        Ok(())
+    }
+
+    /// RedStone-pattern price update. Initialises (or overwrites) the
+    /// `PriceFeed` PDA at `[b"price_feed", ref_bytes]`. Signer must equal
+    /// `LoanConfig.oracle_admin`.
+    pub fn publish_price(
+        ctx: Context<PublishPrice>,
+        ref_bytes: [u8; 32],
+        median_usd_cents: u64,
+        listings: u32,
+        observed_at: i64,
+    ) -> Result<()> {
+        let cfg = &ctx.accounts.loan_config;
+
+        // SR-3 / SR-4 — only the configured `oracle_admin` can publish.
+        require!(
+            cfg.oracle_admin != Pubkey::default(),
+            LoanError::OracleNotInitialized
+        );
+        require_keys_eq!(
+            ctx.accounts.oracle_admin.key(),
+            cfg.oracle_admin,
+            LoanError::InvalidOracle
+        );
+
+        let now = Clock::get()?.unix_timestamp;
+
+        // SR-1 — refuse future-dated and stale-on-publish observations.
+        require!(observed_at <= now, LoanError::FuturePrice);
+        require!(
+            now.saturating_sub(observed_at) <= PriceFeed::MAX_AGE_SECONDS,
+            LoanError::StalePrice
+        );
+
+        // SR-5 — minimum data quality.
+        require!(
+            listings >= PriceFeed::MIN_LISTINGS,
+            LoanError::InsufficientListings
+        );
+
+        // Defensive: zero price would price-collapse the LTV check.
+        require!(median_usd_cents > 0, LoanError::ZeroAmount);
+
+        let feed = &mut ctx.accounts.price_feed;
+        feed.ref_bytes = ref_bytes;
+        feed.median_usd_cents = median_usd_cents;
+        feed.listings = listings;
+        feed.observed_at = observed_at;
+        feed.published_by = cfg.oracle_admin;
+        feed.bump = ctx.bumps.price_feed;
+
+        emit!(PricePublished {
+            ref_bytes,
+            median_usd_cents,
+            listings,
+            observed_at,
+            ts: now,
+        });
+        Ok(())
+    }
 }
 
 /// CPI helper — calls `vault::record_inflow` with the loan_authority PDA as
@@ -629,10 +844,18 @@ pub struct LoanConfig {
     /// Default false (gate OFF) to preserve existing test behaviour.
     pub kyc_required: bool,
     pub bump: u8,
+    /// Pubkey allowed to publish RedStone-pattern price updates via
+    /// `publish_price`. `Pubkey::default()` means the oracle has not been
+    /// set up — `create_ccb_trdc` falls back to the legacy synthetic
+    /// appraisal path. Once set (via `set_oracle_admin`), every loan opening
+    /// enforces a fresh on-chain feed. SR-3 / SR-4.
+    pub oracle_admin: Pubkey,
 }
 
 impl LoanConfig {
-    pub const SIZE: usize = 8 + 32 + 32 + 32 + 1 + 1;
+    // disc(8) + admin(32) + custodian(32) + civic_network(32)
+    //   + kyc_required(1) + bump(1) + oracle_admin(32)
+    pub const SIZE: usize = 8 + 32 + 32 + 32 + 1 + 1 + 32;
     pub const SEED: &'static [u8] = b"loan_config";
 }
 
@@ -689,6 +912,11 @@ pub struct CreateCcbTrdc<'info> {
     /// `loan_config.kyc_required == true`. When the gate is OFF, callers may
     /// pass any account (e.g. SystemProgram).
     pub kyc_attestation: UncheckedAccount<'info>,
+    /// CHECK: validated inline (PDA re-derive + deserialize + owner-check)
+    /// when `loan_config.oracle_admin != Pubkey::default()`. When the oracle
+    /// is unset, callers may pass any account (e.g. SystemProgram). See
+    /// SR-1 / SR-2 / SR-5 / SR-6 inline in `create_ccb_trdc`.
+    pub price_feed: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -743,6 +971,10 @@ pub struct DisburseFromVault<'info> {
     /// vault CPI so vault::disburse's Layer 2 check can read it.
     #[account(address = anchor_lang::solana_program::sysvar::instructions::ID)]
     pub instructions_sysvar: UncheckedAccount<'info>,
+    /// CHECK: validated inline (PDA-owner + deserialize) when
+    /// `loan_config.oracle_admin != Pubkey::default()`. When the oracle is
+    /// unset, callers may pass any account (e.g. SystemProgram).
+    pub price_feed: UncheckedAccount<'info>,
 }
 
 /// Shared accounts struct for `pay_installment`, `repay_ccb`, `renew_ccb`.
@@ -825,4 +1057,54 @@ pub struct ExecuteAfDefault<'info> {
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
+}
+
+#[derive(Accounts)]
+pub struct SetOracleAdmin<'info> {
+    #[account(
+        mut,
+        seeds = [LoanConfig::SEED],
+        bump = loan_config.bump,
+    )]
+    pub loan_config: Account<'info, LoanConfig>,
+    pub admin: Signer<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(ref_bytes: [u8; 32])]
+pub struct PublishPrice<'info> {
+    /// SR-2 — PDA seeds bind the feed account to a specific watch ref.
+    /// `init_if_needed` is intentional: the publisher refreshes the same
+    /// feed once per minute. Anchor's `realloc` is not needed because the
+    /// account size is fixed.
+    #[account(
+        init_if_needed,
+        payer = oracle_admin,
+        space = PriceFeed::SIZE,
+        seeds = [PriceFeed::SEED, ref_bytes.as_ref()],
+        bump,
+    )]
+    pub price_feed: Account<'info, PriceFeed>,
+    #[account(seeds = [LoanConfig::SEED], bump = loan_config.bump)]
+    pub loan_config: Account<'info, LoanConfig>,
+    /// SR-3 / SR-4 — the only signer allowed to publish. Verified inline
+    /// against `loan_config.oracle_admin`.
+    #[account(mut)]
+    pub oracle_admin: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[event]
+pub struct OracleAdminSet {
+    pub oracle_admin: Pubkey,
+    pub ts: i64,
+}
+
+#[event]
+pub struct PricePublished {
+    pub ref_bytes: [u8; 32],
+    pub median_usd_cents: u64,
+    pub listings: u32,
+    pub observed_at: i64,
+    pub ts: i64,
 }

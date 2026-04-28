@@ -13,7 +13,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { BN } from "@coral-xyz/anchor";
-import { PublicKey, SYSVAR_INSTRUCTIONS_PUBKEY } from "@solana/web3.js";
+import { PublicKey, SYSVAR_INSTRUCTIONS_PUBKEY, SystemProgram } from "@solana/web3.js";
 import {
   TOKEN_PROGRAM_ID,
   getAssociatedTokenAddressSync,
@@ -106,6 +106,7 @@ export async function POST(req: Request) {
         vaultProgram: vaultProgramId,
         tokenProgram: TOKEN_PROGRAM_ID,
         instructionsSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
+        priceFeed: SystemProgram.programId,
       })
       .signers([borrower])
       .rpc({ commitment: "confirmed" });

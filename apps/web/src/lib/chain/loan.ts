@@ -115,6 +115,7 @@ export function useCreateCcbTrdc() {
           systemProgram: SystemProgram.programId,
           loanConfig: loanConfigPda,
           kycAttestation: kycAttestationKey,
+          priceFeed: SystemProgram.programId,
         })
         .rpc();
 

@@ -45,6 +45,7 @@ describe("loan / create_ccb_trdc", () => {
           systemProgram: SystemProgram.programId,
           loanConfig: loanConfigPda,
           kycAttestation: SystemProgram.programId,
+          priceFeed: SystemProgram.programId,
         })
         .rpc();
     } catch (e: any) {
@@ -71,6 +72,7 @@ describe("loan / create_ccb_trdc", () => {
         systemProgram: SystemProgram.programId,
           loanConfig: loanConfigPda,
           kycAttestation: SystemProgram.programId,
+          priceFeed: SystemProgram.programId,
       })
       .rpc();
 
@@ -102,6 +104,7 @@ describe("loan / create_ccb_trdc", () => {
         systemProgram: SystemProgram.programId,
           loanConfig: loanConfigPda,
           kycAttestation: SystemProgram.programId,
+          priceFeed: SystemProgram.programId,
       })
       .rpc();
 
@@ -130,6 +133,7 @@ describe("loan / create_ccb_trdc", () => {
           systemProgram: SystemProgram.programId,
           loanConfig: loanConfigPda,
           kycAttestation: SystemProgram.programId,
+          priceFeed: SystemProgram.programId,
         })
         .rpc();
     } catch (e: any) {

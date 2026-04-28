@@ -154,6 +154,7 @@ export async function POST(req: Request) {
         tokenProgram: TOKEN_PROGRAM_ID,
         vaultConfig: vaultConfigPda,
         kycAttestation: SystemProgram.programId,
+          priceFeed: SystemProgram.programId,
       })
       .signers([lender])
       .rpc({ commitment: "confirmed" });

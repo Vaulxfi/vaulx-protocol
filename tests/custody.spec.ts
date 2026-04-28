@@ -59,6 +59,7 @@ describe("loan / confirm_custody", () => {
         systemProgram: SystemProgram.programId,
           loanConfig: loanConfigPda,
           kycAttestation: SystemProgram.programId,
+          priceFeed: SystemProgram.programId,
       })
       .rpc();
     return trdcStatePda;

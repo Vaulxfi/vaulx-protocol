@@ -126,6 +126,14 @@
             "`loan_config.kyc_required == true`. When the gate is OFF, callers may",
             "pass any account (e.g. SystemProgram)."
           ]
+        },
+        {
+          "name": "price_feed",
+          "docs": [
+            "when `loan_config.oracle_admin != Pubkey::default()`. When the oracle",
+            "is unset, callers may pass any account (e.g. SystemProgram). See",
+            "SR-1 / SR-2 / SR-5 / SR-6 inline in `create_ccb_trdc`."
+          ]
         }
       ],
       "args": [
@@ -150,7 +158,7 @@
           "type": "u64"
         },
         {
-          "name": "asset_hint",
+          "name": "_asset_hint",
           "type": {
             "array": [
               "u8",
@@ -267,6 +275,13 @@
             "vault CPI so vault::disburse's Layer 2 check can read it."
           ],
           "address": "Sysvar1nstructions1111111111111111111111111"
+        },
+        {
+          "name": "price_feed",
+          "docs": [
+            "`loan_config.oracle_admin != Pubkey::default()`. When the oracle is",
+            "unset, callers may pass any account (e.g. SystemProgram)."
+          ]
         }
       ],
       "args": [
@@ -701,6 +716,118 @@
       "args": []
     },
     {
+      "name": "publish_price",
+      "docs": [
+        "RedStone-pattern price update. Initialises (or overwrites) the",
+        "`PriceFeed` PDA at `[b\"price_feed\", ref_bytes]`. Signer must equal",
+        "`LoanConfig.oracle_admin`."
+      ],
+      "discriminator": [
+        117,
+        13,
+        6,
+        171,
+        29,
+        204,
+        11,
+        1
+      ],
+      "accounts": [
+        {
+          "name": "price_feed",
+          "docs": [
+            "SR-2 — PDA seeds bind the feed account to a specific watch ref.",
+            "`init_if_needed` is intentional: the publisher refreshes the same",
+            "feed once per minute. Anchor's `realloc` is not needed because the",
+            "account size is fixed."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  105,
+                  99,
+                  101,
+                  95,
+                  102,
+                  101,
+                  101,
+                  100
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "ref_bytes"
+              }
+            ]
+          }
+        },
+        {
+          "name": "loan_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  97,
+                  110,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "oracle_admin",
+          "docs": [
+            "SR-3 / SR-4 — the only signer allowed to publish. Verified inline",
+            "against `loan_config.oracle_admin`."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "ref_bytes",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "median_usd_cents",
+          "type": "u64"
+        },
+        {
+          "name": "listings",
+          "type": "u32"
+        },
+        {
+          "name": "observed_at",
+          "type": "i64"
+        }
+      ]
+    },
+    {
       "name": "renew_ccb",
       "docs": [
         "Moment 6 — borrower pays accrued interest + 2% renewal fee, the term",
@@ -904,6 +1031,63 @@
         }
       ],
       "args": []
+    },
+    {
+      "name": "set_oracle_admin",
+      "docs": [
+        "Admin-only ix: set (or rotate) the pubkey allowed to publish price",
+        "feeds. Defaults to `Pubkey::default()` (oracle inert). Rotation is",
+        "allowed because operationally we expect the publisher key to be",
+        "rotated via Squads multisig, not by program upgrade; admin can also",
+        "reset to `Pubkey::default()` to disable the oracle in an emergency",
+        "(e.g. compromised publisher key, before a fresh keypair is provisioned)."
+      ],
+      "discriminator": [
+        42,
+        121,
+        230,
+        241,
+        173,
+        83,
+        195,
+        200
+      ],
+      "accounts": [
+        {
+          "name": "loan_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  97,
+                  110,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "new_oracle_admin",
+          "type": "pubkey"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -931,6 +1115,19 @@
         187,
         118,
         220
+      ]
+    },
+    {
+      "name": "PriceFeed",
+      "discriminator": [
+        189,
+        103,
+        252,
+        23,
+        152,
+        35,
+        243,
+        156
       ]
     },
     {
@@ -1038,6 +1235,32 @@
         215,
         84
       ]
+    },
+    {
+      "name": "OracleAdminSet",
+      "discriminator": [
+        210,
+        46,
+        250,
+        34,
+        119,
+        174,
+        17,
+        60
+      ]
+    },
+    {
+      "name": "PricePublished",
+      "discriminator": [
+        161,
+        182,
+        51,
+        133,
+        25,
+        192,
+        179,
+        140
+      ]
     }
   ],
   "errors": [
@@ -1090,6 +1313,36 @@
       "code": 6009,
       "name": "UnauthorizedAttestor",
       "msg": "Unauthorized attestor"
+    },
+    {
+      "code": 6010,
+      "name": "StalePrice",
+      "msg": "Price feed is stale"
+    },
+    {
+      "code": 6011,
+      "name": "FuturePrice",
+      "msg": "Price observation is in the future"
+    },
+    {
+      "code": 6012,
+      "name": "InvalidOracle",
+      "msg": "Invalid oracle / wrong signer"
+    },
+    {
+      "code": 6013,
+      "name": "OracleNotInitialized",
+      "msg": "Oracle has not been initialized"
+    },
+    {
+      "code": 6014,
+      "name": "PriceFeedNotInit",
+      "msg": "Price feed PDA has not been initialised"
+    },
+    {
+      "code": 6015,
+      "name": "InsufficientListings",
+      "msg": "Insufficient listings to publish a price"
     }
   ],
   "types": [
@@ -1378,6 +1631,127 @@
           {
             "name": "bump",
             "type": "u8"
+          },
+          {
+            "name": "oracle_admin",
+            "docs": [
+              "Pubkey allowed to publish RedStone-pattern price updates via",
+              "`publish_price`. `Pubkey::default()` means the oracle has not been",
+              "set up — `create_ccb_trdc` falls back to the legacy synthetic",
+              "appraisal path. Once set (via `set_oracle_admin`), every loan opening",
+              "enforces a fresh on-chain feed. SR-3 / SR-4."
+            ],
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OracleAdminSet",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "oracle_admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PriceFeed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ref_bytes",
+            "docs": [
+              "Hash (or other 32-byte identifier) of the watch ref string.",
+              "SR-2 — the `create_ccb_trdc` ix re-derives the PDA from this and the",
+              "program id, so a wrong-feed substitution is rejected by the runtime",
+              "before the LTV check runs."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "median_usd_cents",
+            "docs": [
+              "Median price in USD cents (2 decimals). SR-6 — the program assumes",
+              "exactly 2 decimals; any future re-scaling MUST bump the discriminator",
+              "(rename or version this struct) so old feeds become un-deserialisable."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "listings",
+            "docs": [
+              "Number of independent listings observed by the publisher to compute",
+              "`median_usd_cents`. SR-5 — must be ≥ 3 (rejected at publish time)."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "observed_at",
+            "docs": [
+              "Unix timestamp from the publisher's reference clock. SR-1 — feeds",
+              "older than `MAX_AGE_SECONDS` at publish time, or at consume time, are",
+              "rejected."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "published_by",
+            "docs": [
+              "Pubkey of the off-chain publisher that signed this update. Must equal",
+              "`LoanConfig.oracle_admin`. SR-3 / SR-4."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PricePublished",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ref_bytes",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "median_usd_cents",
+            "type": "u64"
+          },
+          {
+            "name": "listings",
+            "type": "u32"
+          },
+          {
+            "name": "observed_at",
+            "type": "i64"
+          },
+          {
+            "name": "ts",
+            "type": "i64"
           }
         ]
       }
@@ -1452,6 +1826,10 @@
           },
           {
             "name": "asset_id",
+            "docs": [
+              "Bubblegum cNFT asset id assigned by `mint_trdc_cnft`. `Pubkey::default`",
+              "until the mint succeeds; written exactly once."
+            ],
             "type": "pubkey"
           },
           {
@@ -1482,6 +1860,15 @@
               "accrue interest on-chain without re-deriving from the term length."
             ],
             "type": "u64"
+          },
+          {
+            "name": "borrower",
+            "docs": [
+              "Borrower pubkey captured at `initialize_trdc_state`. Used by",
+              "`mint_trdc_cnft` to require that the signer is the same identity that",
+              "originated the loan (SR-2)."
+            ],
+            "type": "pubkey"
           },
           {
             "name": "_reserved",

@@ -189,6 +189,7 @@ describe("trdc / mint_trdc_cnft (Task 4.2 — 8 security mitigations)", function
         systemProgram: SystemProgram.programId,
         loanConfig: loanConfigPda,
         kycAttestation: SystemProgram.programId,
+          priceFeed: SystemProgram.programId,
       })
       .signers([borrower])
       .rpc();

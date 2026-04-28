@@ -18,4 +18,25 @@ pub enum LoanError {
     #[msg("Loan is not yet past the grace period")] NotYetDefaulted,
     #[msg("No valid KYC attestation")] NoKycAttestation,
     #[msg("Unauthorized attestor")] UnauthorizedAttestor,
+    /// SR-1 — feed is older than `PriceFeed::MAX_AGE_SECONDS`.
+    #[msg("Price feed is stale")] StalePrice,
+    /// Publisher reported a timestamp in the future relative to the on-chain
+    /// clock. Most likely the publisher's clock drifted; the program refuses
+    /// to write it because freshness checks become meaningless.
+    #[msg("Price observation is in the future")] FuturePrice,
+    /// SR-2 / SR-3 — the signer of `publish_price` is not the configured
+    /// `LoanConfig.oracle_admin`, or a `create_ccb_trdc` consumer passed a
+    /// price-feed PDA that doesn't match the canonical address. Either way,
+    /// the wrong oracle is being trusted.
+    #[msg("Invalid oracle / wrong signer")] InvalidOracle,
+    /// `LoanConfig.oracle_admin` is `Pubkey::default()` — the oracle has
+    /// never been set, so `publish_price` and any oracle-required path are
+    /// inert. Admin must call `set_oracle_admin` first.
+    #[msg("Oracle has not been initialized")] OracleNotInitialized,
+    /// Caller of `create_ccb_trdc` requires a fresh price feed but the PDA
+    /// supplied is uninitialised (rent-exempt zero account).
+    #[msg("Price feed PDA has not been initialised")] PriceFeedNotInit,
+    /// SR-5 — `publish_price` rejects payloads observed against fewer than
+    /// `PriceFeed::MIN_LISTINGS` independent sources.
+    #[msg("Insufficient listings to publish a price")] InsufficientListings,
 }

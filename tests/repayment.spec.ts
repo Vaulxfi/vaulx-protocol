@@ -150,6 +150,7 @@ describe("loan / repayment + renewal lifecycle (Task 3.1)", () => {
         tokenProgram: TOKEN_PROGRAM_ID,
         vaultConfig: vaultConfigPda(vaultProgram.programId),
         kycAttestation: SystemProgram.programId,
+          priceFeed: SystemProgram.programId,
       })
       .signers([lender])
       .rpc();
@@ -176,6 +177,7 @@ describe("loan / repayment + renewal lifecycle (Task 3.1)", () => {
         systemProgram: SystemProgram.programId,
         loanConfig: loanConfigPda,
         kycAttestation: SystemProgram.programId,
+          priceFeed: SystemProgram.programId,
       })
       .rpc();
 
@@ -220,6 +222,7 @@ describe("loan / repayment + renewal lifecycle (Task 3.1)", () => {
         vaultProgram: vaultProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
         instructionsSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
+        priceFeed: SystemProgram.programId,
       })
       .signers([borrower])
       .rpc();
