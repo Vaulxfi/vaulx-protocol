@@ -38,11 +38,20 @@ export function deriveVaultPda(assetMint: PublicKey): PublicKey {
   return pda;
 }
 
-/** TRDCState PDA: seeds = [b"trdc_state", loan_id]. */
+/**
+ * TRDCState PDA: seeds = [b"trdc_state", loan_id], derived under the
+ * **trdc** program (not loan). The TRDCState account is owned by the trdc
+ * program; only PDAs derived under TRDC_PROGRAM_ID resolve to the canonical
+ * on-chain address.
+ *
+ * Pre-`b12f381` this used `LOAN_PROGRAM_ID` and was a latent bug masked by
+ * downstream flows that only ever read `trdcState.toBase58()` for display
+ * (never round-tripped against on-chain state).
+ */
 export function deriveTrdcStatePda(loanId: PublicKey): PublicKey {
   const [pda] = PublicKey.findProgramAddressSync(
     [Buffer.from("trdc_state"), loanId.toBuffer()],
-    LOAN_PROGRAM_ID,
+    TRDC_PROGRAM_ID,
   );
   return pda;
 }

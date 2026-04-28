@@ -36,20 +36,31 @@ const POLL_INTERVAL_MS = 60_000;
 const IDLE_HEADROOM_FACTOR = 1.1; // 10% buffer for upcoming disbursements (SR-3)
 const MIN_ROUTE_AMOUNT_USDC = 100_000_000n; // 100 USDC at 6 decimals
 
-// Canonical Kamino USDC main vaults. Hardcoded to satisfy SR-1 — operators
-// pick mainnet vs devnet via `KAMINO_CLUSTER`, never via a free-form pubkey
-// from env. To swap to a different Kamino vault, edit this constant in a
+// Canonical Kamino addresses. Hardcoded to satisfy SR-1 — operators pick
+// mainnet vs devnet via `KAMINO_CLUSTER`, never via a free-form pubkey from
+// env. To swap to a different Kamino market, edit this constant in a
 // reviewed PR.
 //
-// Mainnet: Kamino USDC main reserve (kamino.finance/lend). Update on each
-// reserve migration.
-const KAMINO_USDC_VAULT_MAINNET = new PublicKey(
-  "D6q6wuQSrifJKZYpR1M8R4YawnLDtDsMmWM1NbBmgJ59",
+// Verified against Kamino's published klend-sdk repo (github.com/Kamino-
+// Finance/klend-sdk) and Solana Explorer: the production "Main Market"
+// lending market is `7u3HeHxYDLhnCoErrtycNokbQYbWGzLs6JSDqGAv5PfF`. The
+// USDC reserve within that market is resolved at runtime via the klend-sdk
+// (`market.getReserveBySymbol("USDC")`) — encoding a reserve pubkey here
+// would be fragile because Kamino can re-org reserves under a market
+// without changing the market address itself. The env var
+// `KAMINO_VAULT_ADDRESS` MUST equal this market address for SR-1 to pass;
+// the router then asks the SDK for the live reserve.
+const KAMINO_MAIN_MARKET_MAINNET = new PublicKey(
+  "7u3HeHxYDLhnCoErrtycNokbQYbWGzLs6JSDqGAv5PfF",
 );
-// Devnet: Kamino does not maintain a stable USDC reserve on devnet at the
+// Devnet: Kamino does not maintain a stable Main Market on devnet at the
 // time of writing. Set to PublicKey.default to force dry-run on devnet
 // regardless of KAMINO_DRY_RUN flag.
-const KAMINO_USDC_VAULT_DEVNET = PublicKey.default;
+const KAMINO_MAIN_MARKET_DEVNET = PublicKey.default;
+// Aliases retained for backward compat with the existing test suite which
+// imports the older names.
+const KAMINO_USDC_VAULT_MAINNET = KAMINO_MAIN_MARKET_MAINNET;
+const KAMINO_USDC_VAULT_DEVNET = KAMINO_MAIN_MARKET_DEVNET;
 
 export type KaminoCluster = "mainnet" | "devnet";
 
