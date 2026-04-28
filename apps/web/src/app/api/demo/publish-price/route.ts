@@ -80,7 +80,11 @@ export async function POST(req: Request) {
   const refBytes = Uint8Array.from(body.refBytes);
   const median = body.medianUsdCents ?? DEFAULT_MEDIAN_CENTS;
   const listings = body.listings ?? DEFAULT_LISTINGS;
-  const observedAt = body.observedAt ?? Math.floor(Date.now() / 1000);
+  // Backdate by 60s to absorb Vercel/Devnet clock drift (FuturePrice
+  // check on-chain compares against validator Clock::get; we've seen
+  // serverless box drift ~milliseconds ahead at the second-precision
+  // boundary). Still well within MAX_AGE_SECONDS (600s) freshness window.
+  const observedAt = body.observedAt ?? Math.floor(Date.now() / 1000) - 60;
 
   if (!(median > 0)) {
     return Response.json(
