@@ -12,6 +12,7 @@ import { z } from "zod";
 import { DemoShell } from "../../_components/demo-shell";
 import { useDemoSession } from "../../_lib/use-demo-session";
 import { useUnifiedWallet } from "@/components/providers/crossmint-wallet-adapter";
+import { useKycGate, KycCancelledError } from "@/lib/use-kyc-gate";
 import { rateForTermDays } from "@vaulx/terms";
 
 const MAKES = [
@@ -87,6 +88,7 @@ export default function RegisterPage() {
   const router = useRouter();
   const { session, patch } = useDemoSession();
   const wallet = useUnifiedWallet();
+  const { guard, modalNode } = useKycGate("Submit asset for evaluation");
   const [photos, setPhotos] = useState<string[]>(["", "", ""]);
   const [submitting, setSubmitting] = useState(false);
   const [provisionMsg, setProvisionMsg] = useState<string | null>(null);
@@ -166,6 +168,7 @@ export default function RegisterPage() {
 
     if (canProvision) {
       try {
+        await guard(async () => {
         const median = computeFallbackMedianUsd(values);
         const watchRef = `${watchPatch.make} ${watchPatch.ref}`.trim();
         const ltvBps = 5000; // 50% — sane default for the demo
@@ -238,8 +241,14 @@ export default function RegisterPage() {
           tour: { ...prev.tour, step: 8 },
         }));
         router.push("/demo/borrow/disburse");
+        });
         return;
       } catch (err) {
+        if (err instanceof KycCancelledError) {
+          setSubmitting(false);
+          setProvisionMsg(null);
+          return;
+        }
         setErrMsg(err instanceof Error ? err.message : String(err));
         setSubmitting(false);
         setProvisionMsg(null);
@@ -253,6 +262,7 @@ export default function RegisterPage() {
 
   return (
     <DemoShell formFactor="phone">
+      {modalNode}
       <div className="px-6 py-8">
         <p className="eyebrow">Step 5 / 14 · Asset</p>
         <h1 className="display-md mt-3">Register your watch.</h1>
