@@ -1,9 +1,21 @@
 import * as anchor from "@coral-xyz/anchor";
 import { BN, Program } from "@coral-xyz/anchor";
-import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram } from "@solana/web3.js";
+import {
+  Keypair,
+  LAMPORTS_PER_SOL,
+  PublicKey,
+  SystemProgram,
+  SYSVAR_INSTRUCTIONS_PUBKEY,
+} from "@solana/web3.js";
+import {
+  TOKEN_PROGRAM_ID,
+  createAssociatedTokenAccount,
+  createMint,
+  mintTo,
+} from "@solana/spl-token";
 import { createHash } from "node:crypto";
 import { expect } from "chai";
-import { ensureLoanConfig } from "./_shared";
+import { ensureLoanConfig, ensureVaultConfig, vaultConfigPda } from "./_shared";
 
 // Item 5 — RedStone-pattern price feed.
 //
@@ -375,5 +387,350 @@ describe("loan / redstone-pattern price feed (Item 5)", () => {
     // `trdc_state.appraisal_value` — not the wildly-generous ix arg.
     expect(okState.appraisalValue.toString()).to.eq("50000000000");
     expect(okState.loanAmount.toString()).to.eq("30000000000");
+    // SR-2 (price-feed binding) — `create_ccb_trdc` must persist the same
+    // ref_bytes that gated the LTV check on the TRDCState. Without this
+    // binding `disburse_from_vault` couldn't re-derive the canonical PriceFeed
+    // PDA and an attacker could substitute a different watch's feed.
+    expect(Buffer.from(okState.refBytes)).to.deep.equal(Buffer.from(refBytes));
+  });
+
+  // ----------------------------------------------------------------------
+  // SR-2 (price-feed binding) — the gap closed in this commit.
+  //
+  // Before: `disburse_from_vault` checked the feed account was program-owned,
+  // signed by oracle_admin, fresh, and had ≥ 3 listings. It did NOT check the
+  // feed was for the watch the TRDC was minted against. An attacker could
+  // wait for a legit Rolex 126610LN feed and use it to over-collateralise a
+  // TRDC for a cheaper Rolex 126610.
+  //
+  // After: TRDCState.ref_bytes is captured at create_ccb_trdc and
+  // disburse_from_vault re-derives the canonical PriceFeed PDA from it,
+  // address-checking the supplied account.
+  // ----------------------------------------------------------------------
+
+  it("test_create_ccb_trdc_writes_ref_bytes_to_trdc_state (SR-2)", async () => {
+    const oracleKp = Keypair.generate();
+    await airdrop(oracleKp);
+    await setOracleAdminTo(oracleKp);
+
+    const ref = "redstone:writes-ref-bytes:" + Date.now();
+    const refBytes = refBytesFor(ref);
+    const [feedPda] = priceFeedPda(loanProgram.programId, refBytes);
+    const observedAt = new BN(Math.floor(Date.now() / 1000) - 5);
+
+    await loanProgram.methods
+      .publishPrice(refBytes, new BN(50_000_00), 5, observedAt)
+      .accounts({
+        priceFeed: feedPda,
+        loanConfig: loanConfigPda,
+        oracleAdmin: oracleKp.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([oracleKp])
+      .rpc();
+
+    const loanId = Keypair.generate().publicKey;
+    const [trdcStatePda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("trdc_state"), loanId.toBuffer()],
+      trdcProgram.programId,
+    );
+    await loanProgram.methods
+      .createCcbTrdc(
+        loanId,
+        new BN("9999999999999"),
+        new BN("1000000000"),
+        new BN(Math.floor(Date.now() / 1000) + 30 * 86400),
+        new BN(800),
+        refBytes,
+      )
+      .accounts({
+        trdcState: trdcStatePda,
+        trdcProgram: trdcProgram.programId,
+        payer: provider.wallet.publicKey,
+        systemProgram: SystemProgram.programId,
+        loanConfig: loanConfigPda,
+        kycAttestation: SystemProgram.programId,
+        priceFeed: feedPda,
+      })
+      .rpc();
+
+    const state = await trdcProgram.account.trdcState.fetch(trdcStatePda);
+    expect(Buffer.from(state.refBytes)).to.deep.equal(Buffer.from(refBytes));
+
+    await unsetOracleAdmin();
+  });
+
+  it("test_disburse_rejected_when_price_feed_ref_bytes_mismatch (SR-2)", async () => {
+    const vaultProgram = anchor.workspace.Vault as Program<any>;
+    await ensureVaultConfig(vaultProgram, provider);
+    const loanAuthorityPda = PublicKey.findProgramAddressSync(
+      [Buffer.from("loan_authority")],
+      loanProgram.programId,
+    )[0];
+
+    const oracleKp = Keypair.generate();
+    await airdrop(oracleKp);
+    await setOracleAdminTo(oracleKp);
+
+    // Two legit feeds, both fresh, both ≥ 3 listings, both signed by the
+    // current oracle_admin. The mismatch test wins ONLY because of the new
+    // PDA-derivation binding — every other check passes.
+    const refA = "redstone:mismatch:A:" + Date.now();
+    const refB = "redstone:mismatch:B:" + Date.now();
+    const refBytesA = refBytesFor(refA);
+    const refBytesB = refBytesFor(refB);
+    const [feedPdaA] = priceFeedPda(loanProgram.programId, refBytesA);
+    const [feedPdaB] = priceFeedPda(loanProgram.programId, refBytesB);
+    const observedAt = new BN(Math.floor(Date.now() / 1000) - 5);
+    // Make A more expensive than B so the substitution attempt would be
+    // economically interesting (would let the borrower over-collateralise).
+    const centsA = new BN(100_000_00); // $100k
+    const centsB = new BN(50_000_00); //  $50k
+
+    for (const [bytes, pda, cents] of [
+      [refBytesA, feedPdaA, centsA] as const,
+      [refBytesB, feedPdaB, centsB] as const,
+    ]) {
+      await loanProgram.methods
+        .publishPrice(bytes, cents, 5, observedAt)
+        .accounts({
+          priceFeed: pda,
+          loanConfig: loanConfigPda,
+          oracleAdmin: oracleKp.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([oracleKp])
+        .rpc();
+    }
+
+    // ------------------------------------------------------------------
+    // Stand up a vault + asset mint so the disburse ix gets past Anchor's
+    // account loading. The SR-2 binding fires before the vault CPI, so the
+    // vault doesn't need to actually disburse — the test passes when the ix
+    // reverts with `InvalidOracle`.
+    // ------------------------------------------------------------------
+    const assetMint = await createMint(
+      provider.connection,
+      adminWallet,
+      provider.publicKey,
+      null,
+      6,
+    );
+    const [vaultPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("vault"), assetMint.toBuffer()],
+      vaultProgram.programId,
+    );
+    const shareMintKp = Keypair.generate();
+    await vaultProgram.methods
+      .initializeVault()
+      .accounts({
+        vault: vaultPda,
+        assetMint,
+        shareMint: shareMintKp.publicKey,
+        payer: provider.publicKey,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+      })
+      .signers([shareMintKp])
+      .rpc();
+    const vaultAta = await createAssociatedTokenAccount(
+      provider.connection,
+      adminWallet,
+      assetMint,
+      vaultPda,
+      undefined,
+      undefined,
+      undefined,
+      true,
+    );
+    // Fund the vault — not strictly required (we expect pre-CPI revert) but
+    // makes the test resilient to the SR-2 check moving in future patches.
+    const lender = Keypair.generate();
+    const lenderAirdropSig = await provider.connection.requestAirdrop(
+      lender.publicKey,
+      2 * LAMPORTS_PER_SOL,
+    );
+    await provider.connection.confirmTransaction(lenderAirdropSig, "confirmed");
+    const lenderAta = await createAssociatedTokenAccount(
+      provider.connection,
+      adminWallet,
+      assetMint,
+      lender.publicKey,
+    );
+    await mintTo(
+      provider.connection,
+      adminWallet,
+      assetMint,
+      lenderAta,
+      adminWallet,
+      BigInt("100000000000"),
+    );
+    const lenderShareAta = await createAssociatedTokenAccount(
+      provider.connection,
+      adminWallet,
+      shareMintKp.publicKey,
+      lender.publicKey,
+    );
+    await vaultProgram.methods
+      .deposit(new BN("100000000000"))
+      .accounts({
+        vault: vaultPda,
+        assetMint,
+        shareMint: shareMintKp.publicKey,
+        vaultAta,
+        depositorAta: lenderAta,
+        depositorShareAta: lenderShareAta,
+        depositor: lender.publicKey,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        vaultConfig: vaultConfigPda(vaultProgram.programId),
+        kycAttestation: SystemProgram.programId,
+        priceFeed: SystemProgram.programId,
+      })
+      .signers([lender])
+      .rpc();
+
+    // Create TRDC bound to refB (cheaper watch). 50% LTV against $50k feed
+    // = 25k atoms-eq cap. Borrow 1k atoms — well under the cap.
+    const loanId = Keypair.generate().publicKey;
+    const [trdcStatePda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("trdc_state"), loanId.toBuffer()],
+      trdcProgram.programId,
+    );
+    await loanProgram.methods
+      .createCcbTrdc(
+        loanId,
+        new BN("9999999999999"),
+        new BN("1000000000"),
+        new BN(Math.floor(Date.now() / 1000) + 30 * 86400),
+        new BN(800),
+        refBytesB,
+      )
+      .accounts({
+        trdcState: trdcStatePda,
+        trdcProgram: trdcProgram.programId,
+        payer: provider.wallet.publicKey,
+        systemProgram: SystemProgram.programId,
+        loanConfig: loanConfigPda,
+        kycAttestation: SystemProgram.programId,
+        priceFeed: feedPdaB,
+      })
+      .rpc();
+
+    // confirm_custody → ActiveInCustody so disburse gets past the FSM check.
+    const { custodian } = await ensureLoanConfig(loanProgram, provider);
+    await loanProgram.methods
+      .confirmCustody(Array.from(Buffer.alloc(32)))
+      .accounts({
+        trdcState: trdcStatePda,
+        loanConfig: loanConfigPda,
+        trdcProgram: trdcProgram.programId,
+        custodian: custodian.publicKey,
+      })
+      .signers([custodian])
+      .rpc();
+
+    const borrower = Keypair.generate();
+    const sigBorrower = await provider.connection.requestAirdrop(
+      borrower.publicKey,
+      2 * LAMPORTS_PER_SOL,
+    );
+    await provider.connection.confirmTransaction(sigBorrower, "confirmed");
+    const borrowerAta = await createAssociatedTokenAccount(
+      provider.connection,
+      adminWallet,
+      assetMint,
+      borrower.publicKey,
+    );
+
+    // Sanity — disburse with the MATCHING feed (refB) succeeds. This rules
+    // out unrelated breakage in the disburse path.
+    await loanProgram.methods
+      .disburseFromVault(new BN("500000000"))
+      .accounts({
+        trdcState: trdcStatePda,
+        loanConfig: loanConfigPda,
+        vault: vaultPda,
+        assetMint,
+        vaultAta,
+        borrowerAta,
+        loanAuthority: loanAuthorityPda,
+        borrower: borrower.publicKey,
+        trdcProgram: trdcProgram.programId,
+        vaultProgram: vaultProgram.programId,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        instructionsSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
+        priceFeed: feedPdaB,
+      })
+      .signers([borrower])
+      .rpc();
+
+    // Now build a SECOND TRDC bound to refB and try to disburse with refA's
+    // feed — the substitution attack. Must fail at the SR-2 binding.
+    const loanId2 = Keypair.generate().publicKey;
+    const [trdcStatePda2] = PublicKey.findProgramAddressSync(
+      [Buffer.from("trdc_state"), loanId2.toBuffer()],
+      trdcProgram.programId,
+    );
+    await loanProgram.methods
+      .createCcbTrdc(
+        loanId2,
+        new BN("9999999999999"),
+        new BN("1000000000"),
+        new BN(Math.floor(Date.now() / 1000) + 30 * 86400),
+        new BN(800),
+        refBytesB,
+      )
+      .accounts({
+        trdcState: trdcStatePda2,
+        trdcProgram: trdcProgram.programId,
+        payer: provider.wallet.publicKey,
+        systemProgram: SystemProgram.programId,
+        loanConfig: loanConfigPda,
+        kycAttestation: SystemProgram.programId,
+        priceFeed: feedPdaB,
+      })
+      .rpc();
+    await loanProgram.methods
+      .confirmCustody(Array.from(Buffer.alloc(32)))
+      .accounts({
+        trdcState: trdcStatePda2,
+        loanConfig: loanConfigPda,
+        trdcProgram: trdcProgram.programId,
+        custodian: custodian.publicKey,
+      })
+      .signers([custodian])
+      .rpc();
+
+    let threw = false;
+    let code: string | undefined;
+    try {
+      await loanProgram.methods
+        .disburseFromVault(new BN("500000000"))
+        .accounts({
+          trdcState: trdcStatePda2,
+          loanConfig: loanConfigPda,
+          vault: vaultPda,
+          assetMint,
+          vaultAta,
+          borrowerAta,
+          loanAuthority: loanAuthorityPda,
+          borrower: borrower.publicKey,
+          trdcProgram: trdcProgram.programId,
+          vaultProgram: vaultProgram.programId,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          instructionsSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
+          priceFeed: feedPdaA, // <-- wrong feed for refB-bound TRDC
+        })
+        .signers([borrower])
+        .rpc();
+    } catch (e: any) {
+      threw = true;
+      code = e.error?.errorCode?.code ?? e.code;
+    }
+    expect(threw, "wrong-feed disburse must revert").to.eq(true);
+    expect(code).to.eq("InvalidOracle");
+
+    await unsetOracleAdmin();
   });
 });

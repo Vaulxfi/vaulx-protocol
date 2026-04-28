@@ -26,6 +26,7 @@ pub mod trdc {
         loan_amount: u64,
         due_ts: i64,
         rate_bps: u64,
+        ref_bytes: [u8; 32],
     ) -> Result<()> {
         let clock = Clock::get()?;
         let s = &mut ctx.accounts.trdc_state;
@@ -41,6 +42,7 @@ pub mod trdc {
         s.principal_remaining = loan_amount;
         s.rate_bps = rate_bps;
         s.borrower = ctx.accounts.payer.key();
+        s.ref_bytes = ref_bytes;
         s._reserved = [0u8; 16];
 
         emit!(TrdcStateInitialized {

@@ -19,7 +19,14 @@ describe("trdc / initialize_trdc_state", () => {
     const dueTs          = new anchor.BN(Math.floor(Date.now() / 1000) + 120 * 86400);
 
     await program.methods
-      .initializeTrdcState(loanId, appraisalValue, loanAmount, dueTs, new anchor.BN(1000))
+      .initializeTrdcState(
+        loanId,
+        appraisalValue,
+        loanAmount,
+        dueTs,
+        new anchor.BN(1000),
+        Array.from(Buffer.alloc(32)),
+      )
       .accounts({
         trdcState: trdcStatePda,
         payer: provider.publicKey,
@@ -41,7 +48,14 @@ describe("trdc / initialize_trdc_state", () => {
     const [pda] = PublicKey.findProgramAddressSync(
       [Buffer.from("trdc_state"), loanId.toBuffer()], program.programId,
     );
-    const args = [loanId, new anchor.BN(1), new anchor.BN(1), new anchor.BN(1), new anchor.BN(800)];
+    const args = [
+      loanId,
+      new anchor.BN(1),
+      new anchor.BN(1),
+      new anchor.BN(1),
+      new anchor.BN(800),
+      Array.from(Buffer.alloc(32)),
+    ];
     await program.methods.initializeTrdcState(...args)
       .accounts({ trdcState: pda, payer: provider.publicKey, systemProgram: SystemProgram.programId })
       .rpc();
@@ -123,6 +137,7 @@ describe("trdc / transitions", () => {
         new anchor.BN(1),
         new anchor.BN(1),
         new anchor.BN(800),
+        Array.from(Buffer.alloc(32)),
       )
       .accounts({
         trdcState: pda,

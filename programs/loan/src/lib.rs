@@ -78,6 +78,9 @@ pub mod loan {
         loan_amount: u64,
         due_ts: i64,
         rate_bps: u64,
+        // Doubles as `ref_bytes` for the SR-2 price-feed binding. The IDL name
+        // is preserved across releases; downstream callers should pass
+        // sha256(watch_ref) here when the oracle is on, zeros otherwise.
         _asset_hint: [u8; 32],
     ) -> Result<()> {
         require!(loan_amount > 0 && appraisal_value > 0, LoanError::ZeroAmount);
@@ -183,13 +186,25 @@ pub mod loan {
             .checked_mul(MAX_LTV_BPS as u128).ok_or(LoanError::MathOverflow)?;
         require!(lhs <= rhs, LoanError::LtvTooHigh);
 
+        // SR-2 (price-feed binding) — persist ref_bytes on TRDCState when the
+        // oracle is on so `disburse_from_vault` can re-derive the canonical
+        // PriceFeed PDA at consume-time. Zero-out when the oracle is off so
+        // downstream consumers can detect "no binding" and skip the check.
+        let trdc_ref_bytes: [u8; 32] = if ctx.accounts.loan_config.oracle_admin
+            != Pubkey::default()
+        {
+            _asset_hint
+        } else {
+            [0u8; 32]
+        };
+
         trdc::cpi::initialize_trdc_state(
             CpiContext::new(ctx.accounts.trdc_program.to_account_info(), InitializeTrdcState {
                 trdc_state: ctx.accounts.trdc_state.to_account_info(),
                 payer: ctx.accounts.payer.to_account_info(),
                 system_program: ctx.accounts.system_program.to_account_info(),
             }),
-            loan_id, effective_appraisal, loan_amount, due_ts, rate_bps,
+            loan_id, effective_appraisal, loan_amount, due_ts, rate_bps, trdc_ref_bytes,
         )?;
 
         // Task 4.2 — the cNFT mint is now a separate ix on the trdc program.
@@ -252,12 +267,27 @@ pub mod loan {
         // disburse). When the oracle is unset, retain the legacy disburse
         // path. SR-1 / SR-2 / SR-6.
         if ctx.accounts.loan_config.oracle_admin != Pubkey::default() {
-            // Re-derive the canonical PriceFeed PDA from the trdc_state's
-            // appraisal-time identity. We don't store ref_bytes on TRDCState
-            // (avoids a trdc-state migration); instead we accept the feed
-            // account directly and require its `published_by` matches the
-            // current `oracle_admin`. SR-2 is enforced via the PDA owner
-            // check + the published_by binding.
+            // SR-2 (price-feed binding) — re-derive the canonical PriceFeed
+            // PDA from the ref_bytes stamped on the TRDCState at create-time
+            // and require equality with the supplied account. Without this
+            // binding, an attacker could substitute a fresh price feed for a
+            // *different* (more expensive) watch and over-collateralise.
+            //
+            // A zero ref_bytes means the loan was created with the oracle off
+            // — we treat it as a hard failure here because oracle-on at
+            // disburse-time + oracle-off at create-time is a misconfig that
+            // should never happen on a real loan.
+            require!(
+                ctx.accounts.trdc_state.ref_bytes != [0u8; 32],
+                LoanError::PriceFeedNotInit
+            );
+            let (expected_feed_pda, _bump) =
+                PriceFeed::pda(&ctx.accounts.trdc_state.ref_bytes, &crate::ID);
+            require_keys_eq!(
+                ctx.accounts.price_feed.key(),
+                expected_feed_pda,
+                LoanError::InvalidOracle
+            );
             require_keys_eq!(
                 *ctx.accounts.price_feed.owner,
                 crate::ID,

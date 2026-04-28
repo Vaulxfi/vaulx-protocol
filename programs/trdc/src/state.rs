@@ -66,15 +66,32 @@ pub struct TRDCState {
     /// `mint_trdc_cnft` to require that the signer is the same identity that
     /// originated the loan (SR-2).
     pub borrower: Pubkey,
+    /// SR-2 (price-feed binding) — sha256(watch_ref) captured at
+    /// `initialize_trdc_state`. `disburse_from_vault` re-derives the canonical
+    /// `PriceFeed` PDA from this value and Anchor address-checks the supplied
+    /// price_feed account against it. Without this binding an attacker could
+    /// substitute a fresh feed for a *different* (more expensive) watch and
+    /// over-collateralise. Stored zeroed when the loan was created with the
+    /// oracle off; consumers MUST treat zero as "no binding" and skip the
+    /// derived-PDA check.
+    pub ref_bytes: [u8; 32],
     pub _reserved: [u8; 16],
 }
 
 impl TRDCState {
     // disc(8) + loan_id(32) + status(2) + appraisal(8) + loan_amt(8) + due_ts(8)
     // + bump(1) + asset_id(32) + created_at(8) + doc_hash(32)
-    // + principal_remaining(8) + rate_bps(8) + borrower(32) + reserved(16) = 203
-    pub const SIZE: usize = 8 + 32 + 2 + 8 + 8 + 8 + 1 + 32 + 8 + 32 + 8 + 8 + 32 + 16;
+    // + principal_remaining(8) + rate_bps(8) + borrower(32) + ref_bytes(32) + reserved(16) = 235
+    pub const SIZE: usize =
+        8 + 32 + 2 + 8 + 8 + 8 + 1 + 32 + 8 + 32 + 8 + 8 + 32 + 32 + 16;
     pub const SEED: &'static [u8] = b"trdc_state";
+
+    /// SR-2 helper — canonical mapping from watch ref string to the on-chain
+    /// 32-byte identifier shared between `PriceFeed.ref_bytes` and
+    /// `TRDCState.ref_bytes`.
+    pub fn ref_bytes_for(ref_str: &str) -> [u8; 32] {
+        anchor_lang::solana_program::hash::hash(ref_str.as_bytes()).to_bytes()
+    }
 
     pub fn transition(&mut self, next: Status) -> Result<()> {
         require!(

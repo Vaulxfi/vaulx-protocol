@@ -327,6 +327,15 @@
         {
           "name": "rate_bps",
           "type": "u64"
+        },
+        {
+          "name": "ref_bytes",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         }
       ]
     },
@@ -964,6 +973,25 @@
               "originated the loan (SR-2)."
             ],
             "type": "pubkey"
+          },
+          {
+            "name": "ref_bytes",
+            "docs": [
+              "SR-2 (price-feed binding) — sha256(watch_ref) captured at",
+              "`initialize_trdc_state`. `disburse_from_vault` re-derives the canonical",
+              "`PriceFeed` PDA from this value and Anchor address-checks the supplied",
+              "price_feed account against it. Without this binding an attacker could",
+              "substitute a fresh feed for a *different* (more expensive) watch and",
+              "over-collateralise. Stored zeroed when the loan was created with the",
+              "oracle off; consumers MUST treat zero as \"no binding\" and skip the",
+              "derived-PDA check."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
           },
           {
             "name": "_reserved",
