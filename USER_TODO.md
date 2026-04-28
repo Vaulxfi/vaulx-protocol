@@ -145,6 +145,18 @@ Status: **RedStone pattern, Vaulx-signed (proper RedStone SDK pending Solana sup
 
 ---
 
+## Item 6 (GraphQL endpoint) — deploy + future Substreams
+
+Status: **GraphQL-on-Supabase pattern shipped.** The indexer now serves a read-only GraphQL endpoint at `/graphql` (default port 4000) covering the loan lifecycle entities (`Loan`, `Custody`, `Disbursement`, `Repayment`, `Renewal`, `Liquidation`). Resolvers query the same `onchain_events` table the WebSocket subscriber writes to. The **proper** Graph-protocol path on Solana is a Substreams-powered subgraph (Rust+WASM module reading from a Pinax/Streamingfast provider) — deferred until full Graph-Solana GA, since it adds ~1 day of plumbing for zero hackathon-demo benefit.
+
+- [ ] **Deploy the indexer + GraphQL server** to a hosted provider so the live demo can hit a real endpoint. Options:
+  - **Railway / Fly.io** — long-running Node service, $5–10/mo, stateless (Supabase is the only stateful dep). Deploy `apps/indexer` with `pnpm start`; expose port 4000.
+  - **Vercel Edge Functions** — split: keep the WS subscriber on Railway/Fly (Vercel has no long-running compute), put the GraphQL `createYoga` handler in `/api/graphql.ts` on the existing Vercel project. Cleanest UX (single domain) but requires factoring the schema out of the indexer worker.
+- [ ] Once deployed, link `https://<host>/graphql` from the README "Quick links" section and from the [`/admin/demo`](https://vaulx.vercel.app/admin/demo) cockpit.
+- [ ] **(Future)** Migrate to a **Substreams-powered subgraph** when The Graph's Solana support exits beta. Provider account at [pinax.network](https://pinax.network) or [streamingfast.io](https://streamingfast.io); Rust module that filters Vaulx program logs and emits the same six entities into a Graph subgraph; deploy via `graph-cli` to Graph Studio. Replaces the Supabase event log as the source of truth.
+
+---
+
 ## Post-hackathon (after May 10)
 
 ### Bump Next.js 14 → 15 (or 16)

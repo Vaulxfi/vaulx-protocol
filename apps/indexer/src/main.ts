@@ -12,6 +12,7 @@ import { BorshCoder, EventParser, type Idl } from "@coral-xyz/anchor";
 import { createRequire } from "node:module";
 import { insertEvent } from "./supabase.js";
 import { RedstonePublisher, type AppraisalQuery } from "./redstone-publisher.js";
+import { startGraphqlServer } from "./graphql/server.js";
 
 // Load IDL JSONs via createRequire to sidestep a Node 24 ESM regression where
 // re-exported JSON named-exports from @vaulx/idls fail at module-instantiation
@@ -53,6 +54,11 @@ function buildSubscription(label: string, idl: unknown): Subscription {
 }
 
 async function main(): Promise<void> {
+  // Item 6 — GraphQL endpoint over the Supabase-backed event log. Starts on
+  // GRAPHQL_PORT (default 4000); set GRAPHQL_PORT=0 to disable. Read-only
+  // surface for FE/explorer consumers; doesn't affect the WS subscriber.
+  startGraphqlServer();
+
   const conn = new Connection(RPC, "confirmed");
 
   const subs: Subscription[] = [

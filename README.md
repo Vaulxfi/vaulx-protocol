@@ -208,6 +208,19 @@ pnpm --filter @vaulx/web dev
 open http://localhost:3000/admin/demo
 ```
 
+#### GraphQL endpoint (loan lifecycle)
+
+The indexer also exposes a read-only **GraphQL endpoint** at `http://localhost:4000/graphql` covering the loan lifecycle (`Loan`, `Custody`, `Disbursement`, `Repayment`, `Renewal`, `Liquidation`). Resolvers read from the same `onchain_events` table the WebSocket subscriber writes to — so any loan picked up live shows up in GraphQL too. Set `GRAPHQL_PORT=0` in `apps/indexer/.env.local` to disable.
+
+```bash
+# Smoke test
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"{ loans(limit: 5) { id principal ltvBps openedAt } }"}'
+```
+
+> **Why not a Substreams subgraph?** The Graph protocol's Solana support is Substreams-based, not the EVM-style subgraph. A Substreams build needs a Pinax/Streamingfast provider, a Rust/WASM module, and ~1 day of plumbing — overkill for the hackathon demo. We ship the same shape (GraphQL over an event log) on top of the existing Supabase indexer; a Substreams-powered subgraph is deferred until full Graph-Solana GA.
+
 Or run the same flow headless:
 
 ```bash
