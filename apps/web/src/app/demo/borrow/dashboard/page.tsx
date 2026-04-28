@@ -13,6 +13,7 @@ import { DemoShell } from "../../_components/demo-shell";
 import { LtvGauge } from "../../_components/ltv-gauge";
 import { RedstoneFeedCard } from "../../_components/redstone-feed-card";
 import { LiveTicker } from "../../_components/live-ticker";
+import { TrdcViewer } from "../../_components/trdc-viewer";
 import { useDemoSession } from "../../_lib/use-demo-session";
 
 const SECONDS_PER_DAY = 86_400;
@@ -173,6 +174,11 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* TRDC cNFT viewer — pulls Vaulx-hosted Metaplex JSON for the loan */}
+        <div className="mt-6">
+          <TrdcViewer loanId={loan.loanId} network="devnet" />
         </div>
 
         {/* RedStone feed */}
