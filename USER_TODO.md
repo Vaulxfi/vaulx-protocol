@@ -133,6 +133,18 @@ Tracked from the Civic Pass → Civic Auth migration reviews (commits `39131e1`,
 
 ---
 
+## Item 5 (RedStone oracle) — operator actions
+
+Status: **RedStone pattern, Vaulx-signed (proper RedStone SDK pending Solana support).** As of writing there is no first-party `@redstone-finance/sdk-solana` package on npm; we ship the *pattern* (push model, signed-payload, Anchor-verified) with a single Vaulx-controlled signer. When RedStone ships a Solana SDK, the publisher's signer-set check replaces the `published_by == oracle_admin` check; the rest of the on-chain shape is forward-compatible.
+
+- [ ] **Generate a dedicated oracle-admin keypair** (separate from program upgrade authority and from the deploy payer) and store its JSON file at `~/.config/vaulx/oracle-admin-keypair.json` with `chmod 600`. Path goes into `apps/indexer/.env.local` as `REDSTONE_SIGNER_KEYPAIR_PATH`. Never commit this file. SR-4.
+- [ ] **Bind the oracle on-chain** by calling `loan::set_oracle_admin(oracle_admin_pubkey)` once the keypair is provisioned (admin-signed; admin = `loan_config.admin`). Until this is called the program runs in legacy-appraisal mode (every existing test's path).
+- [ ] **Set `REDSTONE_WATCHED_REFS`** in `apps/indexer/.env.local` to the watch refs you want refreshed every 60s (pipe-delimited 5-tuples, comma-separated — see `.env.example`). The publisher POSTs to `/api/appraisal` and writes `PriceFeed` PDAs accordingly.
+- [ ] **Back up the oracle-admin keypair** the same way as the Squads keypairs (1Password / age-encrypted / paper). Loss of this key disables the oracle until admin calls `set_oracle_admin` again with a fresh keypair.
+- [ ] **(Future)** When RedStone ships a Solana SDK, replace the publisher's `publish_price` ix builder with the RedStone signer-network payload, and replace the on-chain `published_by == oracle_admin` check with an M-of-N RedStone signer-set verification.
+
+---
+
 ## Post-hackathon (after May 10)
 
 ### Bump Next.js 14 → 15 (or 16)

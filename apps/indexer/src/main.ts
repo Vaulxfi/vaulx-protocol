@@ -11,6 +11,7 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { BorshCoder, EventParser, type Idl } from "@coral-xyz/anchor";
 import { createRequire } from "node:module";
 import { insertEvent } from "./supabase.js";
+import { RedstonePublisher, type AppraisalQuery } from "./redstone-publisher.js";
 
 // Load IDL JSONs via createRequire to sidestep a Node 24 ESM regression where
 // re-exported JSON named-exports from @vaulx/idls fail at module-instantiation
@@ -95,6 +96,66 @@ async function main(): Promise<void> {
 
     console.log(
       `[indexer] subscribed to ${sub.label} ${sub.programId.toBase58()} on ${RPC}`,
+    );
+  }
+
+  // Item 5 — RedStone-pattern price publisher. Only starts when the operator
+  // supplies a signer keypair via env; absent that, the indexer keeps its
+  // existing event-streaming behaviour and the loan program runs in
+  // legacy-appraisal mode (oracle_admin == default).
+  const signerPath = process.env.REDSTONE_SIGNER_KEYPAIR_PATH;
+  if (signerPath) {
+    const loanProgramId = (loanIdl as { address: string }).address;
+    const appraisalBaseUrl =
+      process.env.APPRAISAL_BASE_URL ?? "http://localhost:3000";
+    // Comma-separated list of refs to refresh, e.g.
+    //   REDSTONE_WATCHED_REFS=Rolex|Submariner|126610LN|2024|excellent,Patek|Nautilus|5711|2023|excellent
+    const refsEnv = process.env.REDSTONE_WATCHED_REFS;
+    const watchedRefs: AppraisalQuery[] = refsEnv
+      ? refsEnv
+          .split(",")
+          .map((r) => r.trim())
+          .filter(Boolean)
+          .map((entry) => {
+            const [make, model, ref, yearStr, condition] = entry
+              .split("|")
+              .map((s) => s.trim());
+            return {
+              make: make ?? "Rolex",
+              model: model ?? "Submariner",
+              ref: ref ?? "126610LN",
+              year: Number(yearStr ?? "2024"),
+              condition:
+                (condition as AppraisalQuery["condition"]) ?? "excellent",
+            };
+          })
+      : [
+          {
+            make: "Rolex",
+            model: "Submariner",
+            ref: "126610LN",
+            year: 2024,
+            condition: "excellent",
+          },
+        ];
+    try {
+      const publisher = new RedstonePublisher({
+        rpcUrl: RPC,
+        signerKeypairPath: signerPath,
+        programId: loanProgramId,
+        appraisalBaseUrl,
+        watchedRefs,
+      });
+      publisher.start();
+    } catch (err) {
+      console.error(
+        "[indexer] failed to start redstone publisher:",
+        (err as Error).message,
+      );
+    }
+  } else {
+    console.log(
+      "[indexer] REDSTONE_SIGNER_KEYPAIR_PATH not set — publisher disabled",
     );
   }
 }
