@@ -1,8 +1,9 @@
 # Vaulx User Journeys — Current Demo vs. Ideal Production
 
 **Date:** 2026-04-29
-**Version:** v2 (revised after user directional input)
+**Version:** v3 (γ scope locked, council fixes integrated)
 **Status:** ANALYSIS DOCUMENT — NO CODE CHANGES YET
+**Architectural canon:** this doc is a per-persona walk through the L2 (Product) layer of the [`composable-blocks matrix`](../architecture/2026-04-29-vaulx-composable-blocks.md). The matrix is the source of truth for what blocks exist and how they're tagged GLOBAL / LOCAL / HYBRID; this doc shows how each persona traverses them.
 **Purpose:** Catalogue every persona's journey, surface every gap, decide every route's fate before deletion. Output two hard artifacts: a route-coverage matrix and a Cut List + Build List.
 
 ---

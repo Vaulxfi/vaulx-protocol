@@ -4,6 +4,8 @@
 
 **Goal:** Build the full pre-hackathon γ scope from [`2026-04-29-vaulx-user-journeys-current-vs-ideal.md`](2026-04-29-vaulx-user-journeys-current-vs-ideal.md) v3 — 11 new routes, 1 unified component, 4 backend pieces, plus 16 legacy-route deletions. AI-agent parallel execution.
 
+**Architectural canon:** [`../architecture/2026-04-29-vaulx-composable-blocks.md`](../architecture/2026-04-29-vaulx-composable-blocks.md) is the source of truth for the protocol's block model. This plan delivers the engineering work for GLOBAL blocks **M3** (lender deposit panel + dashboard simplification), **M4** (borrower per-loan + repay UI), **C4** (online appraiser workspace), **C5** (offline appraiser workspace), and **C6** (Risk Officer review screen). All other blocks (LOCAL + HYBRID) are partnerships / legal / operations and out of scope for this plan.
+
 **Architecture:** Two-stage borrower flow (indicative pre-custody → final post-Risk-Officer). Two distinct blinded appraiser personas (online 24h SLA + offline 48h SLA, case-code-blinded). Risk Officer reviews trilateral with bounded override. Lender flow simplified to USDC + Local. Lazy-KYC pattern via `useKycGate` reused. On-chain `KycAttestation` PDA reused. Crossmint Auth + Sumsub WebSDK reused.
 
 **Tech Stack:**
