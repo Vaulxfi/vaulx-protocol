@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vaulx — Two-sided Architecture</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #FAFAFA;
+    color: #0A0A0A;
+    padding: 32px;
+    line-height: 1.4;
+    min-height: 100vh;
+  }
+
+  .container { max-width: 1840px; margin: 0 auto; }
+
+  /* HEADER */
+  .header { margin-bottom: 18px; }
+  .title { font-size: 32px; font-weight: 800; letter-spacing: -1px; }
+  .title .vaulx { color: #0A0A0A; }
+  .title .rest { color: #374151; font-weight: 300; font-size: 26px; }
+  .subtitle { font-size: 15px; color: #6B7280; margin-top: 6px; }
+  .divider { border-top: 1px solid #D1D5DB; margin: 16px 0; }
+
+  /* LANE LABEL */
+  .lane-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: #0A0A0A;
+    margin: 18px 0 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .lane-label .legend {
+    font-size: 11px;
+    font-weight: 400;
+    font-style: italic;
+    color: #9CA3AF;
+    letter-spacing: 0;
+  }
+
+  /* SWIMLANE GRID */
+  .swimlane {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 14px;
+  }
+
+  /* STEP BOX */
+  .step-box {
+    background: white;
+    border-radius: 10px;
+    border: 1px solid #E5E7EB;
+    overflow: visible;
+    transition: transform 0.15s, box-shadow 0.15s;
+    position: relative;
+  }
+  .step-box:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+  }
+  .step-header {
+    padding: 12px 16px;
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    border-radius: 10px 10px 0 0;
+  }
+  .step-body { padding: 14px 16px; }
+
+  /* PARTNER ROW + TOOLTIP */
+  .partner {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: #0A0A0A;
+    padding: 5px 0;
+    cursor: help;
+    position: relative;
+    transition: color 0.15s;
+  }
+  .partner::before {
+    content: "▸";
+    margin-right: 6px;
+    color: #9CA3AF;
+  }
+  .partner:hover { color: #6366F1; }
+  .partner:hover::before { color: #6366F1; }
+
+  .tooltip {
+    visibility: hidden;
+    opacity: 0;
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: -10px;
+    background: #0A0A0A;
+    color: white;
+    padding: 14px 16px;
+    border-radius: 10px;
+    width: 300px;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.55;
+    z-index: 50;
+    transition: opacity 0.15s, visibility 0.15s, transform 0.15s;
+    transform: translateY(4px);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.25);
+  }
+  .partner:hover .tooltip {
+    visibility: visible;
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .tooltip strong {
+    color: #10B981;
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  .tooltip .why {
+    color: #FCD34D;
+    margin-top: 8px;
+    display: block;
+  }
+  .tooltip .status {
+    color: #9CA3AF;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-top: 8px;
+    display: block;
+    border-top: 1px solid #1F2937;
+    padding-top: 6px;
+  }
+  /* tooltip arrow */
+  .tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 24px;
+    border: 6px solid transparent;
+    border-top-color: #0A0A0A;
+  }
+
+  /* WHY block */
+  .why-block {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid #F3F4F6;
+  }
+  .why-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+  }
+  .why-text { font-size: 12px; color: #374151; line-height: 1.5; }
+
+  /* COLOR CLASSES */
+  .c-purple   .step-header { background: #8B5CF6; } .c-purple   .why-label { color: #8B5CF6; }
+  .c-orange   .step-header { background: #F97316; } .c-orange   .why-label { color: #F97316; }
+  .c-red      .step-header { background: #EF4444; } .c-red      .why-label { color: #EF4444; }
+  .c-green    .step-header { background: #10B981; } .c-green    .why-label { color: #10B981; }
+  .c-yellow   .step-header { background: #EAB308; } .c-yellow   .why-label { color: #A16207; }
+  .c-darkgrey .step-header { background: #374151; } .c-darkgrey .why-label { color: #374151; }
+  .c-blue     .step-header { background: #3B82F6; } .c-blue     .why-label { color: #3B82F6; }
+  .c-grey     .step-header { background: #6B7280; } .c-grey     .why-label { color: #6B7280; }
+
+  /* SPINE */
+  .spine {
+    background: linear-gradient(180deg, #0A0A0A 0%, #1F2937 100%);
+    border-radius: 14px;
+    padding: 28px 32px;
+    margin: 22px 0;
+    text-align: center;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.15);
+  }
+  .spine-label { font-size: 12px; font-weight: 700; letter-spacing: 4px; color: #10B981; }
+  .spine-code {
+    font-family: 'SF Mono', Monaco, Consolas, 'Courier New', monospace;
+    font-size: 26px;
+    font-weight: 700;
+    color: white;
+    margin: 14px 0 8px;
+    letter-spacing: -0.5px;
+  }
+  .spine-caption { font-size: 12px; font-style: italic; color: #9CA3AF; }
+  .spine-vaults { font-size: 13px; color: #6B7280; letter-spacing: 2px; margin-top: 12px; font-weight: 500; }
+  .spine-vaults span { color: #D1D5DB; padding: 0 8px; }
+
+  /* ARROW */
+  .flow-arrow {
+    height: 1px;
+    background: repeating-linear-gradient(90deg, #D1D5DB 0 4px, transparent 4px 10px);
+    margin-top: 12px;
+    position: relative;
+  }
+  .flow-arrow::after {
+    content: '▶';
+    position: absolute;
+    right: -2px;
+    top: -8px;
+    font-size: 12px;
+    color: #9CA3AF;
+  }
+
+  /* FOOTER */
+  .footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 24px;
+    padding-top: 14px;
+    border-top: 1px solid #E5E7EB;
+    font-size: 12px;
+    color: #9CA3AF;
+  }
+  .footer .tagline { font-style: italic; }
+  .footer .brand { font-weight: 700; color: #0A0A0A; font-size: 14px; }
+  .footer .meta { color: #9CA3AF; font-size: 11px; margin-top: 6px; }
+
+  /* RESPONSIVE */
+  @media (max-width: 1500px) {
+    .swimlane { grid-template-columns: repeat(3, 1fr); }
+    .spine-code { font-size: 20px; }
+  }
+  @media (max-width: 800px) {
+    body { padding: 16px; }
+    .swimlane { grid-template-columns: 1fr; }
+    .tooltip { width: 260px; left: 0; }
+    .spine-code { font-size: 16px; }
+  }
+
+  /* PRINT */
+  @media print {
+    body { background: white; padding: 12px; }
+    .step-box:hover { transform: none; box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <div class="header">
+    <h1 class="title"><span class="vaulx">VAULX</span> <span class="rest">— Two-sided RWA credit market on Solana</span></h1>
+    <p class="subtitle">Demand: asset-rich borrowers · Supply: yield-seeking capital · Custody-gated Anchor program at the core</p>
+  </div>
+  <div class="divider"></div>
+
+  <!-- ===== DEMAND SWIMLANE ===== -->
+  <div class="lane-label">
+    <span>DEMAND  ▶  BORROWER JOURNEY</span>
+    <span class="legend">hover any partner for detail</span>
+  </div>
+
+  <div class="swimlane">
+
+    <!-- 1 ONBOARD -->
+    <div class="step-box c-purple">
+      <div class="step-header">1 · ONBOARD</div>
+      <div class="step-body">
+        <span class="partner">Civic
+          <span class="tooltip"><strong>Civic</strong>Solana KYC + Token-2022 transfer-hook compliance. Production-ready, accepts gov-issued IDs (incl. BR docs).<span class="why">Why: 60-sec KYC; gates TRDC transfers to KYC'd wallets only.</span><span class="status">Target integration · v1</span></span>
+        </span>
+        <span class="partner">gov.br
+          <span class="tooltip"><strong>gov.br</strong>Brazilian government digital ID. 170M+ enrolled users.<span class="why">Why: fastest BR-user onboarding + regulatory trust signal.</span><span class="status">Phase 1 · BR-specific</span></span>
+        </span>
+        <span class="partner">Crossmint
+          <span class="tooltip"><strong>Crossmint</strong>Embedded smart wallets, Squads-secured ($10B TVL).<span class="why">Why: email login → Solana wallet, no seed phrase, zero crypto knowledge required.</span><span class="status">Target integration · v1</span></span>
+        </span>
+        <span class="partner">LazorKit
+          <span class="tooltip"><strong>LazorKit</strong>Passkey/FaceID Solana wallets via Apple Secure Enclave.<span class="why">Why: strongest UX moment in the demo — sign loan with biometrics.</span><span class="status">Target integration · v1</span></span>
+        </span>
+        <div class="why-block">
+          <div class="why-label">WHY</div>
+          <div class="why-text">60-sec KYC + wallet for non-crypto users.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2 REGISTER -->
+    <div class="step-box c-orange">
+      <div class="step-header">2 · REGISTER</div>
+      <div class="step-body">
+        <span class="partner">Chrono24
+          <span class="tooltip"><strong>Chrono24</strong>World's largest luxury watch marketplace. ChronoPulse index covers 600K+ tx, 14 brands × 140 models.<span class="why">Why: real price data for our asset class — no other oracle has it.</span><span class="status">Apify scraper · Phase 0</span></span>
+        </span>
+        <span class="partner">WatchCharts
+          <span class="tooltip"><strong>WatchCharts</strong>Watch market price aggregator with deep historical data.<span class="why">Why: cross-source price reference to validate Chrono24 feed.</span><span class="status">Scraper · Phase 0</span></span>
+        </span>
+        <span class="partner">RedStone
+          <span class="tooltip"><strong>RedStone</strong>Solana RWA oracle, live since May 2025 (Securitize partnership).<span class="why">Why: wraps our Chrono24 data into a Solana-native oracle feed for on-chain LTV calc.</span><span class="status">Future partner · logo only at hackathon</span></span>
+        </span>
+        <span class="partner">Pyth
+          <span class="tooltip"><strong>Pyth Network</strong>Solana's largest oracle network. Stablecoin and FX feeds.<span class="why">Why: USDC/BRL/USD price feeds for LTV calc and payout conversion.</span><span class="status">Live integration · v1</span></span>
+        </span>
+        <div class="why-block">
+          <div class="why-label">WHY</div>
+          <div class="why-text">Real luxury price → Solana oracle feed.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3 CUSTODY -->
+    <div class="step-box c-red">
+      <div class="step-header">3 · CUSTODY</div>
+      <div class="step-body">
+        <span class="partner">Brinks SP
+          <span class="tooltip"><strong>Brinks São Paulo</strong>Global licensed custodian. SP vault operations.<span class="why">Why: physical vault for the watches — the off-chain custody leg of the gate.</span><span class="status">Target MOU · Marcelo</span></span>
+        </span>
+        <span class="partner">Prosegur
+          <span class="tooltip"><strong>Prosegur</strong>Spanish-headquartered custodian, BR operations.<span class="why">Why: parallel candidate to Brinks — never bet on one.</span><span class="status">Target MOU · Marcelo</span></span>
+        </span>
+        <span class="partner">Loomis
+          <span class="tooltip"><strong>Loomis</strong>Swedish-headquartered cash + valuables custodian.<span class="why">Why: third candidate, redundancy on supply.</span><span class="status">Target MOU · Marcelo</span></span>
+        </span>
+        <span class="partner">Gitel IoT
+          <span class="tooltip"><strong>Gitel</strong>Marcelo's electronic-security integrator. 38 years, 60+ corporate clients (Gerdau, ArcelorMittal, SICOOB).<span class="why">Why: CFTV/IoT overlay on partner vaults — distinctive audit layer competitors can't replicate.</span><span class="status">Built-in · Marcelo's edge</span></span>
+        </span>
+        <span class="partner">SCD + CCB
+          <span class="tooltip"><strong>BACEN-licensed SCD + CCB</strong>Sociedade de Crédito Direto signs Cédula de Crédito Bancário with fiduciary alienation.<span class="why">Why: legal counterparty — without it there is no loan, no product.</span><span class="status">Target LOI · Risk #1</span></span>
+        </span>
+        <div class="why-block">
+          <div class="why-label">WHY</div>
+          <div class="why-text">Licensed vault + IoT + legal fiduciary paper.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4 DISBURSE -->
+    <div class="step-box c-green">
+      <div class="step-header">4 · DISBURSE</div>
+      <div class="step-body">
+        <span class="partner">USDC / BRZ
+          <span class="tooltip"><strong>USDC + BRZ</strong>Circle USDC + Transfero BRZ — Solana stablecoins.<span class="why">Why: loan disbursement currency. Borrower picks USD or BRL exposure.</span><span class="status">Live · v1</span></span>
+        </span>
+        <span class="partner">TRDC = cNFT
+          <span class="tooltip"><strong>TRDC (Token Representing Credit Rights)</strong>The on-chain credit instrument.<span class="why">Why: minted as a compressed NFT carrying the custody hash; sub-cent mint cost at scale.</span><span class="status">Build now · core artifact</span></span>
+        </span>
+        <span class="partner">Bubblegum
+          <span class="tooltip"><strong>Metaplex Bubblegum</strong>Compressed NFT standard on Solana.<span class="why">Why: economically impossible at scale before 2025; makes per-loan tokens viable.</span><span class="status">Live tech · v1</span></span>
+        </span>
+        <span class="partner">Anchor gate
+          <span class="tooltip"><strong>Vaulx Anchor program</strong>The custody-gate invariant: <code>require!(custody_confirmed ∧ terms_accepted)</code><span class="why">Why: the moat. Solana runtime cannot bypass this constraint. 18–24 month replication gap.</span><span class="status">Build now · the moat</span></span>
+        </span>
+        <div class="why-block">
+          <div class="why-label">WHY · THE AHA</div>
+          <div class="why-text">Two-condition release enforced on-chain.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5 MANAGE -->
+    <div class="step-box c-yellow">
+      <div class="step-header">5 · MANAGE</div>
+      <div class="step-body">
+        <span class="partner">Privy (Pix)
+          <span class="tooltip"><strong>Privy</strong>Embedded wallets + fiat on/off-ramps incl. Pix. Stripe-acquired 2025.<span class="why">Why: 1-click USDC → Pix → BR bank account. Without this, USDC is stuck for the average user.</span><span class="status">Target integration · v1</span></span>
+        </span>
+        <span class="partner">Quartz
+          <span class="tooltip"><strong>Quartz</strong>Solana off-ramp.<span class="why">Why: redundant off-ramp option, never bet on one.</span><span class="status">Target · alt route</span></span>
+        </span>
+        <span class="partner">Solflare Card
+          <span class="tooltip"><strong>Solflare Card</strong>Mastercard-network card spending Solana wallet balance.<span class="why">Why: spend USDC at any retailer, no off-ramp needed.</span><span class="status">Live · post-hackathon</span></span>
+        </span>
+        <span class="partner">lobster.cash
+          <span class="tooltip"><strong>lobster.cash</strong>Crossmint × Visa × Circle stablecoin card.<span class="why">Why: "borrow against your watch, pay your dinner" — the demo flourish.</span><span class="status">Live · post-hackathon</span></span>
+        </span>
+        <div class="why-block">
+          <div class="why-label">WHY</div>
+          <div class="why-text">Pix off-ramp + card spend — like normal money.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6 REPAY/DEFAULT -->
+    <div class="step-box c-darkgrey">
+      <div class="step-header">6 · REPAY / DEFAULT</div>
+      <div class="step-body">
+        <span class="partner">Auction PDA
+          <span class="tooltip"><strong>Auction PDA</strong>On-chain auction account for defaulted TRDC.<span class="why">Why: in-program default flow, no third party, transparent execution.</span><span class="status">Build now · v1</span></span>
+        </span>
+        <span class="partner">3-tier waterfall
+          <span class="tooltip"><strong>Privileged auction waterfall</strong>Tier 1: platform lenders (72h first-look). Tier 2: reseller partners (Felipe's network). Tier 3: public auction.<span class="why">Why: target 90% recovery at 50% LTV — the math that makes the book work.</span><span class="status">Build now · core mechanism</span></span>
+        </span>
+        <span class="partner">Extrajudicial
+          <span class="tooltip"><strong>Extrajudicial recovery</strong>DL 911/69 + Lei 14.711/2023 + CNJ Provision 196/2025.<span class="why">Why: BR law allows recovery without court — game-changer for default economics.</span><span class="status">BR Phase 0 · jurisdiction-pluggable</span></span>
+        </span>
+        <span class="partner">recovery (BR law)
+          <span class="tooltip"><strong>BR legal stack</strong>Lei 14.905/2024 eliminated usury cap for FI lending.<span class="why">Why: makes 26% APR borrower rate legal and stable.</span><span class="status">In effect</span></span>
+        </span>
+        <div class="why-block">
+          <div class="why-label">WHY</div>
+          <div class="why-text">90% recovery target at 50% LTV.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="flow-arrow"></div>
+
+  <!-- ===== SPINE ===== -->
+  <div class="spine">
+    <div class="spine-label">VAULX CORE  ·  1 AUDITED ANCHOR PROGRAM  ·  4 VAULTS</div>
+    <div class="spine-code">require!(custody_confirmed ∧ terms_accepted)</div>
+    <div class="spine-caption">— the invariant the Solana runtime cannot bypass · 18–24 month replication moat</div>
+    <div class="spine-vaults">Inst-USDC<span>·</span>Inst-BRL<span>·</span>Retail-FIDC-USDC<span>·</span>Retail-FIDC-BRL</div>
+  </div>
+
+  <!-- ===== SUPPLY SWIMLANE ===== -->
+  <div class="lane-label">
+    <span>SUPPLY  ▶  LIQUIDITY PROVIDER JOURNEY</span>
+    <span class="legend">hover any partner for detail</span>
+  </div>
+
+  <div class="swimlane">
+
+    <!-- 1 ONBOARD -->
+    <div class="step-box c-blue">
+      <div class="step-header">1 · ONBOARD</div>
+      <div class="step-body">
+        <span class="partner">Civic accredited
+          <span class="tooltip"><strong>Civic Pass · Accredited tier</strong>Institutional-grade KYC/KYB for lender onboarding.<span class="why">Why: institutional capital cannot deposit without verified compliance.</span><span class="status">Target integration</span></span>
+        </span>
+        <span class="partner">Tokeny / 3643
+          <span class="tooltip"><strong>Tokeny / ERC-3643 (T-REX)</strong>Standard for tokenized regulated securities.<span class="why">Why: wraps Vaulx LP tokens as compliant securities for institutional investors.</span><span class="status">Phase 2 · institutional path</span></span>
+        </span>
+        <span class="partner">FIDC wrapper
+          <span class="tooltip"><strong>FIDC wrapper</strong>Brazilian retail securitization vehicle (Fundo de Investimento em Direitos Creditórios).<span class="why">Why: funds the Retail-FIDC-USDC + Retail-FIDC-BRL vaults from BR retail capital.</span><span class="status">Phase 1 · BR-specific</span></span>
+        </span>
+        <span class="partner">B2B onboarding
+          <span class="tooltip"><strong>B2B onboarding flow</strong>Direct institutional desk for whale lenders.<span class="why">Why: high-touch onboarding is faster than self-serve for $1M+ tickets.</span><span class="status">Phase 1 · George + Felipe</span></span>
+        </span>
+        <div class="why-block">
+          <div class="why-label">WHY</div>
+          <div class="why-text">Compliant rails for institutional + retail.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2 ALLOCATE -->
+    <div class="step-box c-green">
+      <div class="step-header">2 · ALLOCATE</div>
+      <div class="step-body">
+        <span class="partner">Inst-USDC
+          <span class="tooltip"><strong>Institutional-USDC vault</strong>USD-denominated lending pool for institutional depositors.<span class="why">Why: dollar exposure, blue-chip lenders, ~11% APY.</span><span class="status">v1 vault</span></span>
+        </span>
+        <span class="partner">Inst-BRL
+          <span class="tooltip"><strong>Institutional-BRL vault</strong>BRL-denominated lending pool (BRZ stablecoin).<span class="why">Why: BR institutional lenders avoid FX exposure, ~14% APY.</span><span class="status">v1 vault</span></span>
+        </span>
+        <span class="partner">Retail-FIDC-USDC
+          <span class="tooltip"><strong>Retail-FIDC-USDC vault</strong>USD vault wrapped by FIDC for BR retail investors.<span class="why">Why: BR-compliant retail access to USD yield from luxury collateral.</span><span class="status">Phase 1 vault</span></span>
+        </span>
+        <span class="partner">Retail-FIDC-BRL
+          <span class="tooltip"><strong>Retail-FIDC-BRL vault</strong>BRL vault wrapped by FIDC for BR retail investors.<span class="why">Why: native-currency retail product, broadest BR addressable market.</span><span class="status">Phase 1 vault</span></span>
+        </span>
+        <span class="partner">Pick risk profile
+          <span class="tooltip"><strong>Vault selection UX</strong>Lender chooses vault based on currency + risk preference.<span class="why">Why: same Anchor code, four PDA seeds = one audit covers all.</span><span class="status">v1 dashboard</span></span>
+        </span>
+        <div class="why-block">
+          <div class="why-label">WHY</div>
+          <div class="why-text">4 vaults · 1 audited program · same code.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3 DEPOSIT -->
+    <div class="step-box c-grey">
+      <div class="step-header">3 · DEPOSIT</div>
+      <div class="step-body">
+        <span class="partner">Kamino OCC
+          <span class="tooltip"><strong>Kamino Off-Chain Collateral</strong>Q1 2026 launch with Chainlink + Anchorage Digital. Institutional lenders deposit into Kamino → routed to off-chain RWA originators.<span class="why">Why: Vaulx becomes a borrower-side originator on Kamino's rails — instant institutional liquidity.</span><span class="status">Target integration · race window open</span></span>
+        </span>
+        <span class="partner">Plume Nest
+          <span class="tooltip"><strong>Plume Nest on Solana</strong>Live with WisdomTree, Hamilton Lane, Securitize, SuperState. Partners with Squads Lab.<span class="why">Why: TradFi capital tokenized via Plume → flows into Vaulx vaults. Plugs into Loopscale + Jupiter for distribution.</span><span class="status">Target integration · v1</span></span>
+        </span>
+        <span class="partner">SCD balance sheet
+          <span class="tooltip"><strong>SCD balance sheet</strong>BACEN-licensed SCD partner originates loans from own book at Phase 0.<span class="why">Why: bridge capital before institutional/FIDC flows scale.</span><span class="status">Phase 0 · pre-arranged</span></span>
+        </span>
+        <span class="partner">Direct USDC
+          <span class="tooltip"><strong>Direct USDC deposits</strong>Native crypto whales deposit directly into Inst-USDC vault.<span class="why">Why: zero-friction path for crypto-native LPs.</span><span class="status">v1</span></span>
+        </span>
+        <span class="partner">Direct BRZ
+          <span class="tooltip"><strong>Direct BRZ deposits</strong>Native deposits into Inst-BRL vault.<span class="why">Why: BR crypto LPs avoid FX, get local-currency yield.</span><span class="status">v1</span></span>
+        </span>
+        <div class="why-block">
+          <div class="why-label">WHY</div>
+          <div class="why-text">Solana institutional liquidity rails.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4 EARN -->
+    <div class="step-box c-orange">
+      <div class="step-header">4 · EARN</div>
+      <div class="step-body">
+        <span class="partner">11% APY USDC
+          <span class="tooltip"><strong>11% APY USDC blended</strong>Lender yield from blended book.<span class="why">Why: competitive with Maple/Centrifuge at superior collateral profile (physical luxury vs. invoices/RE).</span><span class="status">Phase 1 target</span></span>
+        </span>
+        <span class="partner">~14% APY BRL
+          <span class="tooltip"><strong>~14% APY BRL blended</strong>Higher rate matches BR funding cost (Selic ~10%).<span class="why">Why: makes BRL vaults attractive to BR fixed-income desks.</span><span class="status">Phase 1 target</span></span>
+        </span>
+        <span class="partner">LTV live oracle
+          <span class="tooltip"><strong>Live LTV monitoring</strong>Oracle reads Chrono24/WatchCharts → on-chain LTV per loan, updated continuously.<span class="why">Why: lenders see live collateral coverage; auto-alerts on liquidation risk.</span><span class="status">Build now · v1</span></span>
+        </span>
+        <span class="partner">Risk transparency
+          <span class="tooltip"><strong>Risk transparency</strong>Each TRDC links to: asset photo, IoT vault feed, custody hash, LTV history, loan terms.<span class="why">Why: best-in-class lender visibility = lower risk premium = higher yield to borrowers, higher net to lenders.</span><span class="status">v1 dashboard</span></span>
+        </span>
+        <div class="why-block">
+          <div class="why-label">WHY</div>
+          <div class="why-text">Yield with on-chain collateral visibility.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5 RECOVERIES -->
+    <div class="step-box c-red">
+      <div class="step-header">5 · RECOVERIES</div>
+      <div class="step-body">
+        <span class="partner">Privileged 72h
+          <span class="tooltip"><strong>72h privileged window</strong>On default, platform lenders get exclusive bid window before public auction.<span class="why">Why: lenders recover collateral at favorable price, not market panic price.</span><span class="status">v1 mechanism</span></span>
+        </span>
+        <span class="partner">Platform first-look
+          <span class="tooltip"><strong>Platform-first auction</strong>Vault depositors get first crack at defaulted assets matched to their vault tier.<span class="why">Why: aligns lender economics with platform; differentiates from open-market liquidations.</span><span class="status">v1</span></span>
+        </span>
+        <span class="partner">Reseller curation
+          <span class="tooltip"><strong>Tier 2: Reseller curation</strong>Felipe's SP watch-reseller network gets Tier 2 access.<span class="why">Why: trade-network buyers absorb collateral at retail-adjacent price, lifting recovery.</span><span class="status">Felipe's edge</span></span>
+        </span>
+        <span class="partner">Public auction
+          <span class="tooltip"><strong>Tier 3: Public auction</strong>Open Solana + off-chain auction if Tiers 1-2 don't clear.<span class="why">Why: backstop for liquidity; protects book worst-case.</span><span class="status">v1</span></span>
+        </span>
+        <div class="why-block">
+          <div class="why-label">WHY</div>
+          <div class="why-text">Lenders get first crack on defaulted assets.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6 DISTRIBUTE -->
+    <div class="step-box c-grey">
+      <div class="step-header">6 · DISTRIBUTE</div>
+      <div class="step-body">
+        <span class="partner">Loopscale
+          <span class="tooltip"><strong>Loopscale</strong>Solana lending aggregator. Plume partnership live.<span class="why">Why: distribution venue for Vaulx-originated TRDC; lenders get secondary liquidity.</span><span class="status">Future · post-hackathon</span></span>
+        </span>
+        <span class="partner">Jupiter
+          <span class="tooltip"><strong>Jupiter</strong>Solana liquidity hub.<span class="why">Why: composable secondary market for TRDC tokens — lender can exit position.</span><span class="status">Future · v2</span></span>
+        </span>
+        <span class="partner">TRDC secondary
+          <span class="tooltip"><strong>TRDC secondary market</strong>Vaulx LP tokens tradeable as institutional fixed-income.<span class="why">Why: turns the loan book into a securitizable asset class.</span><span class="status">Phase 6 · 100+ active loans</span></span>
+        </span>
+        <span class="partner">Composable cNFT
+          <span class="tooltip"><strong>Composable cNFT TRDC</strong>Compressed NFT standard means TRDC plugs into any Solana NFT/RWA app.<span class="why">Why: distribution multiplier — every Solana app is a potential Vaulx liquidity venue.</span><span class="status">Built-in by design</span></span>
+        </span>
+        <div class="why-block">
+          <div class="why-label">WHY</div>
+          <div class="why-text">Composability = lender liquidity exit.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="flow-arrow"></div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div>
+      <div class="tagline">One audited program. Four vaults. Global jurisdiction-pluggable. São Paulo Q3 2026 → LatAm → MENA → SE Asia.</div>
+      <div class="meta">Custody-gated RWA lending on Solana · Frontier Hackathon 2026</div>
+    </div>
+    <div class="brand">vaulx.app</div>
+  </div>
+
+</div>
+</body>
+</html>

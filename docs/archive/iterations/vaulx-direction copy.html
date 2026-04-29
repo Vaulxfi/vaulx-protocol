@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Vaulx Direction</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--gold:#c9a84c;--gd:rgba(201,168,76,.10);--gl:rgba(201,168,76,.28);--green:#5a9e6f;--gr:rgba(90,158,111,.08);--blue:#4a7fa8;--bl:rgba(74,127,168,.08);--f:'Inter',system-ui,sans-serif;--r:12px;--rs:8px;--th:60px;--sb:env(safe-area-inset-bottom,0px)}
+[data-theme="dark"]{--bg:#111110;--s1:#1a1917;--s2:#201f1d;--s3:#272624;--bd:rgba(255,255,255,.08);--tx:#d4d3d0;--mu:#6b6a68;--fa:#3d3c3a;--tb:#161514;--tbd:rgba(255,255,255,.07)}
+[data-theme="light"]{--bg:#f5f4f0;--s1:#faf9f6;--s2:#f0ede8;--s3:#e8e5e0;--bd:rgba(0,0,0,.08);--tx:#1a1917;--mu:#7a7874;--fa:#c8c6c2;--tb:#f5f4f0;--tbd:rgba(0,0,0,.08)}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:none;text-size-adjust:none}
+body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:15px;line-height:1.55;min-height:100dvh;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+.app{display:flex;flex-direction:column;min-height:100dvh}
+.top{position:sticky;top:0;z-index:100;background:var(--tb);border-bottom:1px solid var(--tbd);display:flex;align-items:center;justify-content:space-between;padding:12px 16px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.lm{display:flex;align-items:center;gap:8px}
+.ln{font-size:15px;font-weight:700;letter-spacing:-.3px;color:var(--tx)}
+.lt{font-size:11px;color:var(--mu);margin-top:1px}
+.tbtn{background:var(--s2);border:1px solid var(--bd);border-radius:20px;padding:6px 12px;font-family:var(--f);font-size:12px;color:var(--mu);cursor:pointer;min-height:32px;display:flex;align-items:center;gap:5px}
+.tbtn:active{opacity:.7}
+.main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(var(--th) + var(--sb) + 16px)}
+.sec{display:none;padding:16px;animation:fi .18s ease}
+.sec.on{display:block}
+@keyframes fi{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.bar{position:fixed;bottom:0;left:0;right:0;z-index:100;background:var(--tb);border-top:1px solid var(--tbd);display:flex;height:calc(var(--th) + var(--sb));padding-bottom:var(--sb);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;padding:8px 4px;border:none;background:none;color:var(--mu);font-family:var(--f);min-width:0;-webkit-tap-highlight-color:transparent}
+.tab:active{opacity:.6}
+.tab.on{color:var(--gold)}
+.ti{width:20px;height:20px;flex-shrink:0}
+.tl{font-size:10px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center}
+.card{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);padding:16px;margin-bottom:12px}
+.ct{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--mu);margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.dot{width:6px;height:6px;border-radius:50%;display:inline-block;flex-shrink:0}
+/* hero */
+.hc{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);padding:20px 16px;margin-bottom:12px}
+.ht{font-size:17px;font-weight:600;line-height:1.4;color:var(--tx);margin-bottom:10px}
+.ht em{color:var(--gold);font-style:normal}
+.hs{font-size:13px;color:var(--mu);line-height:1.5}
+.badge{display:inline-flex;align-items:center;background:var(--gd);border:1px solid var(--gl);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--gold);font-weight:500;margin-bottom:14px}
+/* invariants */
+.il{display:flex;flex-direction:column;gap:9px;margin-bottom:14px}
+.ii{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;line-height:1.45}
+.in{font-size:11px;color:var(--gold);font-weight:700;width:16px;flex-shrink:0;padding-top:2px}
+.ii strong{font-weight:600}
+/* journey */
+.js{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -16px;padding:0 16px}
+.jr{display:flex;min-width:max-content;margin-bottom:14px;align-items:flex-start}
+.jst{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:68px}
+.ji{display:flex;align-items:center}
+.jn{width:24px;height:24px;border-radius:50%;background:var(--s2);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--mu);font-weight:600}
+.jn.g{background:var(--gd);border-color:var(--gl);color:var(--gold)}
+.ja{width:20px;text-align:center;color:var(--fa);font-size:10px;line-height:24px}
+.jl{font-size:10px;color:var(--mu);text-align:center;line-height:1.3;max-width:60px}
+.jl.g{color:var(--gold);font-weight:600}
+/* metrics */
+.mr{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.met{background:var(--s2);border:1px solid var(--bd);border-radius:var(--rs);padding:12px;text-align:center}
+.mv{font-size:22px;font-weight:700;color:var(--gold);letter-spacing:-.5px;line-height:1}
+.ml{font-size:11px;color:var(--mu);margin-top:3px}
+/* findings */
+.fn{background:var(--s2);border-radius:var(--rs);padding:12px 14px;margin-bottom:8px}
+.fk{font-size:10px;font-weight:700;color:var(--gold);letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px}
+.fn p{font-size:13.5px;line-height:1.5;color:var(--tx)}
+.fn strong{font-weight:600}
+.fn em{color:var(--gold);font-style:normal}
+.ir{background:var(--s2);border-radius:var(--rs);padding:12px 14px;margin-top:8px}
+.ik{font-size:10px;font-weight:700;color:var(--mu);letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px}
+.ia{display:flex;flex-direction:column;gap:5px}
+.ip{font-size:13px;color:var(--tx);padding-left:14px;position:relative;line-height:1.45}
+.ip::before{content:'→';position:absolute;left:0;color:var(--gold);font-size:11px;top:2px}
+/* reframe */
+.rf{background:var(--gd);border:1px solid var(--gl);border-radius:var(--r);padding:14px 16px;margin-bottom:12px}
+.rl{font-size:10px;font-weight:700;color:var(--gold);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px}
+.rt{font-size:14px;line-height:1.5;color:var(--tx)}
+.rt strong{color:var(--gold);font-weight:600}
+/* rails */
+.rails{display:flex;flex-direction:column;gap:7px}
+.rail{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:var(--s2);border-radius:var(--rs)}
+.rk{font-size:11px;font-weight:600;color:var(--blue);width:60px;flex-shrink:0;padding-top:1px}
+.rv{font-size:13px;color:var(--tx);line-height:1.45}
+/* wins */
+.wn{padding:11px 0;border-bottom:1px solid var(--bd);display:flex;gap:12px;align-items:flex-start}
+.wn:last-child{border-bottom:none;padding-bottom:0}
+.wr{font-size:13px;font-weight:600;color:var(--gold);width:110px;flex-shrink:0;line-height:1.4}
+.wd{font-size:13px;color:var(--tx);line-height:1.45}
+.rn{background:var(--s2);border-radius:var(--rs);padding:12px 14px;margin-top:10px;font-size:13px;color:var(--mu);line-height:1.5}
+.rn strong{color:var(--tx);font-weight:600}
+/* flow */
+.fl{display:flex;flex-direction:column}
+.fs{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--bd)}
+.fs:last-child{border-bottom:none}
+.fs.gs{background:var(--gd);border-radius:var(--rs);padding:12px;margin:4px 0;border:1px solid var(--gl)}
+.sn{width:22px;height:22px;border-radius:50%;background:var(--s3);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--mu);flex-shrink:0;margin-top:1px}
+.gs .sn{background:var(--gd);border-color:var(--gl);color:var(--gold)}
+.sc{flex:1;min-width:0}
+.sm{font-size:13.5px;line-height:1.45;color:var(--tx)}
+.sm strong{font-weight:600}
+.ss{font-size:12px;color:var(--mu);margin-top:2px;line-height:1.4}
+.ss code{font-family:'Menlo','Monaco',monospace;font-size:11px;background:var(--s3);color:var(--gold);padding:1px 5px;border-radius:4px}
+.gb{display:inline-block;background:var(--gd);border:1px solid var(--gl);border-radius:4px;padding:1px 7px;font-size:10px;font-weight:700;color:var(--gold);letter-spacing:.04em;text-transform:uppercase;margin-right:6px}
+.ts{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+.tr{font-size:12px;color:var(--mu);padding-left:14px;position:relative}
+.tr::before{content:'›';position:absolute;left:4px;color:var(--gold)}
+/* integrations */
+.int{padding:11px 0;border-bottom:1px solid var(--bd)}
+.int:last-child{border-bottom:none;padding-bottom:0}
+.ih{display:flex;align-items:baseline;gap:8px;margin-bottom:3px}
+.iname{font-size:14px;font-weight:600;color:var(--tx)}
+.iwt{font-size:12px;color:var(--mu)}
+.iwy{font-size:13px;color:var(--tx);line-height:1.45}
+.iwy em{color:var(--gold);font-style:normal;font-weight:500}
+/* todos */
+.tds{margin-bottom:14px}
+.tth{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:7px 12px;border-radius:var(--rs);border:1px solid var(--bd);margin-bottom:7px;display:flex;align-items:center;gap:7px}
+.tsb{font-size:10px;font-weight:400;color:var(--mu);text-transform:none;letter-spacing:0;margin-left:2px}
+.tis{display:flex;flex-direction:column;gap:5px}
+.td{display:flex;gap:8px;align-items:flex-start;font-size:13.5px;line-height:1.45;color:var(--tx);padding:8px 10px;background:var(--s2);border-radius:var(--rs)}
+.td.tg{color:var(--mu);font-size:12px;background:none;padding:2px 10px}
+.td.tdl{color:var(--mu);font-size:12px;font-style:italic;background:none;padding:2px 10px}
+.ck{flex-shrink:0;margin-top:2px;width:14px}
+.td code{font-family:'Menlo','Monaco',monospace;font-size:10px;color:var(--gold);background:var(--gd);padding:1px 4px;border-radius:3px}
+.mandate{background:var(--s2);border-left:2px solid var(--gold);border-radius:0 var(--rs) var(--rs) 0;padding:14px 16px;margin-top:4px;font-size:14px;line-height:1.6;color:var(--tx)}
+.mandate strong{font-weight:700}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="top">
+  <div class="lm">
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-label="Vaulx">
+      <rect width="28" height="28" rx="7" fill="#c9a84c" opacity=".12"/>
+      <path d="M7 9l7 10 7-10" stroke="#c9a84c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="11" y="15" width="6" height="5" rx="1.5" stroke="#c9a84c" stroke-width="1.5" fill="none"/>
+    </svg>
+    <div><div class="ln">Vaulx</div><div class="lt">Direction · Apr 26 2026</div></div>
+  </div>
+  <button class="tbtn" onclick="toggleTheme()" aria-label="Toggle theme">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="ti"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    <span id="tl">Light</span>
+  </button>
+</header>
+
+<main class="main" id="main">
+
+<section class="sec on" id="s0">
+  <div class="hc">
+    <div class="badge">Team Brief · George → All</div>
+    <div class="ht">A Solana protocol where anyone can <em>borrow stablecoins against their luxury watch</em> — and the smart contract <em>refuses to release the money</em> until a licensed vault confirms the asset.</div>
+    <div class="hs">We are not a lending app. We are the <strong>custody-gated lending layer</strong> — Solana's best identity, wallet, off-ramp, liquidity, and oracle rails turned into a working credit product. Starting with São Paulo and a Rolex.</div>
+  </div>
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--gold)"></span>4 On-Chain Invariants</div>
+    <div class="il">
+      <div class="ii"><span class="in">①</span><span><strong>Custody gate</strong> — zero USDC released until custodian signs on-chain</span></div>
+      <div class="ii"><span class="in">②</span><span><strong>TRDC cNFT</strong> — carries custody hash, appraisal, CCB hash, LTV on Bubblegum</span></div>
+      <div class="ii"><span class="in">③</span><span><strong>Auction waterfall</strong> — default: vault lenders → resellers → open market</span></div>
+      <div class="ii"><span class="in">④</span><span><strong>Four vaults, one audit</strong> — Inst-USDC · Inst-BRL · Retail-FIDC-USDC · Retail-FIDC-BRL</span></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--gold)"></span>User Journey ≈ 90 Seconds</div>
+    <div class="js">
+      <div class="jr">
+        <div class="jst"><div class="ji"><div class="jn">1</div><div class="ja">→</div></div><div class="jl">Open app Face ID</div></div>
+        <div class="jst"><div class="ji"><div class="jn">2</div><div class="ja">→</div></div><div class="jl">60s KYC Civic Pass</div></div>
+        <div class="jst"><div class="ji"><div class="jn">3</div><div class="ja">→</div></div><div class="jl">Rolex → R$58–74K val.</div></div>
+        <div class="jst"><div class="ji"><div class="jn">4</div><div class="ja">→</div></div><div class="jl">Drop at Brinks SP</div></div>
+        <div class="jst"><div class="ji"><div class="jn g">5</div><div class="ja">→</div></div><div class="jl g">CUSTODY GATE</div></div>
+        <div class="jst"><div class="ji"><div class="jn">6</div><div class="ja">→</div></div><div class="jl">cNFT minted USDC streams</div></div>
+        <div class="jst"><div class="ji"><div class="jn">7</div></div><div class="jl">Pix or Solflare card</div></div>
+      </div>
+    </div>
+    <div class="mr">
+      <div class="met"><div class="mv">50%</div><div class="ml">Loan-to-Value</div></div>
+      <div class="met"><div class="mv">24%</div><div class="ml">Borrower APR</div></div>
+      <div class="met"><div class="mv">11%</div><div class="ml">Lender APY</div></div>
+      <div class="met"><div class="mv">4–6%</div><div class="ml">Net Margin</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="s1">
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:#e05a5a"></span>1. The Problem We Face</div>
+    <div class="fn"><div class="fk">Finding 1 — Competition</div><p>Similar ideas already exist. <em>Credible Finance</em> — selected for Colosseum C4 Accelerator — is doing RWA-collateral lending on Solana for real estate in India/Gulf. Same playbook shape. <strong>Weeks ahead, not months.</strong></p></div>
+    <div class="fn"><div class="fk">Finding 2 — Floor is higher</div><p>Product alone is not the moat. Custody-gate is necessary <strong>but not sufficient.</strong></p></div>
+    <div class="fn"><div class="fk">Finding 3 — What Frontier rewards</div><div class="ia" style="margin-top:6px"><div class="ip">Distribution &gt; product</div><div class="ip">Ecosystem composability</div><div class="ip">Signed off-chain partners</div><div class="ip">One polished AHA moment</div><div class="ip">Post-submission momentum (X, waitlist, logos)</div></div></div>
+    <div class="ir"><div class="ik">Translation</div><p style="font-size:13.5px;color:var(--tx);line-height:1.5">Beautiful UI + smart contract is table stakes. We need the ecosystem play on top.</p></div>
+  </div>
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--green)"></span>2. The Solution: Ecosystem Player</div>
+    <div class="rf"><div class="rl">The Reframe</div><div class="rt">We do not rebuild what already works on Solana. We <strong>integrate, compose, and distribute</strong>. Custody-gate is the moat. Composability is the distribution. <strong>Both, not either.</strong></div></div>
+    <div class="rails">
+      <div class="rail"><div class="rk">Identity</div><div class="rv">Civic + gov.br — 60-sec KYC, compliance baked in</div></div>
+      <div class="rail"><div class="rk">Wallet</div><div class="rv">Crossmint + LazorKit — email or FaceID, no seed phrase</div></div>
+      <div class="rail"><div class="rk">Off-ramp</div><div class="rv">Privy (Stripe) → Pix instant disbursement rail</div></div>
+      <div class="rail"><div class="rk">Liquidity</div><div class="rv">Kamino Off-Chain Collateral + Plume Nest Vaults</div></div>
+      <div class="rail"><div class="rk">Oracle</div><div class="rv">RedStone/Pyth + Chrono24 custom feed for watch prices</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--blue)"></span>3. Why This Direction Wins</div>
+    <div class="wn"><div class="wr">Frontier score</div><div class="wd">Composability + working demo + named partners = top-decile score</div></div>
+    <div class="wn"><div class="wr">VC language</div><div class="wd">"Plugged into Solana ecosystem" is the phrase pre-seed VCs underwrite</div></div>
+    <div class="wn"><div class="wr">Network effect</div><div class="wd">Every integration = a partner ecosystem we inherit users from</div></div>
+    <div class="wn"><div class="wr">Credibility</div><div class="wd">Big-name logos shortcut 6 months of "are these guys real?"</div></div>
+    <div class="wn"><div class="wr">Build speed</div><div class="wd">Battle-tested SDKs — days, not quarters</div></div>
+    <div class="wn"><div class="wr">Defensive moat</div><div class="wd">When Credible Finance pivots toward us, they face our integration wall</div></div>
+    <div class="rn"><strong>Trade:</strong> ~1 day of dev per integration. Upside: 1 logo, 1 quote, 1 distribution channel. Heavily positive.</div>
+  </div>
+</section>
+
+<section class="sec" id="s2">
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--gold)"></span>4. End-to-End User Flow</div>
+    <div class="fl">
+      <div class="fs"><div class="sn">1</div><div class="sc"><div class="sm">User opens <strong>vaulx.app</strong></div><div class="ss">Never used crypto before</div></div></div>
+      <div class="fs"><div class="sn">2</div><div class="sc"><div class="sm"><strong>KYC in 60 seconds</strong></div><div class="ss">Civic + gov.br (BR digital ID)</div></div></div>
+      <div class="fs"><div class="sn">3</div><div class="sc"><div class="sm"><strong>Embedded wallet auto-created</strong></div><div class="ss">Crossmint (email) or LazorKit (FaceID)</div></div></div>
+      <div class="fs"><div class="sn">4</div><div class="sc"><div class="sm"><strong>Registers Rolex</strong></div><div class="ss">Model, ref#, photos</div></div></div>
+      <div class="fs"><div class="sn">5</div><div class="sc"><div class="sm"><strong>Instant approx valuation</strong></div><div class="ss">Chrono24/WatchCharts feed → R$58–74K</div></div></div>
+      <div class="fs"><div class="sn">6</div><div class="sc"><div class="sm"><strong>Loan terms preview</strong></div><div class="ss">LTV, rate, repayment schedule</div></div></div>
+      <div class="fs"><div class="sn">7</div><div class="sc"><div class="sm"><strong>Books vault drop-off</strong></div><div class="ss">Brinks / Prosegur / Loomis SP</div></div></div>
+      <div class="fs"><div class="sn">8</div><div class="sc"><div class="sm"><strong>Watch deposited</strong></div><div class="ss">In-person expert eval ≤48h</div></div></div>
+      <div class="fs"><div class="sn">9</div><div class="sc"><div class="sm"><strong>Final terms confirmed</strong></div><div class="ss">User accepts in-app</div></div></div>
+      <div class="fs gs"><div class="sn">10</div><div class="sc"><div class="sm"><span class="gb">Custody Gate</span><strong>Smart contract checks TWO conditions</strong></div><div class="ss"><code>✓ custody_confirmed</code> (custodian signed)<br><code>✓ terms_accepted</code> (user signed)<br>→ only then disburse USDC</div></div></div>
+      <div class="fs"><div class="sn">11</div><div class="sc"><div class="sm"><strong>USDC lands in wallet</strong></div><div class="ss">1-click → Pix (Privy) · another wallet · Solflare/lobster card</div></div></div>
+      <div class="fs"><div class="sn">12</div><div class="sc"><div class="sm"><strong>Dashboard</strong></div><div class="ss">Asset photo + IoT/CCTV vault feed + loan terms + repayment + live LTV</div></div></div>
+      <div class="fs"><div class="sn">13</div><div class="sc"><div class="sm"><strong>Auto LTV oracle</strong></div><div class="ss">Chrono24 prices + RedStone wrapper</div></div></div>
+      <div class="fs"><div class="sn">14</div><div class="sc"><div class="sm"><strong>Liquidation-risk alerts</strong></div><div class="ss">7-day cooling-off grace period — pay down OR add collateral</div></div></div>
+      <div class="fs"><div class="sn">15</div><div class="sc"><div class="sm"><strong>On default — 3-tier auction waterfall</strong></div><div class="ts"><div class="tr">Tier 1: platform lenders (72h privileged window)</div><div class="tr">Tier 2: reseller partners (watch-dealer network)</div><div class="tr">Tier 3: public auction (Solana + off-chain)</div></div></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="s3">
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--blue)"></span>5. Integrations — Why Each One Matters</div>
+    <div class="int"><div class="ih"><div class="iname">Civic</div><div class="iwt">KYC · Token-2022 transfer hook</div></div><div class="iwy"><em>60-sec onboarding, KYC-gated TRDC transfers, compliance baked in.</em> Accepts BR gov-issued IDs.</div></div>
+    <div class="int"><div class="ih"><div class="iname">gov.br</div><div class="iwt">Brazil official digital ID · 170M+ users</div></div><div class="iwy"><em>Fastest BR-user onboarding on the planet.</em> Trust signal for BR regulators.</div></div>
+    <div class="int"><div class="ih"><div class="iname">Crossmint</div><div class="iwt">Embedded smart wallets · email login</div></div><div class="iwy">Non-crypto users get a Solana wallet without knowing they have one. <em>Squads-secured ($10B TVL).</em></div></div>
+    <div class="int"><div class="ih"><div class="iname">LazorKit</div><div class="iwt">Passkey/FaceID · Apple Secure Enclave</div></div><div class="iwy">iPhone users sign with biometrics. <em>Strongest UX moment on the demo.</em></div></div>
+    <div class="int"><div class="ih"><div class="iname">Privy</div><div class="iwt">Fiat on/off-ramps including Pix · Stripe-acquired</div></div><div class="iwy">The <em>"1-click to my bank account"</em> line. Without this, USDC is stuck.</div></div>
+    <div class="int"><div class="ih"><div class="iname">Kamino</div><div class="iwt">Off-Chain Collateral · Chainlink + Anchorage</div></div><div class="iwy">Institutional liquidity routing. <em>We become a borrower-side originator on their rails.</em></div></div>
+    <div class="int"><div class="ih"><div class="iname">Plume Nest</div><div class="iwt">Institutional RWA issuance on Solana</div></div><div class="iwy">TradFi capital channel. <em>Our TRDCs become institutional fixed-income.</em> Distribution into Loopscale + Jupiter.</div></div>
+    <div class="int"><div class="ih"><div class="iname">RedStone / Pyth</div><div class="iwt">Solana price oracles</div></div><div class="iwy">Industry-standard LTV monitoring. <em>We wrap Chrono24 data into a RedStone-compatible feed.</em></div></div>
+    <div class="int"><div class="ih"><div class="iname">Chrono24 / WatchCharts</div><div class="iwt">Luxury watch prices · 600K+ transactions</div></div><div class="iwy">The actual price data for our asset class. <em>Wrapped via Apify scraper in Phase 0.</em></div></div>
+    <div class="int"><div class="ih"><div class="iname">Solflare / lobster.cash</div><div class="iwt">Spend USDC on Mastercard/Visa</div></div><div class="iwy"><em>"Borrow against your watch, pay your dinner"</em> — the demo moment.</div></div>
+  </div>
+</section>
+
+<section class="sec" id="s4">
+  <div class="tds">
+    <div class="tth" style="color:var(--green);border-color:rgba(90,158,111,.25);background:var(--gr)"><span class="dot" style="background:var(--green)"></span>Off-Chain Partnerships<span class="tsb">SCD · Custody · Legal</span></div>
+    <div class="tis">
+      <div class="td"><span class="ck">□</span><span>2 BACEN-licensed SCDs in parallel conversations</span></div>
+      <div class="td tg"><span class="ck">→</span><span>1 signed LOI by May 10</span></div>
+      <div class="td"><span class="ck">□</span><span>Brinks SP + Prosegur SP + Loomis SP custody talks incl. CCTV/IoT overlay rights</span></div>
+      <div class="td tg"><span class="ck">→</span><span>1 signed MOU by May 10</span></div>
+      <div class="td"><span class="ck">□</span><span>Fintech counsel confirms CCB + fiduciary alienation language</span></div>
+      <div class="td tdl"><span class="ck">↑</span><span>Deliver: logos + quotable lines for deck</span></div>
+    </div>
+  </div>
+  <div class="tds">
+    <div class="tth" style="color:var(--blue);border-color:rgba(74,127,168,.25);background:var(--bl)"><span class="dot" style="background:var(--blue)"></span>On-Chain Integrations<span class="tsb">protocols that need a BD call</span></div>
+    <div class="tis">
+      <div class="td"><span class="ck">□</span><span><strong>Civic</strong> — warm intro, BD call, logo + quote permission</span></div>
+      <div class="td"><span class="ck">□</span><span><strong>Crossmint</strong> — embedded wallet integration call</span></div>
+      <div class="td"><span class="ck">□</span><span><strong>LazorKit</strong> — passkey/FaceID wallet call</span></div>
+      <div class="td"><span class="ck">□</span><span><strong>Privy</strong> — Pix off-ramp API access or LOI</span></div>
+      <div class="td"><span class="ck">□</span><span><strong>Kamino</strong> — Off-Chain Collateral BD call ("confirmed integration interest")</span></div>
+      <div class="td"><span class="ck">□</span><span><strong>Plume</strong> — Nest-vault integration call ("actively in conversation")</span></div>
+      <div class="td tg"><span class="ck">→</span><span>2 working by May 10 · all 6 = logo + quote on deck</span></div>
+      <div class="td tdl"><span class="ck">↑</span><span>Even one Telegram convo from partner BD = Frontier points</span></div>
+    </div>
+  </div>
+  <div class="tds">
+    <div class="tth" style="color:var(--gold);border-color:var(--gl);background:var(--gd)"><span class="dot" style="background:var(--gold)"></span>Tech — Backend + Frontend<span class="tsb">Anchor · integrations · dashboard</span></div>
+    <div class="tis">
+      <div class="td"><span class="ck">□</span><span>Anchor: 5 instructions with custody-gate <code>require!(custody_confirmed &amp;&amp; terms_accepted)</code></span></div>
+      <div class="td"><span class="ck">□</span><span>Civic transfer-hook on TRDC (Token-2022)</span></div>
+      <div class="td"><span class="ck">□</span><span>Crossmint + LazorKit wallet flow on borrower frontend</span></div>
+      <div class="td"><span class="ck">□</span><span>Privy Pix off-ramp stub</span></div>
+      <div class="td"><span class="ck">□</span><span>Kamino Off-Chain Collateral stub</span></div>
+      <div class="td"><span class="ck">□</span><span>Auction PDA (3-tier waterfall)</span></div>
+      <div class="td"><span class="ck">□</span><span>Price oracle — Chrono24 scraper → RedStone feed → on-chain LTV monitor</span></div>
+      <div class="td"><span class="ck">□</span><span>Frontend dashboard — asset + IoT tile + LTV gauge + grace period UI</span></div>
+      <div class="td tdl"><span class="ck">↑</span><span>Failed-state demo path polished — contract rejects → custody flips → accepts. 30s.</span></div>
+    </div>
+  </div>
+  <div class="tds">
+    <div class="tth" style="color:var(--mu);border-color:var(--bd);background:var(--s2)"><span class="dot" style="background:var(--mu)"></span>Hackathon Preparation<span class="tsb">deck · videos · submission</span></div>
+    <div class="tis">
+      <div class="td"><span class="ck">□</span><span>12-slide pitch deck by May 5</span></div>
+      <div class="td tg"><span class="ck">→</span><span>Problem → Why Now → Custody-Gate → E2E Flow → Partners → Team → Traction → Ask</span></div>
+      <div class="td"><span class="ck">□</span><span>90s pitch video by May 8 — AHA in first 5 seconds</span></div>
+      <div class="td"><span class="ck">□</span><span>2-min demo video by May 9 — happy path + failed-state side-by-side</span></div>
+      <div class="td"><span class="ck">□</span><span>Hackathon submission form + GitHub repo + Devnet program ID</span></div>
+      <div class="td tdl"><span class="ck">↑</span><span>Post-submission: 1 NDA-signed test borrower + 1 LP LOI for $500K USDC</span></div>
+    </div>
+  </div>
+  <div class="tds">
+    <div class="tth" style="color:var(--mu);border-color:var(--bd);background:var(--s2)"><span class="dot" style="background:var(--mu)"></span>Socials + Community<span class="tsb">X · landing page · waitlist</span></div>
+    <div class="tis">
+      <div class="td"><span class="ck">□</span><span>@VaulxProtocol on X — pinned tweet = custody-gate AHA moment</span></div>
+      <div class="td"><span class="ck">□</span><span>Landing page + waitlist (Tally, 2 hours)</span></div>
+      <div class="td"><span class="ck">□</span><span>2–3 posts/week tagging Helius, Superteam Brasil, Plume, Kamino, Phantom, Civic, Crossmint</span></div>
+      <div class="td"><span class="ck">□</span><span>Long-form Superteam Brasil post in Portuguese</span></div>
+      <div class="td tg"><span class="ck">→</span><span>50 waitlist signups from SP reseller WhatsApp groups by May 10</span></div>
+    </div>
+  </div>
+  <div class="mandate">Our job is not to build everything. Our job is to weld the <strong>one unbypassable primitive</strong> (custody gate) to the <strong>strongest possible partner stack</strong> on both sides — Solana ecosystem above, real-world counterparties below — and ship the demo that makes a judge feel it in <strong>30 seconds.</strong></div>
+</section>
+
+</main>
+
+<nav class="bar" role="navigation" aria-label="Main navigation">
+  <button class="tab on" onclick="show('s0',this)" aria-label="Overview">
+    <svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    <span class="tl">Overview</span>
+  </button>
+  <button class="tab" onclick="show('s1',this)" aria-label="Direction">
+    <svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+    <span class="tl">Direction</span>
+  </button>
+  <button class="tab" onclick="show('s2',this)" aria-label="Flow">
+    <svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    <span class="tl">Flow</span>
+  </button>
+  <button class="tab" onclick="show('s3',this)" aria-label="Stack">
+    <svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="6" height="6" rx="1"/><rect x="16" y="3" width="6" height="6" rx="1"/><rect x="9" y="15" width="6" height="6" rx="1"/><path d="M5 9v4a4 4 0 0 0 4 4h1"/><path d="M19 9v4a4 4 0 0 1-4 4h-1"/></svg>
+    <span class="tl">Stack</span>
+  </button>
+  <button class="tab" onclick="show('s4',this)" aria-label="TODOs">
+    <svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+    <span class="tl">TODOs</span>
+  </button>
+</nav>
+</div>
+<script>
+function show(id,btn){
+  document.querySelectorAll('.sec').forEach(s=>s.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+  btn.classList.add('on');
+  document.getElementById('main').scrollTop=0;
+}
+function toggleTheme(){
+  const h=document.documentElement,d=h.getAttribute('data-theme')==='dark';
+  h.setAttribute('data-theme',d?'light':'dark');
+  document.getElementById('tl').textContent=d?'Dark':'Light';
+  document.getElementById('ti').innerHTML=d?
+    '<circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>':
+    '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+}
+</script>
+</body>
+</html>

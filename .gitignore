@@ -44,3 +44,19 @@ wallet-*.json
 # Claude local settings
 .claude/
 .vercel
+
+# Test artifacts (Playwright MCP, generated traces)
+.playwright-mcp/
+apps/web/test-results/
+apps/web/playwright-report/
+
+# Large binaries — keep local, don't pollute public repo (use cloud storage instead)
+*.m4a
+*.mp4
+*.mov
+*.zip
+!apps/web/public/**/*.zip
+
+# OS junk
+.DS_Store
+Thumbs.db

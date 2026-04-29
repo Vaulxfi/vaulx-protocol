@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vaulx Liquidity Stack</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300..700&display=swap" rel="stylesheet">
+<style>
+/* ─── TOKENS ─── */
+:root {
+  --text-xs:   clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+  --text-sm:   clamp(0.875rem, 0.8rem + 0.35vw, 1rem);
+  --text-base: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+  --text-lg:   clamp(1.125rem, 1rem + 0.75vw, 1.5rem);
+  --text-xl:   clamp(1.5rem, 1.2rem + 1.25vw, 2.25rem);
+  --text-2xl:  clamp(2rem, 1.2rem + 2.5vw, 3.5rem);
+  --space-1: 0.25rem; --space-2: 0.5rem; --space-3: 0.75rem;
+  --space-4: 1rem;    --space-5: 1.25rem; --space-6: 1.5rem;
+  --space-8: 2rem;    --space-10: 2.5rem; --space-12: 3rem;
+  --space-16: 4rem;
+  --radius-sm: 0.375rem; --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;  --radius-xl: 1rem; --radius-full: 9999px;
+  --transition: 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  --font-display: 'Instrument Serif', Georgia, serif;
+  --font-body: 'DM Sans', 'Helvetica Neue', sans-serif;
+  --content-default: 960px;
+  --content-wide: 1200px;
+}
+
+/* ─── DARK THEME ─── */
+[data-theme="dark"] {
+  --bg:        #141312;
+  --surface:   #1b1a18;
+  --surface-2: #201f1d;
+  --surface-3: #272624;
+  --divider:   #2c2b29;
+  --border:    #353432;
+  --text:      #d4d2cf;
+  --text-muted:#7e7d7b;
+  --text-faint:#4d4c4a;
+  --primary:   #c9a84c;
+  --primary-dim: rgba(201,168,76,0.12);
+  --primary-glow: rgba(201,168,76,0.06);
+  --gold:      #e8af34;
+  --green:     #5a9e4a;
+  --green-dim: rgba(90,158,74,0.12);
+  --blue:      #4f8fa3;
+  --blue-dim:  rgba(79,143,163,0.12);
+  --orange:    #c97843;
+  --orange-dim:rgba(201,120,67,0.12);
+  --red:       #b85050;
+  --red-dim:   rgba(184,80,80,0.12);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.4);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.5);
+}
+
+[data-theme="light"] {
+  --bg:        #f7f5f0;
+  --surface:   #faf9f6;
+  --surface-2: #ffffff;
+  --surface-3: #f3f1ec;
+  --divider:   #e4e1da;
+  --border:    #d8d5ce;
+  --text:      #211f1a;
+  --text-muted:#706d66;
+  --text-faint:#b0ada5;
+  --primary:   #8c6a18;
+  --primary-dim: rgba(140,106,24,0.08);
+  --primary-glow: rgba(140,106,24,0.04);
+  --gold:      #9c7419;
+  --green:     #3a7228;
+  --green-dim: rgba(58,114,40,0.08);
+  --blue:      #2a6b82;
+  --blue-dim:  rgba(42,107,130,0.08);
+  --orange:    #9c5e25;
+  --orange-dim:rgba(156,94,37,0.08);
+  --red:       #8c3535;
+  --red-dim:   rgba(140,53,53,0.08);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.1);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    --bg:#f7f5f0; --surface:#faf9f6; --surface-2:#ffffff; --surface-3:#f3f1ec;
+    --divider:#e4e1da; --border:#d8d5ce; --text:#211f1a; --text-muted:#706d66;
+    --text-faint:#b0ada5; --primary:#8c6a18; --primary-dim:rgba(140,106,24,0.08);
+    --primary-glow:rgba(140,106,24,0.04); --gold:#9c7419; --green:#3a7228;
+    --green-dim:rgba(58,114,40,0.08); --blue:#2a6b82; --blue-dim:rgba(42,107,130,0.08);
+    --orange:#9c5e25; --orange-dim:rgba(156,94,37,0.08); --red:#8c3535;
+    --red-dim:rgba(140,53,53,0.08); --shadow-sm:0 1px 3px rgba(0,0,0,0.06);
+    --shadow-md:0 4px 16px rgba(0,0,0,0.08); --shadow-lg:0 12px 40px rgba(0,0,0,0.1);
+  }
+}
+
+/* ─── BASE ─── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-font-smoothing: antialiased; scroll-behavior: smooth; scroll-padding-top: 5rem; }
+body {
+  min-height: 100dvh;
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  color: var(--text);
+  background: var(--bg);
+  line-height: 1.6;
+}
+h1,h2,h3,h4,h5,h6 { text-wrap: balance; line-height: 1.2; }
+p, li { text-wrap: pretty; }
+button { cursor: pointer; border: none; background: none; font: inherit; color: inherit; }
+a { color: inherit; text-decoration: none; }
+a, button { transition: color var(--transition), background var(--transition), opacity var(--transition), box-shadow var(--transition); }
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; border-radius: var(--radius-sm); }
+::selection { background: var(--primary-dim); color: var(--text); }
+
+/* ─── LAYOUT ─── */
+.container { max-width: var(--content-wide); margin-inline: auto; padding-inline: var(--space-6); }
+@media (max-width: 600px) { .container { padding-inline: var(--space-4); } }
+
+/* ─── HEADER ─── */
+header {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--bg);
+  border-bottom: 1px solid var(--divider);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.header-inner {
+  max-width: var(--content-wide); margin-inline: auto;
+  padding-inline: var(--space-6);
+  height: 56px;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-4);
+}
+@media (max-width: 600px) { .header-inner { padding-inline: var(--space-4); } }
+
+.logo {
+  display: flex; align-items: center; gap: var(--space-3);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.logo-mark {
+  width: 32px; height: 32px;
+  background: var(--primary);
+  border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.logo-mark svg { width: 18px; height: 18px; }
+
+.header-right { display: flex; align-items: center; gap: var(--space-3); }
+
+.theme-toggle {
+  width: 36px; height: 36px;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.theme-toggle:hover { color: var(--text); background: var(--surface-2); }
+.theme-toggle:active { transform: scale(0.94); }
+
+.phase-legend {
+  display: flex; align-items: center; gap: var(--space-4);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.phase-dot {
+  display: flex; align-items: center; gap: var(--space-2);
+}
+.dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  flex-shrink: 0;
+}
+.dot-now   { background: var(--green); }
+.dot-later { background: var(--orange); opacity: 0.7; }
+.dot-alt   { background: var(--blue); }
+@media (max-width: 480px) { .phase-legend { display: none; } }
+
+/* ─── HERO ─── */
+.hero {
+  padding: var(--space-12) 0 var(--space-8);
+  border-bottom: 1px solid var(--divider);
+}
+.hero-inner {
+  max-width: var(--content-wide); margin-inline: auto;
+  padding-inline: var(--space-6);
+}
+@media (max-width: 600px) { .hero-inner { padding-inline: var(--space-4); } }
+
+.hero-eyebrow {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--primary);
+  margin-bottom: var(--space-3);
+}
+.hero h1 {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 400;
+  color: var(--text);
+  margin-bottom: var(--space-4);
+  max-width: 28ch;
+}
+.hero-sub {
+  font-size: var(--text-base);
+  color: var(--text-muted);
+  max-width: 64ch;
+  margin-bottom: var(--space-6);
+  line-height: 1.7;
+}
+.key-insight {
+  display: inline-flex; align-items: flex-start; gap: var(--space-3);
+  background: var(--primary-dim);
+  border: 1px solid oklch(from var(--primary) l c h / 0.2);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-5);
+  font-size: var(--text-sm);
+  color: var(--text);
+  max-width: 56ch;
+  line-height: 1.6;
+}
+.key-insight-icon {
+  color: var(--primary);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* ─── MAIN CONTENT ─── */
+main { padding: var(--space-10) 0 var(--space-16); }
+
+/* ─── SECTION TITLE ─── */
+.section-header {
+  margin-bottom: var(--space-6);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--divider);
+}
+.section-header h2 {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 400;
+  color: var(--text);
+  margin-bottom: var(--space-1);
+}
+.section-header p {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  max-width: 60ch;
+}
+
+/* ─── TIER SECTIONS ─── */
+.tiers { display: flex; flex-direction: column; gap: var(--space-10); }
+
+.tier-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.tier-header {
+  padding: var(--space-5) var(--space-6);
+  border-bottom: 1px solid var(--divider);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: var(--space-3);
+  background: var(--surface-2);
+}
+@media (max-width: 600px) { .tier-header { padding: var(--space-4); } }
+
+.tier-title-group { display: flex; align-items: center; gap: var(--space-3); }
+
+.tier-badge {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+}
+.badge-now    { background: var(--green-dim);  color: var(--green);  border: 1px solid oklch(from var(--green) l c h / 0.25); }
+.badge-later  { background: var(--orange-dim); color: var(--orange); border: 1px solid oklch(from var(--orange) l c h / 0.25); }
+.badge-parallel { background: var(--blue-dim);  color: var(--blue);   border: 1px solid oklch(from var(--blue) l c h / 0.25); }
+
+.tier-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text);
+}
+.tier-subtitle {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ─── PARTNER GRID ─── */
+.partner-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+  gap: 1px;
+  background: var(--divider);
+}
+
+.partner-card {
+  background: var(--surface);
+  padding: var(--space-5) var(--space-6);
+  display: flex; flex-direction: column; gap: var(--space-3);
+  transition: background var(--transition);
+}
+@media (max-width: 600px) { .partner-card { padding: var(--space-4); } }
+.partner-card:hover { background: var(--surface-2); }
+
+.partner-top {
+  display: flex; align-items: flex-start;
+  justify-content: space-between; gap: var(--space-3);
+}
+.partner-name-row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.partner-name {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text);
+}
+.role-tag {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+.tag-venue    { background: var(--blue-dim);   color: var(--blue); }
+.tag-rail     { background: var(--green-dim);  color: var(--green); }
+.tag-host     { background: var(--primary-dim); color: var(--primary); }
+.tag-capital  { background: var(--orange-dim); color: var(--orange); }
+.tag-alt      { background: var(--surface-3);  color: var(--text-muted); border: 1px solid var(--border); }
+.tag-later    { background: var(--orange-dim); color: var(--orange); opacity: 0.85; }
+.tag-curator  { background: var(--blue-dim);   color: var(--blue); }
+
+.partner-what {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  line-height: 1.55;
+  flex: 1;
+}
+.partner-why {
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+  background: var(--surface-3);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  line-height: 1.5;
+  border: 1px solid var(--divider);
+}
+.partner-why strong {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* stat chips */
+.stat-chip {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  background: var(--primary-dim);
+  color: var(--primary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  margin-top: var(--space-2);
+  width: fit-content;
+}
+.stat-chip-blue {
+  background: var(--blue-dim);
+  color: var(--blue);
+}
+.stat-chip-green {
+  background: var(--green-dim);
+  color: var(--green);
+}
+.stat-chip-orange {
+  background: var(--orange-dim);
+  color: var(--orange);
+}
+
+/* ─── CORE TRUTH BOX ─── */
+.truth-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-8) var(--space-8);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-6);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: var(--space-10);
+}
+@media (max-width: 700px) {
+  .truth-box { grid-template-columns: 1fr; padding: var(--space-6) var(--space-5); }
+}
+
+.truth-col {}
+.truth-label {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--divider);
+}
+.truth-text {
+  font-size: var(--text-sm);
+  color: var(--text);
+  line-height: 1.7;
+}
+.truth-text strong { color: var(--primary); font-weight: 600; }
+.truth-text .neg { color: var(--red); }
+.truth-text .pos { color: var(--green); }
+
+/* ─── LAUNCH TARGET ─── */
+.launch-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+  margin-bottom: var(--space-10);
+}
+@media (max-width: 640px) { .launch-row { grid-template-columns: 1fr; } }
+
+.launch-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  display: flex; flex-direction: column; gap: var(--space-2);
+  box-shadow: var(--shadow-sm);
+}
+.launch-num {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 400;
+  color: var(--primary);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.launch-label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+.launch-note { font-size: var(--text-xs); color: var(--text-faint); line-height: 1.5; }
+
+/* ─── ROADMAP ─── */
+.roadmap {
+  display: flex; flex-direction: column;
+  gap: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.roadmap-row {
+  display: grid;
+  grid-template-columns: 90px 1fr 1fr 1fr;
+  border-bottom: 1px solid var(--divider);
+  min-height: 56px;
+}
+.roadmap-row:last-child { border-bottom: none; }
+@media (max-width: 640px) {
+  .roadmap-row { grid-template-columns: 70px 1fr; }
+  .roadmap-cell:nth-child(3),
+  .roadmap-cell:nth-child(4) { display: none; }
+}
+
+.roadmap-row.head-row {
+  background: var(--surface-2);
+  min-height: 36px;
+}
+.roadmap-cell {
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  display: flex; align-items: center;
+  border-right: 1px solid var(--divider);
+  line-height: 1.4;
+}
+.roadmap-cell:last-child { border-right: none; }
+.roadmap-cell.head {
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  font-size: 10px;
+}
+.roadmap-cell.phase-cell {
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.phase-now    { color: var(--green); }
+.phase-later  { color: var(--orange); }
+.partner-cell { color: var(--text); font-weight: 600; }
+.provides-cell { color: var(--text-muted); }
+.need-cell { color: var(--text-muted); font-style: italic; }
+
+/* ─── FOOTER ─── */
+footer {
+  border-top: 1px solid var(--divider);
+  padding: var(--space-8) 0;
+}
+.footer-inner {
+  max-width: var(--content-wide); margin-inline: auto;
+  padding-inline: var(--space-6);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: var(--space-4);
+}
+@media (max-width: 600px) { .footer-inner { padding-inline: var(--space-4); } }
+.footer-note { font-size: var(--text-xs); color: var(--text-faint); line-height: 1.5; }
+.footer-stack {
+  display: flex; align-items: center; gap: var(--space-2);
+  font-size: var(--text-xs); color: var(--text-faint);
+}
+.stack-pill {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  padding: var(--space-1) var(--space-3);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+</style>
+</head>
+<body>
+
+<!-- ─── HEADER ─── -->
+<header>
+  <div class="header-inner">
+    <a href="#" class="logo" aria-label="Vaulx home">
+      <div class="logo-mark">
+        <svg viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <rect x="1" y="4" width="16" height="11" rx="2" stroke="#141312" stroke-width="1.5"/>
+          <path d="M5 4V3a4 4 0 0 1 8 0v1" stroke="#141312" stroke-width="1.5" stroke-linecap="round"/>
+          <circle cx="9" cy="9.5" r="1.5" fill="#141312"/>
+          <path d="M9 11v2" stroke="#141312" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      Vaulx
+    </a>
+    <div class="header-right">
+      <div class="phase-legend" aria-hidden="true">
+        <span class="phase-dot"><span class="dot dot-now"></span> Now</span>
+        <span class="phase-dot"><span class="dot dot-later"></span> Phase 2</span>
+        <span class="phase-dot"><span class="dot dot-alt"></span> Venue/Rail</span>
+      </div>
+      <button class="theme-toggle" data-theme-toggle aria-label="Switch theme">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ─── HERO ─── -->
+<section class="hero" aria-labelledby="hero-title">
+  <div class="hero-inner">
+    <p class="hero-eyebrow">Liquidity Architecture</p>
+    <h1 id="hero-title">Who brings capital — and how</h1>
+    <p class="hero-sub">Neither Kamino nor Plume supplies balance sheet capital to Vaulx. They supply venue infrastructure. The first $5–10M in lending liquidity comes from 2–3 manually closed relationships: a vault curator, an anchor institutional lender, and optionally a crypto-native credit fund.</p>
+    <div class="key-insight" role="note">
+      <svg class="key-insight-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+      <span><strong>The hard truth:</strong> Protocols provide rails. <em>You</em> bring the borrowers, collateral infrastructure, and the first anchor lenders. Liquidity follows a track record of zero bad debt.</span>
+    </div>
+  </div>
+</section>
+
+<!-- ─── MAIN ─── -->
+<main>
+  <div class="container">
+
+    <!-- LAUNCH TARGETS -->
+    <div class="section-header" style="margin-top: var(--space-2);">
+      <h2>Launch Targets</h2>
+      <p>Minimum viable liquidity to go live on mainnet</p>
+    </div>
+    <div class="launch-row" aria-label="Launch target metrics">
+      <div class="launch-card">
+        <div class="launch-num">$5M</div>
+        <div class="launch-label">Seed liquidity target</div>
+        <div class="launch-note">From 2–3 anchor lenders; enough to validate the collateral model and run first CCB cohort</div>
+      </div>
+      <div class="launch-card">
+        <div class="launch-num">2–3</div>
+        <div class="launch-label">Manual lender closes</div>
+        <div class="launch-note">Vault curator (Re7/MEV) + 1 Brazilian institutional lender + optionally 1 crypto credit fund</div>
+      </div>
+      <div class="launch-card">
+        <div class="launch-num">0</div>
+        <div class="launch-label">Bad debt tolerance</div>
+        <div class="launch-note">Zero bad debt is the prerequisite for Kamino curators and Plume's institutional LP network to allocate at scale in Phase 2</div>
+      </div>
+    </div>
+
+    <!-- CORE TRUTH -->
+    <div class="section-header">
+      <h2>What each protocol actually gives you</h2>
+      <p>Infrastructure vs. capital — the distinction that matters</p>
+    </div>
+    <div class="truth-box" role="region" aria-label="Protocol comparison">
+      <div class="truth-col">
+        <div class="truth-label">Kamino Finance</div>
+        <div class="truth-text">
+          <p>Provides <strong>isolated market architecture</strong> + vault/curator distribution rails. The $2.45B TVL belongs to Kamino's existing lenders — it does not auto-allocate to new markets.</p>
+          <br>
+          <p>A curator (Re7, MEV Capital, Steakhouse) must <strong>choose</strong> to allocate USDC into a Vaulx Kamino market. That choice requires a verified oracle, a credible liquidation mechanism for cNFT collateral, and a competitive APY vs. Maple/OnRe/Solend.</p>
+          <br>
+          <p class="pos">✓ Use now: venue to scale after track record exists.</p>
+        </div>
+      </div>
+      <div class="truth-col">
+        <div class="truth-label">Plume Network</div>
+        <div class="truth-text">
+          <p>Provides <strong>institutional RWA yield infrastructure</strong> — Apollo ($50M), Solv ($10M), Hamilton Lane deployed through Plume's own curated vaults.</p>
+          <br>
+          <p>Those LPs are locked to Plume-native vaults. Plume does <strong class="neg">not</strong> redirect institutional capital to third-party protocols as a default. What Plume gives Vaulx is: a credible later-stage venue for TRDCs in secondary lending markets + RWA-native chain infrastructure for cross-chain expansion.</p>
+          <br>
+          <p class="neg">✗ Phase 2 only. Premature to rely on for launch liquidity.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- TIERS -->
+    <div class="section-header">
+      <h2>Liquidity Stack by Tier</h2>
+      <p>Three tiers, two phases — engage in the order shown</p>
+    </div>
+
+    <div class="tiers">
+
+      <!-- TIER 1 -->
+      <article class="tier-block" aria-labelledby="tier1-title">
+        <div class="tier-header">
+          <div class="tier-title-group">
+            <span class="tier-badge badge-now">NOW</span>
+            <div>
+              <div class="tier-title" id="tier1-title">Tier 1 — Order Book & Isolated Market Venue</div>
+              <div class="tier-subtitle">Lowest friction to launch a novel collateral credit product on Solana</div>
+            </div>
+          </div>
+        </div>
+        <div class="partner-grid" role="list">
+
+          <div class="partner-card" role="listitem">
+            <div class="partner-top">
+              <div class="partner-name-row">
+                <span class="partner-name">Loopscale</span>
+                <span class="role-tag tag-venue">VENUE — PRIORITY</span>
+              </div>
+            </div>
+            <div class="partner-what">Order book credit market, launched first BRL credit market on Solana (Transfero/Etherfuse, March 2026). First permissioned RWA credit product using Apollo ACRED as collateral. Lenders set bilateral terms — a single large lender can fill an entire market without retail depositor base.</div>
+            <div class="stat-chip stat-chip-blue">Requires only oracle + initial liquidity — no governance vote</div>
+            <div class="partner-why"><strong>Why Vaulx:</strong> Lowest time-to-market for cNFT-backed CCB credit. Bilateral structure matches Vaulx's high-net-worth borrower profile. BRL precedent already set.</div>
+          </div>
+
+          <div class="partner-card" role="listitem">
+            <div class="partner-top">
+              <div class="partner-name-row">
+                <span class="partner-name">Kamino V2 Isolated Market</span>
+                <span class="role-tag tag-venue">VENUE — PARALLEL</span>
+              </div>
+            </div>
+            <div class="partner-what">Isolated market architecture with custom LTV, collateral rules, and liquidation logic per market. $2.45B TVL provides deep lender network, but requires curator adoption for a new market to receive USDC inflows.</div>
+            <div class="stat-chip">$2.45B TVL base — post-track-record scale venue</div>
+            <div class="partner-why"><strong>Why Vaulx:</strong> Once 6–12 months of zero bad debt exist, curator allocation becomes achievable. Launch the market now to establish the Vaulx product identity, even if inflows are low initially.</div>
+          </div>
+
+        </div>
+      </article>
+
+      <!-- TIER 2 -->
+      <article class="tier-block" aria-labelledby="tier2-title">
+        <div class="tier-header">
+          <div class="tier-title-group">
+            <span class="tier-badge badge-now">NOW</span>
+            <div>
+              <div class="tier-title" id="tier2-title">Tier 2 — Vault Curators</div>
+              <div class="tier-subtitle">Managed USDC pools that allocate across Kamino V2 markets — your bridge to pooled institutional capital</div>
+            </div>
+          </div>
+        </div>
+        <div class="partner-grid" role="list">
+
+          <div class="partner-card" role="listitem">
+            <div class="partner-top">
+              <div class="partner-name-row">
+                <span class="partner-name">Re7 Labs</span>
+                <span class="role-tag tag-curator">CURATOR — PRIORITY</span>
+              </div>
+            </div>
+            <div class="partner-what">Specialises in novel collateral types and new DeFi market segments. Active curator on Kamino V2 and Morpho. Known for willingness to evaluate non-standard collateral with strong legal wrapping.</div>
+            <div class="partner-why"><strong>Why Vaulx:</strong> Best cultural fit for cNFT luxury collateral. SCD legal structure + Bubblegum provenance gives them a credible risk assessment framework.</div>
+          </div>
+
+          <div class="partner-card" role="listitem">
+            <div class="partner-top">
+              <div class="partner-name-row">
+                <span class="partner-name">MEV Capital</span>
+                <span class="role-tag tag-curator">CURATOR — ALT</span>
+              </div>
+            </div>
+            <div class="partner-what">Active curator across Kamino V2, Morpho, and Euler. Manages $200M+ across RWA and structured credit markets. Strong preference for audited, legally wrapped credit products.</div>
+            <div class="partner-why"><strong>Why Vaulx:</strong> CCB structure with Brazilian SCD wrapper is precisely the type of legally audited product MEV accepts. Pitch after Re7.</div>
+          </div>
+
+          <div class="partner-card" role="listitem">
+            <div class="partner-top">
+              <div class="partner-name-row">
+                <span class="partner-name">Steakhouse Financial</span>
+                <span class="role-tag tag-alt">CURATOR — MONITOR</span>
+              </div>
+            </div>
+            <div class="partner-what">MakerDAO-ecosystem curator that manages RWA credit vaults. More conservative risk profile — prefers sovereign or near-sovereign collateral.</div>
+            <div class="partner-why"><strong>Why Vaulx:</strong> Lower priority for launch; revisit after Loopscale market matures and BRL CCB has 12-month public track record.</div>
+          </div>
+
+        </div>
+      </article>
+
+      <!-- TIER 3 -->
+      <article class="tier-block" aria-labelledby="tier3-title">
+        <div class="tier-header">
+          <div class="tier-title-group">
+            <span class="tier-badge badge-parallel">PARALLEL</span>
+            <div>
+              <div class="tier-title" id="tier3-title">Tier 3 — Brazilian Institutional Capital</div>
+              <div class="tier-subtitle">Distribution channels + anchor lenders with BRL regulatory credibility</div>
+            </div>
+          </div>
+        </div>
+        <div class="partner-grid" role="list">
+
+          <div class="partner-card" role="listitem">
+            <div class="partner-top">
+              <div class="partner-name-row">
+                <span class="partner-name">Mercado Bitcoin</span>
+                <span class="role-tag tag-capital">ANCHOR LENDER — PRIORITY</span>
+              </div>
+            </div>
+            <div class="partner-what">Brazil's largest crypto exchange with regulated securities arm (MB Tokens / MB Digital Assets). Their users — HNW Brazilians with physical luxury assets — are Vaulx's exact borrower profile. Already issues tokenized CRAs and debentures.</div>
+            <div class="stat-chip stat-chip-orange">Natural lender base for CCB watch-backed product</div>
+            <div class="partner-why"><strong>Deal structure:</strong> MB allocates a USDC/BRZ lending vault into Loopscale or Kamino's Vaulx market, earning yield on float. Revenue share + co-marketing on their user base as borrowers.</div>
+          </div>
+
+          <div class="partner-card" role="listitem">
+            <div class="partner-top">
+              <div class="partner-name-row">
+                <span class="partner-name">Transfero Group</span>
+                <span class="role-tag tag-capital">ANCHOR LENDER — ALT</span>
+              </div>
+            </div>
+            <div class="partner-what">Issued BRZ stablecoin. Active in Solana RWA stack (Loopscale BRL credit market, March 2026). Understands Brazilian regulatory structure and has institutional relationships with family offices and crypto funds.</div>
+            <div class="partner-why"><strong>Deal structure:</strong> BRZ-denominated lending pool in Loopscale's Vaulx market. Transfero earns yield; Vaulx gets BRL-native liquidity without FX friction for Brazilian borrowers.</div>
+          </div>
+
+          <div class="partner-card" role="listitem">
+            <div class="partner-top">
+              <div class="partner-name-row">
+                <span class="partner-name">Credora / Maple Finance</span>
+                <span class="role-tag tag-alt">CREDIT FUND — MONITOR</span>
+              </div>
+            </div>
+            <div class="partner-what">Credora provides on-chain credit intelligence for institutional lending. Maple Finance (syrupUSDC on Solana) brings its own LP base and deployed $30M seed + $500K incentives on Kamino for launch.</div>
+            <div class="partner-why"><strong>Why Vaulx:</strong> Maple's playbook is the reference model — institutional-grade, permissioned. Engage after the first Loopscale market cohort has 90-day public data. Credora can provide credit scoring for the cNFT collateral pool.</div>
+          </div>
+
+        </div>
+      </article>
+
+      <!-- TIER 4 — LATER -->
+      <article class="tier-block" aria-labelledby="tier4-title">
+        <div class="tier-header">
+          <div class="tier-title-group">
+            <span class="tier-badge badge-later">PHASE 2</span>
+            <div>
+              <div class="tier-title" id="tier4-title">Tier 4 — Institutional Scale Infrastructure</div>
+              <div class="tier-subtitle">Unlocked by track record: ~$50M+ deployed, zero bad debt, 12+ months live</div>
+            </div>
+          </div>
+        </div>
+        <div class="partner-grid" role="list">
+
+          <div class="partner-card" role="listitem">
+            <div class="partner-top">
+              <div class="partner-name-row">
+                <span class="partner-name">Plume Network</span>
+                <span class="role-tag tag-later">PHASE 2 — RWA INFRA</span>
+              </div>
+            </div>
+            <div class="partner-what">RWA-native L2 with institutional LP distribution: Apollo ($50M), Solv ($10M), Hamilton Lane. Plume Nest connects institutional capital to yield vaults — but currently only to Plume-native products.</div>
+            <div class="stat-chip stat-chip-orange">$50M+ institutional LP base in Plume-native vaults</div>
+            <div class="partner-why"><strong>Phase 2 purpose:</strong> (1) Secondary TRDC trading market, (2) Cross-chain deployment for European/US institutional lenders, (3) Plume Nest allocation once Vaulx has protocol metrics to show institutional LPs. Not a launch-liquidity source.</div>
+          </div>
+
+          <div class="partner-card" role="listitem">
+            <div class="partner-top">
+              <div class="partner-name-row">
+                <span class="partner-name">Aave</span>
+                <span class="role-tag tag-alt">PHASE 2 — NOT PRIORITY</span>
+              </div>
+            </div>
+            <div class="partner-what">Largest EVM lending protocol (~$15B TVL). Governance-controlled asset onboarding requires months of proposals, risk framework audits, and community votes. EVM-native — no Solana market.</div>
+            <div class="partner-why"><strong>Why not now:</strong> EVM-only, slow governance, no BRL/Brazil specificity, no RWA/cNFT precedent. If Vaulx expands to EVM (Base, Arbitrum) in Phase 2, Aave becomes relevant. Ignore for Solana launch.</div>
+          </div>
+
+          <div class="partner-card" role="listitem">
+            <div class="partner-top">
+              <div class="partner-name-row">
+                <span class="partner-name">Kamino V2 — Curator Scale</span>
+                <span class="role-tag tag-later">PHASE 2 — SCALE</span>
+              </div>
+            </div>
+            <div class="partner-what">Once 2+ curators allocate to the Vaulx market and track record is public, Kamino's full $2.45B TVL lender network becomes accessible. Kamino V2 isolated markets can scale to $100M+ with multiple curators.</div>
+            <div class="partner-why"><strong>Phase 2 trigger:</strong> 6–12 months on-chain data, Loopscale market at $5M+ deployed, zero liquidation failures. Present to 2nd curator (MEV/Steakhouse) with full metrics dashboard.</div>
+          </div>
+
+        </div>
+      </article>
+
+    </div><!-- /tiers -->
+
+    <!-- ROADMAP TABLE -->
+    <div class="section-header" style="margin-top: var(--space-12);">
+      <h2>Engagement Sequence</h2>
+      <p>Ordered by time-to-first-dollar, not by eventual scale</p>
+    </div>
+    <div class="roadmap" role="table" aria-label="Liquidity partner engagement roadmap">
+      <div class="roadmap-row head-row" role="row">
+        <div class="roadmap-cell head" role="columnheader">Phase</div>
+        <div class="roadmap-cell head" role="columnheader">Partner</div>
+        <div class="roadmap-cell head" role="columnheader">They Provide</div>
+        <div class="roadmap-cell head" role="columnheader">You Provide</div>
+      </div>
+      <div class="roadmap-row" role="row">
+        <div class="roadmap-cell phase-cell phase-now" role="cell">Launch</div>
+        <div class="roadmap-cell partner-cell" role="cell">Loopscale</div>
+        <div class="roadmap-cell provides-cell" role="cell">Order book venue, BRZ/USDC rails, no governance friction</div>
+        <div class="roadmap-cell need-cell" role="cell">Appraiser oracle, cNFT spec, 1 anchor lender</div>
+      </div>
+      <div class="roadmap-row" role="row">
+        <div class="roadmap-cell phase-cell phase-now" role="cell">Launch</div>
+        <div class="roadmap-cell partner-cell" role="cell">Re7 Labs</div>
+        <div class="roadmap-cell provides-cell" role="cell">Managed USDC pool → Kamino Vaulx market</div>
+        <div class="roadmap-cell need-cell" role="cell">Competitive yield vs. Maple/OnRe, audit, oracle</div>
+      </div>
+      <div class="roadmap-row" role="row">
+        <div class="roadmap-cell phase-cell phase-now" role="cell">Parallel</div>
+        <div class="roadmap-cell partner-cell" role="cell">Mercado Bitcoin</div>
+        <div class="roadmap-cell provides-cell" role="cell">BRL institutional lender base, regulatory credibility</div>
+        <div class="roadmap-cell need-cell" role="cell">Revenue share, co-marketing, borrower pipeline</div>
+      </div>
+      <div class="roadmap-row" role="row">
+        <div class="roadmap-cell phase-cell phase-now" role="cell">Parallel</div>
+        <div class="roadmap-cell partner-cell" role="cell">Transfero Group</div>
+        <div class="roadmap-cell provides-cell" role="cell">BRZ pool, Solana RWA presence, institutional contacts</div>
+        <div class="roadmap-cell need-cell" role="cell">BRL-native market on Loopscale, yield terms</div>
+      </div>
+      <div class="roadmap-row" role="row">
+        <div class="roadmap-cell phase-cell phase-later" style="color:var(--orange)" role="cell">6 mo.</div>
+        <div class="roadmap-cell partner-cell" role="cell">Kamino V2 (curator scale)</div>
+        <div class="roadmap-cell provides-cell" role="cell">$2.45B TVL access via curator network</div>
+        <div class="roadmap-cell need-cell" role="cell">6–12 mo. track record, zero bad debt, oracle history</div>
+      </div>
+      <div class="roadmap-row" role="row">
+        <div class="roadmap-cell phase-cell phase-later" style="color:var(--orange)" role="cell">12 mo.</div>
+        <div class="roadmap-cell partner-cell" role="cell">Plume Network</div>
+        <div class="roadmap-cell provides-cell" role="cell">RWA L2 infra, institutional LP distribution (Apollo etc.)</div>
+        <div class="roadmap-cell need-cell" role="cell">$50M+ deployed, protocol metrics, Plume partnership deal</div>
+      </div>
+    </div>
+
+  </div><!-- /container -->
+</main>
+
+<!-- ─── FOOTER ─── -->
+<footer>
+  <div class="footer-inner">
+    <p class="footer-note">Vaulx Protocol · Liquidity Architecture Reference · April 2026<br>Internal working document — Solana hackathon preparation</p>
+    <div class="footer-stack">
+      <span class="stack-pill">Solana</span>
+      <span class="stack-pill">Loopscale</span>
+      <span class="stack-pill">Kamino V2</span>
+      <span class="stack-pill">Plume</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  const t = document.querySelector('[data-theme-toggle]');
+  const r = document.documentElement;
+  // default to dark (already set in HTML)
+  let d = r.getAttribute('data-theme') || 'dark';
+  function setIcon(theme) {
+    if (!t) return;
+    t.setAttribute('aria-label', 'Switch to ' + (theme === 'dark' ? 'light' : 'dark') + ' mode');
+    t.innerHTML = theme === 'dark'
+      ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>'
+      : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+  }
+  setIcon(d);
+  if (t) {
+    t.addEventListener('click', () => {
+      d = d === 'dark' ? 'light' : 'dark';
+      r.setAttribute('data-theme', d);
+      setIcon(d);
+    });
+  }
+})();
+</script>
+</body>
+</html>
