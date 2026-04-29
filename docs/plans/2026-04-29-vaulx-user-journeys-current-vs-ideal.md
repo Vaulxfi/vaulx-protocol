@@ -66,6 +66,54 @@ After this v2 review, the picture is much sharper:
 
 ---
 
+## 0.1 Scope decision — γ (full pre-hackathon build)
+
+After multi-model council review (2026-04-29 afternoon), three scope paths were considered:
+
+- **α — BRD-strict demo**: ship existing `/demo/*` with cleanup only; narrate the evolved design verbally
+- **β — Highest-leverage 4 builds**: pick 4 most-impactful new routes that fit conservative dev-day estimates
+- **γ — Full pre-hackathon scope**: build all 11 new routes + foundations + cleanup before May 10
+
+**Decision: γ.** AI-agent-driven parallel execution makes the human-team dev-day math obsolete. We build the design correctly, in full, before the demo deadline. No scope cuts. No "narrate it verbally" hand-waves. No half-shipped flows.
+
+This forces an implementation plan with strict dependency ordering (see §8 build graph) and a Phase F cleanup gate that runs only after Phase A-D ship green.
+
+---
+
+## 0.2 Spec evolution from BRD (this doc is post-BRD)
+
+This document captures **deliberate product evolutions** beyond the canonical Vaulx BRDs. These are not inventions — they are agreed product progressions captured in working sessions on 2026-04-29:
+
+| BRD position (current) | Journey-doc evolution | Why |
+|---|---|---|
+| Single Appraiser role with auto-converged convergence (M1-M6 metrics, system alerts) | Two distinct appraiser personas (Online + Offline) with **human Risk Officer review** of trilateral | Auto-converge gets gamed when sources collude or one source dominates; human-in-the-loop with bounded override is the anti-fraud architecture |
+| Information separation (appraisers don't see market anchors) | + **Inter-appraiser blinding via case codes** | Explicit anti-collusion: prevents online + offline from coordinating |
+| Single appraisal screen (`/borrow/new/appraisal/[reqId]`) | Online + Offline workspaces (`/appraiser/online/*` and `/appraiser/offline/*`) + Risk Officer (`/admin/evaluations/*`) | Each persona has different SLA (24h vs 48h), different information surface (offline takes own photos, finds hidden defects), different decision rights |
+| Loan-offer / CCB sign at `/demo/borrow/loan-offer/[reqId]` (pre-custody) | Two-stage: indicative pre-custody → final post-Risk-Officer (with accept/decline + asset-return branch) | Offline eval can revise valuation materially; borrower must retain right to decline final terms |
+| Auto-converged median for prudent value | **Bounded human override** — Risk Officer picks within `[min, max]` of 3 evals; outside the envelope → audit/decline | Removes fiat power; preserves auditability while enabling defensible human judgment |
+
+The BRD should be updated to reflect these. Until then, this journey doc is the working source of truth for product design; the BRD remains the source of truth for hackathon-demo choreography only.
+
+---
+
+## 0.3 Non-Negotiables (load-bearing security & blinding constraints)
+
+These are not features. They are **constraints the build must respect from day one**, because they are the foundation of the anti-fraud / anti-collusion claim. If any of these regress, the trilateral architecture is compromised.
+
+| # | Non-negotiable | Where it applies | What breaks if violated |
+|---|---|---|---|
+| 1 | **EXIF / GPS / device-id stripping on every photo served to appraisers** | `/appraiser/online/[caseCode]`, `/appraiser/offline/[caseCode]` | Borrower geolocation leaks → blinding compromised → collusion possible |
+| 2 | **Case codes are the ONLY identifier appraisers see** | All appraiser endpoints: case-fetch APIs return case_code + redacted asset metadata + EXIF-stripped photos. NEVER borrower wallet, email, name, location, or other appraiser's identity | Identity leak → coordinated valuation fraud |
+| 3 | **Online and offline appraisers cannot see each other's submissions** | Server-side: appraiser-side endpoints reject any query attempting to enumerate by other appraiser. Risk Officer is the ONLY persona with cross-appraiser visibility | Inter-appraiser anchoring → collapse of trilateral independence |
+| 4 | **Risk Officer auth is stronger than other admin** | `/admin/evaluations/*` requires admin pubkey check + ideally hardware-key for prod | Risk Officer override is the single point that can move money; weak auth = fraud vector |
+| 5 | **Bounded override is enforced server-side, not just client-side** | `/admin/evaluations/[reqId]` decision endpoint validates `prudent_value ∈ [min, max] of 3 evals` before persisting; bypass = audit/decline | Bypass = fiat override, kills auditability |
+| 6 | **Sumsub webhook HMAC verification before any on-chain action** | `/api/sumsub/webhook` (already implemented and tested in v1) | Forged GREEN webhook → fraudulent SAS mint → bypass of KYC gate |
+| 7 | **Operator key never exposed to client** | `OPERATOR_KEYPAIR_JSON` is server-only env var; never imported into `apps/web/src/components/*` | Key leak = total compromise of admin-signed actions |
+
+These constraints belong in a security review checklist that runs before each Phase D-G commit lands.
+
+---
+
 ## 1. Persona taxonomy
 
 | # | Persona | Production / Internal / Demo | Has Vaulx UI in v1? | Pre-hackathon priority |
@@ -591,11 +639,13 @@ Many Brazilian SCDs (Cooperforte, FidoCred, etc.) expose REST APIs for digital C
 
 This collapses Persona 7 from "needs a portal" to "no UI surface needed; API client".
 
-**Decision**:
+**Decision**: **UNRESOLVED — architectural call open.**
 
-- **DEFER** SCD UI design.
-- **DOCUMENT** as architecture decision: the prod path is API-client integration with a partner SCD, not a Vaulx-built portal.
-- Add `<DemoBadge partner="SCD">` to `/demo/borrow/loan-offer/[reqId]` and (post-rewrite) `/demo/borrow/final-terms/[reqId]` so demo viewers know the legal layer is mocked.
+- Two viable architectures, no final pick yet:
+  - **API-only** (recommended by this doc): SCD never sees a Vaulx UI; receives JSON CCB requests via REST, returns signed references. Engineering cost: ~2-week integration once partner agreed. UX cost: zero (invisible to all users).
+  - **Portal**: full SCD-facing dashboard at `/scd/*`. Engineering cost: 3-month UI build. UX cost: SCD has its own surface to manage state. Better legal-trail visibility for regulator audits.
+- User position (2026-04-29): "tough question, not sure". No verdict yet.
+- **For γ-scope build**: defer the SCD UI / API decision; render `<DemoBadge partner="SCD">` on `/demo/borrow/loan-offer/[reqId]` and `/demo/borrow/final-terms/[reqId]` so demo viewers know the legal layer is mocked. This keeps both architectural paths open until partner conversations clarify.
 
 ---
 
@@ -1129,7 +1179,104 @@ Status after v2 (most resolved). Still open:
 
 ## 8. Pre-hackathon build list (ordered)
 
-11 new routes + 1 unified component + 4 backend pieces, ordered by dependency.
+11 new routes + 1 unified component + 4 backend pieces, ordered by dependency. **γ scope** (full pre-hackathon build, no scope cuts).
+
+### 8.0 Build dependency graph
+
+```mermaid
+graph TB
+    subgraph "Phase A — foundations (parallelizable)"
+        A1[appraisal_case<br/>data model<br/>Supabase]
+        A2[Case-code generator<br/>lib/appraisal/case-code.ts]
+        A3[Photo EXIF stripper<br/>lib/photos/exif-strip.ts]
+        A4[Admin basic-auth gate<br/>NEXT_PUBLIC_VAULX_ADMIN_PUBKEY]
+        A5["UnifiedConnectButton<br/>component"]
+    end
+
+    subgraph "Phase B — appraiser workspaces (parallel after A)"
+        B1["/appraiser/online + /[caseCode]<br/>24h SLA, blinded"]
+        B2["/appraiser/offline + /[caseCode]<br/>48h SLA, blinded, own photos"]
+    end
+
+    subgraph "Phase C — Risk Officer workspace (after A + B data flow)"
+        C1["/admin/evaluations<br/>(work queue)"]
+        C2["/admin/evaluations/[reqId]<br/>(single review +<br/>bounded override)"]
+    end
+
+    subgraph "Phase D — borrower flow rewrite (after A, parallel with B-C)"
+        D1["/demo/borrow/loan-offer<br/>REWRITE → /indicative-terms"]
+        D2["/demo/borrow/final-terms/[reqId]<br/>BUILD"]
+        D3["/demo/borrow/return-asset/[reqId]<br/>BUILD (decline branch)"]
+        D4["/demo/borrow/loans/[trdc]<br/>BUILD (per-loan detail)"]
+        D5["/demo/borrow/pay/[trdc]<br/>BUILD (installment pay)"]
+    end
+
+    subgraph "Phase E — vault simplification (independent)"
+        E1[Collapse 4 fixtures → 2<br/>USDC + Local]
+        E2[Merge two deposit code paths<br/>into single DepositForm]
+    end
+
+    subgraph "Phase F — cleanup (after A-E ship green)"
+        F1[Delete 16 legacy routes]
+        F2[Drop 4 redirect rules]
+        F3[Add 4 catch-all redirects]
+        F4[Remove lib/govbr/<br/>+ govbr-gate.tsx<br/>+ identity-gates.tsx]
+        F5[Clean DemoSession types<br/>civic + govbr fields]
+    end
+
+    subgraph "Phase G — polish (post-cleanup)"
+        G1[Custodian webhook<br/>contract spec]
+        G2[Per-custodian signing keys<br/>whitelist on-chain]
+    end
+
+    A1 --> B1
+    A1 --> B2
+    A1 --> C1
+    A2 --> B1
+    A2 --> B2
+    A2 --> C2
+    A3 --> B1
+    A3 --> B2
+    A3 --> C2
+    A4 --> C1
+    A4 --> C2
+    A5 --> D1
+    A5 --> D2
+    A5 --> D4
+    A5 --> D5
+
+    B1 --> C1
+    B2 --> C1
+    C2 --> D2
+
+    D1 --> D2
+    D2 --> D3
+    D2 --> D4
+
+    A5 --> E2
+    E1 --> E2
+
+    B1 --> F1
+    B2 --> F1
+    C2 --> F1
+    D5 --> F1
+    E2 --> F1
+    F1 --> F2
+    F1 --> F3
+    F1 --> F4
+    F1 --> F5
+
+    F4 --> G1
+    G1 --> G2
+```
+
+**Reading the graph:**
+
+- **Phase A** is foundation work that unblocks everything else. All 5 items can be built in parallel by different subagents.
+- **Phase B + C + D** can run in parallel once Phase A is shipped. The only inter-phase dependency is **C2 → D2** (final-terms screen needs the Risk Officer decision endpoint to exist).
+- **Phase E** is independent of A-D and can ship anytime in parallel.
+- **Phase F (cleanup)** is a strict gate — runs only after A-E ship green. Deletion only happens after the new flows are verified working.
+- **Phase G (polish)** is post-cleanup; can slip post-hackathon if needed without affecting demo readiness.
 
 ### Phase A — foundations (no UI dependencies)
 
@@ -1183,5 +1330,6 @@ Status after v2 (most resolved). Still open:
 
 - **v1** (2026-04-29 morning): initial 13-persona analysis, 51-route matrix, cut list. Council review surfaced 9 issues + Risk Officer omission.
 - **v2** (2026-04-29 afternoon): rewrites with two-stage evaluation flow, Risk Officer + Online/Offline Appraiser personas, blinding architecture, bounded override, pre-hackathon build list of 11 new routes. SCD reframed as API-client; Lender simplified.
+- **v3** (2026-04-29 evening, post second-council): scope locked at γ (full pre-hackathon build, no cuts). Added §0.1 scope decision, §0.2 spec evolution from BRD (clarifies Risk Officer + appraiser split + two-stage commitment as deliberate evolutions, not inventions), §0.3 non-negotiables (EXIF stripping, blinding architecture, bounded-override server enforcement, operator-key isolation). §8 gains explicit Mermaid dependency graph showing parallel execution paths and Phase F cleanup gate. §7 SCD reverted to UNRESOLVED (architectural call open between API-only vs portal). Demo-only labels confirmed correct (Kimi misread `/demo/borrow/funds/{card,pix}` — they are KEEP_DEMO).
 
-**End of v2 journey analysis.** Awaiting verdicts on §7 to produce the cleanup-and-build plan.
+**End of v3 journey analysis.** Design locked. Next: `superpowers:writing-plans` to produce the γ-scope implementation plan.
