@@ -267,16 +267,16 @@ Two-stage borrower flow rewrite, online + offline appraiser workspaces, Risk Off
 
 | Role | Realistic ETA |
 |---|---|
-| SCD partner | 1–2 months |
+| SCD partner | 2–4 months |
 | Custodian agreement | 1–2 months |
 | Appraiser network (online + offline) | 1 month |
-| Digital signature provider | 2–4 weeks |
-| On/off rails (Pix + debit card) | 1–2 months |
+| Digital signature provider | 2–4 weeks (after SCD selected) |
+| On/off rails (production tier) | 1–2 months |
 | BR legal counsel | 2–4 weeks |
 | FIDC fund admin (retail Local) | 3–6 months |
 | Whitelisted reseller network | 1–2 months |
 
-**Realistic mainnet target**: ~3-4 months post-hackathon, gated on top-5 critical-path partnerships.
+**Realistic mainnet target**: ~4-6 months post-hackathon, gated on top-5 critical-path partnerships. (Recalibrated from earlier 3-4 months estimate; SCD partnership and AML continuous-monitoring requirements stretch the path. See [`composable-blocks §6.1`](./2026-04-29-vaulx-composable-blocks.md#61-too-optimistic).)
 
 ---
 
@@ -287,7 +287,7 @@ Two-stage borrower flow rewrite, online + offline appraiser workspaces, Risk Off
 3. **Most integrations are invisible APIs.** Users only see Crossmint and Sumsub directly. SCD, custodian, appraisers, signature provider, payment rails — all server-to-server.
 4. **The trilateral appraisal + Risk Officer review is our anti-fraud architecture.** Two blinded human appraisers + bounded human override. This is what separates Vaulx from naive DeFi (single oracle gets gamed).
 5. **Institutional liquidity is OUT of v1 Vaulx UI.** No KYB onboarding screens. Institutionals deposit via Kamino / Plume aggregators.
-6. **Mainnet ETA: 3–4 months post-hackathon**, gated mostly on SCD + Custodian partnerships landing in parallel.
+6. **Mainnet ETA: 4–6 months post-hackathon**, gated mostly on SCD + Custodian + AML continuous-monitoring + on/off-rails production-tier in parallel. (Earlier 3–4 month estimate recalibrated per composable-blocks §6.1.)
 
 ---
 

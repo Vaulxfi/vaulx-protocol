@@ -262,7 +262,7 @@ export const REGISTRY: Record<BlockId, BlockSpec> = {
 - Markdown stays primary doc; registry is a code mirror
 - Down the road, can auto-generate registry from markdown frontmatter (or vice versa)
 
-**Auth for editing:** uses the same `NEXT_PUBLIC_VAULX_ADMIN_PUBKEY` gate as `/admin/*` (Phase A.4 of γ plan). Inline edits in the dashboard write to the registry via a server-action that authenticates the same way.
+**Auth for editing:** uses the same `VAULX_ADMIN_PUBKEYS` (server-only) gate as `/admin/*` (Phase A.4 of γ plan). Inline edits in the dashboard write to the registry via a server-action that authenticates the same way.
 
 For v1: editing happens through PR (open the file, edit, commit, deploy). Adequate for the team's velocity.
 

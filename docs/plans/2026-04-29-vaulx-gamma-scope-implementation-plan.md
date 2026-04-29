@@ -74,7 +74,30 @@ Each task ends with these checks before commit:
 1. `pnpm --filter @vaulx/web build` green
 2. `pnpm --filter @vaulx/web test -- <touched files>` green (new tests pass; no existing-test regression)
 3. (For appraiser/Risk-Officer/photo tasks) Non-Negotiables Check passed
-4. Stage only the files listed in the task; no opportunistic changes
+4. (For any task that introduces a new API route) Auth Acceptance Check passed:
+   - unauthenticated request returns 401
+   - wrong-role request returns 403
+   - appraiser endpoints: online appraiser cannot fetch offline submissions, and vice versa
+   - appraiser endpoints: appraiser cannot fetch cases not assigned to them
+   - Risk Officer endpoints: only Risk Officer pubkeys can read full trilateral
+5. Stage only the files listed in the task; no opportunistic changes
+
+### Money-unit convention (UI vs server)
+
+**At the user-facing layer (appraiser UI, borrower-facing terms screens, dashboard):** values are entered and displayed in **USD** (or the local fiat for retail Local vault). UI labels read `Valuation (USD)`, `Loan amount (USD)`, etc. Never expose "atoms" or "USDC atoms" to humans.
+
+**At the database layer:** values are stored as `*_value_usd_cents` (integer minor units). Migrations and types use this naming.
+
+**At the on-chain layer:** USDC is denominated in atoms (1 USDC = 1,000,000 atoms). Conversion happens at the boundary between server-side TypeScript and Anchor RPC calls, not in user input forms. Helper: `usdCentsToUsdcAtoms(cents: bigint): bigint = cents * 10_000n`.
+
+### 501-stub policy (must follow for agent execution)
+
+A task **must not** commit a user-facing page whose primary API dependency returns HTTP 501. Two acceptable alternatives:
+
+- **Wire it through.** Implement the full Supabase / on-chain path inline in the task. Preferred when the task is foundational (e.g., A.3 photo route depends on A.1 schema).
+- **Explicit fixture mode.** Page reads from a fixture when `process.env.NEXT_PUBLIC_DEMO_FIXTURES === "true"`. The task description must say so: "Fixture-mode only; real data wiring lands in Task X.Y." This prevents agents from committing half-built routes and marking them complete.
+
+Phase F cleanup gate enforces: zero `501` literals in `apps/web/src/app/api/**/route.ts` outside fixture-mode paths.
 
 ---
 
@@ -107,12 +130,12 @@ create table appraisal_case (
   asset_serial_4     text not null,             -- last 4 chars; e.g. "1234"
 
   -- evaluations
-  api_anchor_value_atoms       bigint,
+  api_anchor_value_usd_cents       bigint,
   api_anchor_source             text,           -- "watchcharts", "apify-chrono24"
   api_anchor_submitted_at       timestamptz,
 
   online_appraiser_id           uuid,           -- FK to a future appraisers table; nullable until assigned
-  online_eval_value_atoms       bigint,
+  online_eval_value_usd_cents       bigint,
   online_eval_confidence_low    bigint,
   online_eval_confidence_high   bigint,
   online_eval_notes             text,
@@ -120,7 +143,7 @@ create table appraisal_case (
   online_sla_due_at             timestamptz,    -- 24h after assignment
 
   offline_appraiser_id          uuid,
-  offline_eval_value_atoms      bigint,
+  offline_eval_value_usd_cents      bigint,
   offline_eval_confidence_low   bigint,
   offline_eval_confidence_high  bigint,
   offline_eval_notes            text,
@@ -132,7 +155,7 @@ create table appraisal_case (
   -- Risk Officer decision
   risk_officer_id               uuid,
   risk_officer_decision         text,           -- "accept", "audit", "decline"
-  prudent_value_atoms           bigint,
+  prudent_value_usd_cents           bigint,
   decision_reason               text,
   decided_at                    timestamptz,
 
@@ -143,7 +166,19 @@ create table appraisal_case (
   --        risk_review, decided, expired
 
   created_at                    timestamptz not null default now(),
-  updated_at                    timestamptz not null default now()
+  updated_at                    timestamptz not null default now(),
+
+  -- Confidence-range integrity (no value can fall outside its [low, high] band)
+  constraint online_eval_band_ok check (
+    online_eval_value_usd_cents is null
+    or (online_eval_confidence_low_usd_cents <= online_eval_value_usd_cents
+        and online_eval_value_usd_cents <= online_eval_confidence_high_usd_cents)
+  ),
+  constraint offline_eval_band_ok check (
+    offline_eval_value_usd_cents is null
+    or (offline_eval_confidence_low_usd_cents <= offline_eval_value_usd_cents
+        and offline_eval_value_usd_cents <= offline_eval_confidence_high_usd_cents)
+  )
 );
 
 create index idx_appraisal_case_borrower on appraisal_case(borrower_pubkey);
@@ -211,18 +246,18 @@ export type AppraisalCase = {
   assetBrand: string;
   assetModel: string;
   assetSerial4: string;
-  apiAnchorValueAtoms: bigint | null;
+  apiAnchorValueUsdCents: bigint | null;
   apiAnchorSource: string | null;
   apiAnchorSubmittedAt: Date | null;
   onlineAppraiserId: string | null;
-  onlineEvalValueAtoms: bigint | null;
+  onlineEvalValueUsdCents: bigint | null;
   onlineEvalConfidenceLow: bigint | null;
   onlineEvalConfidenceHigh: bigint | null;
   onlineEvalNotes: string | null;
   onlineEvalSubmittedAt: Date | null;
   onlineSlaDueAt: Date | null;
   offlineAppraiserId: string | null;
-  offlineEvalValueAtoms: bigint | null;
+  offlineEvalValueUsdCents: bigint | null;
   offlineEvalConfidenceLow: bigint | null;
   offlineEvalConfidenceHigh: bigint | null;
   offlineEvalNotes: string | null;
@@ -232,7 +267,7 @@ export type AppraisalCase = {
   offlineSlaDueAt: Date | null;
   riskOfficerId: string | null;
   riskOfficerDecision: AppraisalDecision | null;
-  prudentValueAtoms: bigint | null;
+  prudentValueUsdCents: bigint | null;
   decisionReason: string | null;
   decidedAt: Date | null;
   state: AppraisalState;
@@ -535,14 +570,26 @@ git commit -m "feat(photos): EXIF-stripped photo serving (skeleton)"
 
 ---
 
-### Task A.4: Admin basic-auth gate (middleware)
+### Task A.4: Server-side auth gates (admin + Risk Officer + appraiser)
 
 **Files:**
 - Create: `apps/web/src/middleware.ts` (or modify if exists)
-- Create: `apps/web/src/lib/auth/admin.ts`
+- Create: `apps/web/src/lib/auth/admin.ts` — admin pubkey allowlist check
+- Create: `apps/web/src/lib/auth/risk-officer.ts` — Risk Officer pubkey allowlist check (stronger gate)
+- Create: `apps/web/src/lib/auth/appraiser.ts` — appraiser session token verify + role-isolation helpers
 - Test: `apps/web/src/lib/auth/__tests__/admin.test.ts`
+- Test: `apps/web/src/lib/auth/__tests__/risk-officer.test.ts`
+- Test: `apps/web/src/lib/auth/__tests__/appraiser.test.ts`
 
-**Goal:** any request to `/admin/*`, `/custodian/*`, `/appraiser/*` (added in Phase B) is gated by an `x-vaulx-admin` header OR `vaulx-admin` cookie matching `NEXT_PUBLIC_VAULX_ADMIN_PUBKEY`. Public-by-default routes (`/demo/*`, `/`, etc.) are unaffected.
+> **Scope expanded** from "admin only" to all three production auth surfaces, per security review. The matrix Risk Officer (`/admin/evaluations/*`) sees borrower PII + appraiser identities; admin (`/admin/demo`, `/custodian/*`) does not. Appraisers (`/appraiser/online/*`, `/appraiser/offline/*`) need both auth (it's them) and role-isolation (online ≠ offline).
+
+**Goal:** any request to `/admin/*`, `/custodian/*`, `/appraiser/*` (added in Phase B) is gated server-side. Three distinct auth surfaces:
+
+- **Admin** (operations cockpit, custodian fallback portal): pubkey ∈ `VAULX_ADMIN_PUBKEYS` (server-only, comma-separated).
+- **Risk Officer** (`/admin/evaluations/*`): pubkey ∈ `VAULX_RISK_OFFICER_PUBKEYS` (server-only, stronger gate — Risk Officer sees borrower PII + appraiser identities).
+- **Appraiser** (`/appraiser/online/*`, `/appraiser/offline/*`): session token signed with `VAULX_APPRAISER_SESSION_SECRET` (server-only); appraiser-side endpoints additionally enforce role-isolation (online cannot fetch offline submissions; appraiser can only fetch their own assigned cases).
+
+All three env vars are **server-only**. **Never** use `NEXT_PUBLIC_*` for authorization decisions — those values are inlined into the browser bundle and visible to anyone. Public-by-default routes (`/demo/*`, `/`, etc.) are unaffected by these gates.
 
 **Step 1: Check if middleware.ts exists and inspect**
 
@@ -564,26 +611,26 @@ describe("isAdminAuthorized", () => {
     const req = new Request("http://localhost/admin/demo", {
       headers: { cookie: "vaulx-admin=PUBKEY1" },
     });
-    expect(isAdminAuthorized(req, "PUBKEY1")).toBe(true);
+    expect(isAdminAuthorized(req, ["PUBKEY1"])).toBe(true);
   });
 
-  it("returns true with matching header", () => {
+  it("returns true with matching header against any allowed pubkey", () => {
     const req = new Request("http://localhost/admin/demo", {
-      headers: { "x-vaulx-admin": "PUBKEY1" },
+      headers: { "x-vaulx-admin": "PUBKEY2" },
     });
-    expect(isAdminAuthorized(req, "PUBKEY1")).toBe(true);
+    expect(isAdminAuthorized(req, ["PUBKEY1", "PUBKEY2"])).toBe(true);
   });
 
   it("returns false on mismatch", () => {
     const req = new Request("http://localhost/admin/demo", {
       headers: { cookie: "vaulx-admin=WRONG" },
     });
-    expect(isAdminAuthorized(req, "PUBKEY1")).toBe(false);
+    expect(isAdminAuthorized(req, ["PUBKEY1"])).toBe(false);
   });
 
-  it("returns true when no expected pubkey set (devnet open mode)", () => {
+  it("returns true when allowlist empty (devnet open mode)", () => {
     const req = new Request("http://localhost/admin/demo");
-    expect(isAdminAuthorized(req, undefined)).toBe(true);
+    expect(isAdminAuthorized(req, [])).toBe(true);
   });
 });
 ```
@@ -595,19 +642,22 @@ describe("isAdminAuthorized", () => {
 
 /**
  * Admin auth gate per journey-doc §0.3 non-negotiable #4.
- * Devnet-open when env unset; production must set NEXT_PUBLIC_VAULX_ADMIN_PUBKEY.
+ * Devnet-open when env unset (development convenience). Production must
+ * set `VAULX_ADMIN_PUBKEYS` (server-only, comma-separated base58 pubkeys).
+ * NEVER use NEXT_PUBLIC_* for authorization — those values are inlined
+ * into the browser bundle and visible to anyone.
  */
 
 export function isAdminAuthorized(
   req: Request,
-  expectedPubkey: string | undefined,
+  allowedPubkeys: string[],
 ): boolean {
-  if (!expectedPubkey) return true; // open in dev when env unset
+  if (allowedPubkeys.length === 0) return true; // open in dev when env unset
   const header = req.headers.get("x-vaulx-admin");
-  if (header === expectedPubkey) return true;
+  if (header && allowedPubkeys.includes(header)) return true;
   const cookie = req.headers.get("cookie") ?? "";
   const match = cookie.match(/(?:^|;\s*)vaulx-admin=([^;]+)/);
-  if (match && match[1] === expectedPubkey) return true;
+  if (match && allowedPubkeys.includes(match[1])) return true;
   return false;
 }
 ```
@@ -625,7 +675,8 @@ const GATED_PATHS = [/^\/admin\//, /^\/custodian\//, /^\/appraiser\//];
 export function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
   if (GATED_PATHS.some((re) => re.test(pathname))) {
-    const expected = process.env.NEXT_PUBLIC_VAULX_ADMIN_PUBKEY;
+    const expectedRaw = process.env.VAULX_ADMIN_PUBKEYS; // server-only, comma-separated
+    const expected = expectedRaw?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
     if (!isAdminAuthorized(req, expected)) {
       return new NextResponse("Forbidden", { status: 403 });
     }
@@ -999,16 +1050,20 @@ export async function POST(
     return NextResponse.json({ ok: false }, { status: 400 });
   }
   const body = (await req.json()) as {
-    valueAtoms: string;        // bigint as string
-    confidenceLowAtoms: string;
-    confidenceHighAtoms: string;
+    valueUsdCents: string;        // bigint as string; server stores in USD minor units
+    confidenceLowUsdCents: string;
+    confidenceHighUsdCents: string;
     notes: string;
   };
 
-  // Validate: low ≤ value ≤ high
-  // Validate: appraiser is assigned to this case (anti-spoofing)
+  // Validate: low ≤ value ≤ high (also enforced as DB CHECK constraint per A.1)
+  // Validate: appraiser session token resolves to an appraiser_id assigned
+  //   to this case (anti-spoofing) — uses lib/auth/appraiser.ts from A.4
+  // Validate: appraiser role is "online" or "both" (offline appraisers
+  //   submit via the offline endpoint, not this one)
   // Update appraisal_case: set online_eval_*, online_eval_submitted_at,
-  //   transition state to 'online_submitted' (or 'risk_review' if both submitted)
+  //   transition state to 'online_submitted' (or 'risk_review' if offline
+  //   already submitted)
   return NextResponse.json({ ok: true });
 }
 ```
@@ -1042,13 +1097,15 @@ export default function OnlineSubmission() {
 
   async function submit() {
     setSubmitting(true);
+    // UI captures dollars; server stores cents.
+    const toCents = (usd: string) => String(Math.round(parseFloat(usd) * 100));
     const res = await fetch(`/api/appraiser/online/cases/${caseCode}/submit`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        valueAtoms: value,
-        confidenceLowAtoms: low,
-        confidenceHighAtoms: high,
+        valueUsdCents: toCents(value),
+        confidenceLowUsdCents: toCents(low),
+        confidenceHighUsdCents: toCents(high),
         notes,
       }),
     });
@@ -1078,29 +1135,30 @@ export default function OnlineSubmission() {
 
       <section className="mt-12 space-y-4">
         <label className="block">
-          <span className="text-xs uppercase tracking-wider">Valuation (USDC atoms)</span>
+          <span className="text-xs uppercase tracking-wider">Valuation (USD)</span>
           <input
-            inputMode="numeric"
+            inputMode="decimal"
             value={value}
-            onChange={(e) => setValue(e.target.value.replace(/[^\d]/g, ""))}
+            onChange={(e) => setValue(e.target.value.replace(/[^\d.]/g, ""))}
+            placeholder="e.g. 12500"
             className="mt-2 w-full border border-[var(--rule)] bg-[var(--bg)] px-3 py-2 font-mono"
           />
         </label>
         <label className="block">
-          <span className="text-xs uppercase tracking-wider">Confidence low</span>
+          <span className="text-xs uppercase tracking-wider">Confidence low (USD)</span>
           <input
-            inputMode="numeric"
+            inputMode="decimal"
             value={low}
-            onChange={(e) => setLow(e.target.value.replace(/[^\d]/g, ""))}
+            onChange={(e) => setLow(e.target.value.replace(/[^\d.]/g, ""))}
             className="mt-2 w-full border border-[var(--rule)] bg-[var(--bg)] px-3 py-2 font-mono"
           />
         </label>
         <label className="block">
-          <span className="text-xs uppercase tracking-wider">Confidence high</span>
+          <span className="text-xs uppercase tracking-wider">Confidence high (USD)</span>
           <input
-            inputMode="numeric"
+            inputMode="decimal"
             value={high}
-            onChange={(e) => setHigh(e.target.value.replace(/[^\d]/g, ""))}
+            onChange={(e) => setHigh(e.target.value.replace(/[^\d.]/g, ""))}
             className="mt-2 w-full border border-[var(--rule)] bg-[var(--bg)] px-3 py-2 font-mono"
           />
         </label>
@@ -1323,9 +1381,9 @@ export default async function EvaluationsQueue() {
               <td>
                 {c.assetBrand} {c.assetModel}
               </td>
-              <td className="font-mono">${(Number(c.apiAnchorValueAtoms) / 1e6).toFixed(0)}</td>
-              <td className="font-mono">${(Number(c.onlineEvalValueAtoms) / 1e6).toFixed(0)}</td>
-              <td className="font-mono">${(Number(c.offlineEvalValueAtoms) / 1e6).toFixed(0)}</td>
+              <td className="font-mono">${(Number(c.apiAnchorValueUsdCents) / 1e6).toFixed(0)}</td>
+              <td className="font-mono">${(Number(c.onlineEvalValueUsdCents) / 1e6).toFixed(0)}</td>
+              <td className="font-mono">${(Number(c.offlineEvalValueUsdCents) / 1e6).toFixed(0)}</td>
               <td className="font-mono">{computeSpread(c)}%</td>
               <td>
                 <a href={`/admin/evaluations/${c.id}`} className="text-[var(--brand)]">
@@ -1341,7 +1399,7 @@ export default async function EvaluationsQueue() {
 }
 
 function computeSpread(c: any): string {
-  const vals = [c.apiAnchorValueAtoms, c.onlineEvalValueAtoms, c.offlineEvalValueAtoms]
+  const vals = [c.apiAnchorValueUsdCents, c.onlineEvalValueUsdCents, c.offlineEvalValueUsdCents]
     .map(Number)
     .filter(Boolean);
   if (vals.length < 3) return "—";
@@ -1383,7 +1441,7 @@ export const dynamic = "force-dynamic";
 
 type DecideBody = {
   decision: "accept" | "audit" | "decline";
-  prudentValueAtoms?: string;  // required iff decision === 'accept'
+  prudentValueUsdCents?: string;  // required iff decision === 'accept'
   reason: string;
 };
 
@@ -1398,7 +1456,7 @@ export async function POST(
   // 3. compute bounds: min/max of [api_anchor, online_eval, offline_eval] values
   // 4. if decision === 'accept': REQUIRE prudent ∈ [min, max] strict
   //    if outside → 422 Unprocessable Entity, "out of bounds; use audit/decline"
-  // 5. update row: risk_officer_decision, prudent_value_atoms, decision_reason,
+  // 5. update row: risk_officer_decision, prudent_value_usd_cents, decision_reason,
   //    decided_at, transition state to 'decided'
   // 6. trigger downstream: notify borrower (notification queue),
   //    on accept → mint final-terms record + (optionally) on-chain attestation
@@ -1495,7 +1553,7 @@ describe("decide endpoint bound enforcement", () => {
       method: "POST",
       body: JSON.stringify({
         decision: "accept",
-        prudentValueAtoms: "7000000000",  // below min of 8000 USDC
+        prudentValueUsdCents: "7000000000",  // below min of 8000 USDC
         reason: "manual override",
       }),
     });
@@ -1508,7 +1566,7 @@ describe("decide endpoint bound enforcement", () => {
       method: "POST",
       body: JSON.stringify({
         decision: "accept",
-        prudentValueAtoms: "9000000000", // 9000 USDC, within [8000, 12000]
+        prudentValueUsdCents: "9000000000", // 9000 USDC, within [8000, 12000]
         reason: "ok",
       }),
     });
@@ -1595,7 +1653,7 @@ export async function GET(
 ) {
   // 1. fetch appraisal_case where loan_request_id = reqId
   // 2. verify state === 'decided' && risk_officer_decision === 'accept'
-  // 3. compute final terms from prudent_value_atoms (LTV, rate, term)
+  // 3. compute final terms from prudent_value_usd_cents (LTV, rate, term)
   // 4. return: { indicativeAtoms, prudentAtoms, ltvBps, rateBps, termDays, monthlyPaymentAtoms }
   return NextResponse.json({ ok: true /* ... */ });
 }

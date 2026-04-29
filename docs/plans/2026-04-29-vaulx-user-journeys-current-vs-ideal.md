@@ -8,7 +8,18 @@
 
 ---
 
-## v2 changelog (deltas from v1)
+## Version delta summary
+
+| Version | Change |
+|---|---|
+| v1 | Initial 13-persona analysis, 51-route matrix, cut list |
+| v2 | Two-stage borrower flow + Online/Offline appraiser split + Risk Officer + bounded override; 11 new routes added to BUILD column |
+| v3 | γ scope locked; council fixes integrated (Spec Evolution from BRD callout, Non-Negotiables section, dependency graph, demo-only labels confirmed, SCD reverted to UNRESOLVED) |
+| v3.1 (this revision) | Auth corrected: server-only env (`VAULX_ADMIN_PUBKEYS`, `VAULX_RISK_OFFICER_PUBKEYS`, `VAULX_APPRAISER_SESSION_SECRET`) replaces every `NEXT_PUBLIC_*` auth reference. Appraiser auth elevated to Phase A foundation. UI value-units corrected to USD (server stores cents). 501-stub policy added to γ plan. Block-count math reconciled (17 GLOBAL + 16 LOCAL + 8 HYBRID = 41). Gate ordering corrected to G1→G2→G3→G4. |
+
+---
+
+## v2 changelog (kept for traceability — original deltas from v1)
 
 | What | Where it changes |
 |---|---|
@@ -22,7 +33,7 @@
 | Per-loan installment-payment UI elevated to pre-hackathon must-have | §2.2, §3 |
 | Per-loan dashboard detail (LTV, schedule, next payment) elevated | §2.2 |
 | Crossmint sign-in surface unified across all personas via `<UnifiedConnectButton>` | §4, §8 |
-| Admin gating via basic-auth (`NEXT_PUBLIC_VAULX_ADMIN_PUBKEY`) | §2.9, §3 |
+| Admin gating via basic-auth (`VAULX_ADMIN_PUBKEYS` (server-only)) | §2.9, §3 |
 | `/demo/dev/bezel` confirmed DELETE | §3 |
 | Custodian fallback UI confirmed KEEP_DEMO + adds webhook contract spec | §2.5 |
 | 8 NEW pre-hackathon routes added to BUILD column | §3, §8 |
@@ -75,7 +86,7 @@ After multi-model council review (2026-04-29 afternoon), three scope paths were 
 - **β — Highest-leverage 4 builds**: pick 4 most-impactful new routes that fit conservative dev-day estimates
 - **γ — Full pre-hackathon scope**: build all 11 new routes + foundations + cleanup before May 10
 
-**Decision: γ.** AI-agent-driven parallel execution makes the human-team dev-day math obsolete. We build the design correctly, in full, before the demo deadline. No scope cuts. No "narrate it verbally" hand-waves. No half-shipped flows.
+**Decision: γ.** AI-agent-driven parallel execution makes γ plausible — but not risk-free. The plan depends on strict task isolation, stable shared types (Phase A.1 schema + types must ship clean), and verification gates after every phase (build green + tests pass + auth-acceptance checks + non-negotiables checks). No scope cuts. No "narrate it verbally" hand-waves. No half-shipped flows.
 
 This forces an implementation plan with strict dependency ordering (see §8 build graph) and a Phase F cleanup gate that runs only after Phase A-D ship green.
 
@@ -722,7 +733,7 @@ This collapses Persona 7 from "needs a portal" to "no UI surface needed; API cli
 
 **Gap**: no basic-auth on `/admin/demo` today. **Anyone with the URL can fire ops endpoints. Security gap.**
 
-**Decision** (user verdict §7 Q3): KEEP_DEMO `/admin/demo` and `/admin/tests`. **BUILD** basic-auth gating using `NEXT_PUBLIC_VAULX_ADMIN_PUBKEY` cookie pattern. Document as devnet-only.
+**Decision** (user verdict §7 Q3): KEEP_DEMO `/admin/demo` and `/admin/tests`. **BUILD** basic-auth gating using `VAULX_ADMIN_PUBKEYS` (server-only) cookie pattern. Document as devnet-only.
 
 ---
 
@@ -1095,7 +1106,7 @@ apps/web/src/app/demo/_lib/use-demo-session.ts:
 ### 5.4 KEEP_DEMO + basic-auth (5)
 
 ```
-/admin/demo              gate behind NEXT_PUBLIC_VAULX_ADMIN_PUBKEY
+/admin/demo              gate behind VAULX_ADMIN_PUBKEYS (server-only)
 /admin/tests             same
 /custodian/intake/[trdc] same — fallback for partners without webhook integration
 /custodian/done/[trdc]   same
@@ -1157,7 +1168,7 @@ Status after v2 (most resolved). Still open:
 |---|---|---|
 | 1 | `/custodian/*` legacy → KEEP_DEMO fallback | RESOLVED — KEEP_DEMO, gate behind basic-auth, build webhook contract |
 | 2 | `/borrow/loans/[trdc]/pay` → migrate or delete | RESOLVED — MIGRATE to `/demo/borrow/pay/[trdc]` (must-have pre-hackathon) |
-| 3 | `/admin/*` gating | RESOLVED — basic-auth via `NEXT_PUBLIC_VAULX_ADMIN_PUBKEY` |
+| 3 | `/admin/*` gating | RESOLVED — basic-auth via `VAULX_ADMIN_PUBKEYS` (server-only) |
 | 4 | `/demo/dev/bezel` deletion | RESOLVED — DELETE confirmed |
 | 5 | Appraiser workspace | RESOLVED — BUILD now, two distinct personas (online + offline), fully blinded |
 | 6 | SCD portal | UNRESOLVED — recommended API-client; user "tough question, not sure"; DEFER, document |
@@ -1190,7 +1201,7 @@ graph TB
         A1[appraisal_case<br/>data model<br/>Supabase]
         A2[Case-code generator<br/>lib/appraisal/case-code.ts]
         A3[Photo EXIF stripper<br/>lib/photos/exif-strip.ts]
-        A4[Admin basic-auth gate<br/>NEXT_PUBLIC_VAULX_ADMIN_PUBKEY]
+        A4[Admin basic-auth gate<br/>VAULX_ADMIN_PUBKEYS (server-only)]
         A5["UnifiedConnectButton<br/>component"]
     end
 
@@ -1285,7 +1296,7 @@ graph TB
 2. **`appraisal_case` data model** — Postgres/Supabase table: `case_code`, `borrower_pubkey`, `asset_brand`, `asset_model`, `asset_serial_redacted`, `online_appraiser_id`, `offline_appraiser_id`, `online_eval`, `offline_eval`, `api_anchor`, `risk_officer_decision`, `prudent_value`, `decision_reason`, `created_at`, timestamps for SLA tracking.
 3. **Case-code generator** (`lib/appraisal/case-code.ts`) — generates `VX-XXXX` codes; uniqueness check.
 4. **Photo EXIF stripper** (`lib/photos/exif-strip.ts`) — server-side EXIF/GPS removal before serving to appraisers.
-5. **Admin basic-auth gate** — wires `NEXT_PUBLIC_VAULX_ADMIN_PUBKEY` cookie to all `/admin/*` and `/custodian/*` routes.
+5. **Admin basic-auth gate** — wires `VAULX_ADMIN_PUBKEYS` (server-only) cookie to all `/admin/*` and `/custodian/*` routes.
 
 ### Phase B — appraiser workspaces
 

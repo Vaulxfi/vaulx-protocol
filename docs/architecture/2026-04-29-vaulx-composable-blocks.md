@@ -25,21 +25,21 @@ journeys [`current-vs-ideal`](../plans/2026-04-29-vaulx-user-journeys-current-vs
 **The math (this catalog).**
 
 | Tag | Count | What it means |
-|---|---|---|
-| GLOBAL | 17 blocks | ship once · never replaced |
-| LOCAL | 18 blocks | replaced per market via the adapter manifest |
-| HYBRID | 8 blocks | global interface, per-market counterparty |
+|---|---:|---|
+| GLOBAL | 17 | ship once · reused across every market |
+| LOCAL | 16 | replaced per market through the adapter manifest |
+| HYBRID | 8 | same interface globally; local counterparty or configuration |
+| **Total** | **41** | stable block catalog |
 
-**The two rails and four gates.**
+**The two rails synchronize through four gates, in chronological order.**
 
 ```
-MONEY RAIL ─────[G1]──[G3]──[G2]──[G4]──── COLLATERAL RAIL
-              KYC  trilat  custody  default
+G1 KYC  →  G2 Custody confirm  →  G3 Trilateral close  →  G4 Default trigger
 ```
 
-- **G1 — KYC gate.** Identity must be verified before any value action.
-- **G2 — Custody confirm.** Asset must be physically secured before disbursement.
-- **G3 — Trilateral close.** Online appraisal + offline appraisal + Risk Officer must converge before final terms.
+- **G1 — KYC gate.** Identity verified before any value-changing action.
+- **G2 — Custody confirm.** Asset physically secured before disbursement.
+- **G3 — Trilateral close.** API anchor + online appraisal + offline appraisal + Risk Officer convergence before final terms.
 - **G4 — Default trigger.** On-chain default executes only after legal recovery is initiated.
 
 **Critical-path 5 (the blocks that gate mainnet).**
@@ -160,6 +160,22 @@ Adapter #2 (Argentina, Mexico, …) updates **only the bottom half** of each LOC
 
 ---
 
+## 2.7 Architecture invariants
+
+These are not features. They are constraints the build must respect from day one. They are the foundation of the anti-fraud / anti-collusion claim. If any of these regress, the trilateral architecture is compromised.
+
+1. **Appraisers see case codes only.** No borrower wallet, email, name, location, loan terms, or other appraiser identity in any appraiser-facing endpoint.
+2. **Online and offline appraisers never see each other's submissions.** Server-side enforcement; even queries cannot enumerate.
+3. **Photos served to appraisers are EXIF / GPS / device-id stripped** before any appraiser sees them.
+4. **Risk Officer is the only persona with full trilateral visibility** — sees both appraiser identities, both submissions, the API anchor, the borrower pubkey.
+5. **Bounded override is enforced server-side.** Risk Officer prudent value must be within `[min, max]` of the three valuations; outside the envelope → `audit` or `decline`, not `accept`.
+6. **G2 must precede disbursement.** Custody confirmed before money leaves the vault. No exceptions.
+7. **G4 must follow legal recovery initiation.** On-chain default execution only after the SCD has triggered DL 911/69 (or local equivalent). No exceptions.
+8. **Operator and Risk Officer keys are server-only.** Never imported into client code. Never exposed via `NEXT_PUBLIC_*` env vars.
+9. **Authorization is server-side.** Admin, Risk Officer, and appraiser auth uses server-only env (`VAULX_ADMIN_PUBKEYS`, `VAULX_RISK_OFFICER_PUBKEYS`, `VAULX_APPRAISER_SESSION_SECRET`). `NEXT_PUBLIC_*` values are visible to the browser and cannot carry authorization decisions.
+
+---
+
 ## 3. The matrix
 
 All blocks, organized by rail and layer. One line per block. Three groupings: **Shared** (cross-rail), **Money rail**, **Collateral rail**.
@@ -202,7 +218,7 @@ All blocks, organized by rail and layer. One line per block. Three groupings: **
 
 ### 3.3 Collateral-rail blocks (17)
 
-Insurance is bundled into the counterparty providing the physical service: storage insurance lives inside **C15 Custodian**, transit insurance lives inside **C10 Insured courier**. No separate insurance blocks at this stage.
+Insurance is bundled into the counterparty providing the physical service: storage insurance lives inside **C14 Custodian**, transit insurance lives inside **C10 Insured courier**. No separate insurance blocks at this stage.
 
 | # | Block | Layer | Tag | One-liner |
 |---|---|---|---|---|
