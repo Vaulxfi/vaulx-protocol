@@ -1,12 +1,13 @@
 # Vaulx — Composable Blocks Architecture & Brazil Adapter
 
-**Date:** 2026-04-29 · **Audience:** ops · leadership · partnerships · pitch
-**Status:** **CANONICAL ARCHITECTURE TRUTH.** All other architecture / journey / plan / business-flow docs are implementations of this matrix.
-**Companions (framed as derivatives of this doc):**
-[`architecture-snapshot`](./2026-04-29-vaulx-architecture-snapshot.md) (technical · GLOBAL-block engineering view) ·
-[`business-flow-and-partners`](./2026-04-29-vaulx-business-flow-and-partners.md) (partnerships · LOCAL + HYBRID-block view) ·
-journeys [`current-vs-ideal`](../plans/2026-04-29-vaulx-user-journeys-current-vs-ideal.md) (per-persona walks of the L2 product layer) ·
-γ plan [`gamma-scope-implementation-plan`](../plans/2026-04-29-vaulx-gamma-scope-implementation-plan.md) (engineering plan that closes the GLOBAL-block gap)
+**Date:** 2026-04-29 · **Audience:** ops · leadership · partnerships · pitch · engineering
+**Status:** **CANONICAL ARCHITECTURE TRUTH.** This doc is the source of truth for the architecture model, the 41-block matrix, partner identification, and per-block status. Everything else either derives from it or implements it.
+
+**Live companion docs (only two — both derivatives of this canon):**
+- [`gamma-scope-implementation-plan`](../plans/2026-04-29-vaulx-gamma-scope-implementation-plan.md) — engineering plan that closes the GLOBAL-block gaps (Phases A-G, 25 tasks)
+- [`current-vs-ideal user journeys`](../plans/2026-04-29-vaulx-user-journeys-current-vs-ideal.md) — per-persona walks of the L2 product layer (audience: product/engineering)
+
+> Earlier derivative docs (architecture snapshot, business-flow-and-partners, dashboard proposal) have been folded into this canon and moved to [`docs/archive/derived-docs/`](../archive/derived-docs/) for traceability. Do not link to the archived versions; the canon owns the partner inventory (§3 matrix), the deployed-state inventory (§3 status column), and the 4 architecture diagrams.
 
 ---
 
@@ -195,37 +196,37 @@ Brazil status (`BR (today)`) reflects real-world progress for the BR adapter; se
 
 ### 3.1 Shared / cross-rail blocks (13)
 
-| # | Block | Layer | Tag | Status (BR today) | One-liner |
+| # | Block | Layer | Tag | Solution / Partner | Status (BR today) |
 |---|---|---|---|---|---|
-| S1 | Squads V4 multisig | L1 | GLOBAL | 🟢 BUILT (upgrade authority); admin-ix migration 🔵 PLANNED | Program upgrade authority + admin-ix signing |
-| S2 | Solana Attestation Service | L1 | GLOBAL | 🟢 BUILT | Reusable on-chain KYC credential |
-| S3 | KycAttestation PDA | L1 | GLOBAL | 🟢 BUILT | Per-wallet KYC PDA storing jwt_hash + attestor |
-| S4 | App shell + journey routing | L2 | GLOBAL | 🟢 BUILT (16 legacy routes scheduled deletion) | Next.js app, route tree, auth providers |
-| S5 | KYC gate (G1) UX | L2 | GLOBAL | 🟢 BUILT | `useKycGate` hook + `KycRequiredModal` |
-| S6 | i18n / localization shell | L2 | LOCAL | 🔴 TODO (pt-BR hardcoded) | Currency formatting, legal copy, language pack |
-| S7 | Sumsub WebSDK | L3 | GLOBAL | 🟡 PARTIAL (sandbox live; production tier pending) | Globally-licensed iframe + webhook contract |
-| S8 | National ID DB hook | L3 | LOCAL | 🟢 BUILT (Serpro Non-Doc CPF live) | Serpro (BR), AFIP (AR), CURP (MX), … behind Sumsub |
-| S9 | AML / PEP / sanctions monitoring | L3 | HYBRID | 🔴 TODO (required by SCD before signing) | Sumsub global product, watchlists per jurisdiction |
-| S10 | Legal entity / incorporation | L4 | HYBRID | 🔴 TODO (BVI / HK research stage) | Holding entity (BVI, HK, …) + per-market subsidiary |
-| S11 | Tax reporting | L4 | LOCAL | ⚪ DEFERRED (post-FIDC) | IR for BR FIDC, equivalents elsewhere |
-| S12 | Crossmint sign-in + smart wallet + ramps | L6 | HYBRID | 🟡 PARTIAL (sandbox live; production tier + Brazil-ramp validation pending) | Single primary fiat-rail provider; sign-in + smart wallet + on/off-ramp + card |
-| S13 | Notification channels | L6 | HYBRID | 🔴 TODO (WhatsApp Business + email TBD) | Email global; WhatsApp BR; SMS varies |
+| S1 | Squads V4 multisig | L1 | GLOBAL | **Squads V4** | 🟢 BUILT (upgrade authority); admin-ix migration 🔵 PLANNED |
+| S2 | Solana Attestation Service | L1 | GLOBAL | **Solana Foundation (SAS)** | 🟢 BUILT |
+| S3 | KycAttestation PDA | L1 | GLOBAL | **Vaulx (own program)** | 🟢 BUILT |
+| S4 | App shell + journey routing | L2 | GLOBAL | **Next.js 14 + React 18** (own) | 🟢 BUILT (16 legacy routes scheduled deletion) |
+| S5 | KYC gate (G1) UX | L2 | GLOBAL | **Vaulx** (`useKycGate` hook + `KycRequiredModal`) | 🟢 BUILT |
+| S6 | i18n / localization shell | L2 | LOCAL | **TBD** (next-intl candidate) | 🔴 TODO (pt-BR hardcoded) |
+| S7 | Sumsub WebSDK | L3 | GLOBAL | **Sumsub** | 🟡 PARTIAL (sandbox live; production tier pending) |
+| S8 | National ID DB hook | L3 | LOCAL | **Serpro (BR via Sumsub Non-Doc)** · AFIP (AR) · CURP (MX) | 🟢 BUILT (Serpro Non-Doc CPF live) |
+| S9 | AML / PEP / sanctions monitoring | L3 | HYBRID | **Sumsub** (global product) | 🔴 TODO (required by SCD before signing) |
+| S10 | Legal entity / incorporation | L4 | HYBRID | **TBD** (BVI vs HK research stage) | 🔴 TODO |
+| S11 | Tax reporting | L4 | LOCAL | **TBD** (with FIDC fund admin) | ⚪ DEFERRED (post-FIDC) |
+| S12 | Crossmint sign-in + smart wallet + ramps | L6 | HYBRID | **Crossmint** (sign-in + smart wallet + on/off-ramps + card) | 🟡 PARTIAL (sandbox live; production tier + BR-ramp validation pending) |
+| S13 | Notification channels | L6 | HYBRID | **TBD** (WhatsApp Business · transactional email — providers not yet picked) | 🔴 TODO |
 
 ### 3.2 Money-rail blocks (11)
 
-| # | Block | Layer | Tag | Status (BR today) | One-liner |
+| # | Block | Layer | Tag | Solution / Partner | Status (BR today) |
 |---|---|---|---|---|---|
-| M1 | Vault program | L1 | GLOBAL | 🟢 BUILT (Devnet) | Deposit/withdraw/disburse, accounting, oracle, KYC PDA admin |
-| M2 | Loan program | L1 | GLOBAL | 🟢 BUILT (Devnet) | CCB lifecycle, repay/renew/default, CPI to vault + auction |
-| M3 | Lender deposit panel + dashboard | L2 | GLOBAL | 🟡 PARTIAL → 🔵 PLANNED (vault simplification 4→2 in γ Phase E) | `<LendDepositPanel>` + vault-tranche UI |
-| M4 | Borrower per-loan + repay UI | L2 | GLOBAL | 🔵 PLANNED (γ Phase D.4 + D.5) | Per-loan dashboard, installment payment, renewal |
-| M5 | Credit-issuing license | L4 | LOCAL | 🟠 SHORTLIST (Mercado Bitcoin / Daniel · ~3% indicated) | SCD in BR; equivalents per market — gates loan origination |
-| M6 | Loan instrument (legal doc) | L4 | LOCAL | 🔴 TODO (follows SCD) | CCB in BR; *mutuo* in AR; equivalent contract per market |
-| M7 | Fund wrapper | L4 | LOCAL | ⚪ DEFERRED (3-6 months legal project) | FIDC in BR (retail) — wrapper for compliant LP exposure |
-| M8 | Digital signature | L4 | LOCAL | 🔴 TODO (ICP-Brasil — provider follows SCD) | ICP-Brasil in BR; eIDAS in EU; AdES variants per market |
-| M9 | Institutional liquidity routing | L6 | GLOBAL | 🔴 TODO (conversation-stage) | Kamino, Loopscale — Solana-native aggregators |
-| M10 | Retail liquidity wrapper | L6 | LOCAL | ⚪ DEFERRED (with M7) | Per-market FIDC-as-a-service or equivalent retail vehicle |
-| M11 | F&F bootstrap liquidity | L6 | LOCAL | 🟠 SHORTLIST (F&F + Web3 funds — first money path) | Pre-license seed via friends/family per market |
+| M1 | Vault program | L1 | GLOBAL | **Vaulx (own, Anchor)** — deposit/withdraw/disburse, accounting, oracle, KYC PDA admin | 🟢 BUILT (Devnet) |
+| M2 | Loan program | L1 | GLOBAL | **Vaulx (own, Anchor)** — CCB lifecycle, repay/renew/default, CPI to vault + auction | 🟢 BUILT (Devnet) |
+| M3 | Lender deposit panel + dashboard | L2 | GLOBAL | **Vaulx (own UI)** — `<LendDepositPanel>` + vault-tranche UI | 🟡 PARTIAL → 🔵 PLANNED (vault simplification 4→2 in γ Phase E) |
+| M4 | Borrower per-loan + repay UI | L2 | GLOBAL | **Vaulx (own UI)** — per-loan dashboard, installment, renewal | 🔵 PLANNED (γ Phase D.4 + D.5) |
+| M5 | Credit-issuing license | L4 | LOCAL | **Mercado Bitcoin SCD** (Daniel · ~3% fee indicated) — BR creditor of record | 🟠 SHORTLIST |
+| M6 | Loan instrument (legal doc) | L4 | LOCAL | **TBD via SCD** — CCB in BR · *mutuo* in AR · per-market | 🔴 TODO (follows SCD) |
+| M7 | Fund wrapper | L4 | LOCAL | **TBD** (Vórtx · Oliveira Trust candidates) — FIDC fund admin for retail | ⚪ DEFERRED (3-6 months legal project) |
+| M8 | Digital signature | L4 | LOCAL | **TBD** (Clicksign · D4Sign candidates) — ICP-Brasil-accredited | 🔴 TODO (provider follows SCD) |
+| M9 | Institutional liquidity routing | L6 | GLOBAL | **TBD** (Kamino · Plume · Loopscale candidates) — Solana-native aggregators | 🔴 TODO (conversation-stage) |
+| M10 | Retail liquidity wrapper | L6 | LOCAL | **TBD** (with M7) — per-market FIDC-as-a-service | ⚪ DEFERRED (with M7) |
+| M11 | F&F bootstrap liquidity | L6 | LOCAL | **F&F + Web3 funds** (founders' network — first money path) | 🟠 SHORTLIST |
 
 > Off-ramp + card capability folds into **S12 Crossmint** in the current architecture. If a future market requires a redundant rail, split it out then.
 
@@ -233,25 +234,25 @@ Brazil status (`BR (today)`) reflects real-world progress for the BR adapter; se
 
 Insurance is bundled into the counterparty providing the physical service: storage insurance lives inside **C14 Custodian**, transit insurance lives inside **C10 Insured courier**. No separate insurance blocks at this stage.
 
-| # | Block | Layer | Tag | Status (BR today) | One-liner |
+| # | Block | Layer | Tag | Solution / Partner | Status (BR today) |
 |---|---|---|---|---|---|
-| C1 | TRDC cNFT + state machine | L1 | GLOBAL | 🟢 BUILT | Bubblegum cNFT representing the asset; PENDING→ACTIVE→REPAID/DEFAULTED |
-| C2 | Auction program | L1 | GLOBAL | 🟢 BUILT (60s demo timer; prod 7-day window 🔵 PLANNED) | Privileged 7-day window + bid/settle ix |
-| C3 | Asset registration form | L2 | GLOBAL | 🟡 PARTIAL → 🔵 PLANNED (Supabase persistence in γ Phase A.1) | Form, photo upload, EXIF strip, case-code generator |
-| C4 | Online appraiser workspace | L2 | GLOBAL | 🔵 PLANNED (γ Phase B.1 + B.2) | `/appraiser/online` UI, blinded by case code |
-| C5 | Offline appraiser workspace | L2 | GLOBAL | 🔵 PLANNED (γ Phase B.3 + B.4) | `/appraiser/offline` UI, photo/video capture, defects log |
-| C6 | Risk Officer review screen | L2 | GLOBAL | 🔵 PLANNED (γ Phase C.1 + C.2) | `/admin/evaluations` trilateral convergence UI |
-| C7 | Online price anchor | L3 | HYBRID | 🟢 BUILT (WatchCharts + Apify Chrono24) | WatchCharts + Apify Chrono24 — global API, local price drift in parallel-import markets |
-| C8 | Asset authenticity DB | L3 | HYBRID | 🔴 TODO (manual cross-check today) | Brand serial-number checks (Rolex, Patek, …) — brand-global, market-availability local |
-| C9 | Collection point | L5 | LOCAL | 🔴 TODO (verify retailer policy + comp model) | Offline-partner shop (jewelry / watch retailer / authorized specialist) where borrower drops the asset; collection point hands the sealed package to the insured courier. Comp model: exclusivity in default auctions for that brand/category. |
-| C10 | Insured courier | L5 | LOCAL | 🟠 SHORTLIST (likely bundled with custodian) | High-value logistics from collection to vault, including transit insurance |
-| C11 | Online appraiser pool | L5 | LOCAL | 🔴 TODO (5-10 specialists to hire; ~1 month) | Desk specialists, 24h SLA, blinded |
-| C12 | Offline appraiser pool | L5 | LOCAL | 🔴 TODO (2-3 watchmakers near vault; ~1 month) | Watchmaker / specialist near the vault, 48h SLA, blinded |
-| C13 | Risk Officer team | L5 | HYBRID | 🟠 SHORTLIST (1 internal Vaulx officer at launch) | Global policy + per-market operators / advisors |
-| C14 | Custodian | L5 | LOCAL | 🟠 SHORTLIST (Brinks · Prosegur · Lumis · Securo) | Insured BR vault provider; storage insurance bundled |
-| C15 | Whitelisted reseller network | L6 | HYBRID | 🔴 TODO (~20 BR resellers — comp = exclusivity in default auctions) | Global on-chain whitelist; local membership |
-| C16 | Fallback luxury auction houses | L6 | LOCAL | ⚪ DEFERRED (post-mainnet) | Sotheby's-BR / Christie's-BR contracts; per-market entity |
-| C17 | Legal recovery counsel | L6 | LOCAL | 🔴 TODO (BR firm with DL 911/69 experience; 2-4 weeks once needed) | DL 911/69 in BR; extrajudicial recovery counterpart per market |
+| C1 | TRDC cNFT + state machine | L1 | GLOBAL | **Vaulx + Bubblegum (Metaplex)** — cNFT; PENDING→ACTIVE→REPAID/DEFAULTED | 🟢 BUILT |
+| C2 | Auction program | L1 | GLOBAL | **Vaulx (own, Anchor)** — privileged 7-day window + bid/settle | 🟢 BUILT (60s demo timer; prod 7-day window 🔵 PLANNED) |
+| C3 | Asset registration form | L2 | GLOBAL | **Vaulx (own UI)** — form, photo upload, EXIF strip, case-code generator | 🟡 PARTIAL → 🔵 PLANNED (Supabase persistence in γ Phase A.1) |
+| C4 | Online appraiser workspace | L2 | GLOBAL | **Vaulx (own UI)** — `/appraiser/online`, blinded by case code | 🔵 PLANNED (γ Phase B.1 + B.2) |
+| C5 | Offline appraiser workspace | L2 | GLOBAL | **Vaulx (own UI)** — `/appraiser/offline`, photo/video capture, defect flags | 🔵 PLANNED (γ Phase B.3 + B.4) |
+| C6 | Risk Officer review screen | L2 | GLOBAL | **Vaulx (own UI)** — `/admin/evaluations`, trilateral convergence + bounded override | 🔵 PLANNED (γ Phase C.1 + C.2) |
+| C7 | Online price anchor | L3 | HYBRID | **WatchCharts API + Apify Chrono24 actor** | 🟢 BUILT |
+| C8 | Asset authenticity DB | L3 | HYBRID | **TBD** (Rolex / Patek brand-DB checks; manual cross-check today) | 🔴 TODO |
+| C9 | Collection point | L5 | LOCAL | **TBD** (jewelry / watch retail partners; comp = exclusivity in default auctions) — borrower drops asset; partner hands sealed package to insured courier | 🔴 TODO |
+| C10 | Insured courier | L5 | LOCAL | **TBD** (likely bundled with custodian) — high-value logistics from collection point to vault, transit insurance bundled | 🟠 SHORTLIST |
+| C11 | Online appraiser pool | L5 | LOCAL | **Vaulx contractors (TBD)** — 5-10 desk specialists, 24h SLA, blinded | 🔴 TODO (~1 month to hire) |
+| C12 | Offline appraiser pool | L5 | LOCAL | **Vaulx contractors (TBD)** — 2-3 watchmakers near vault, 48h SLA, blinded | 🔴 TODO (~1 month to hire) |
+| C13 | Risk Officer team | L5 | HYBRID | **Vaulx employee** (1 internal at launch); global policy + per-market operators later | 🟠 SHORTLIST |
+| C14 | Custodian | L5 | LOCAL | **Brinks · Prosegur · Lumis · Securo** (candidates) — insured BR vault, storage insurance bundled | 🟠 SHORTLIST |
+| C15 | Whitelisted reseller network | L6 | HYBRID | **TBD** (~20 BR luxury resellers · on-chain whitelist) — comp = exclusivity in default auctions | 🔴 TODO |
+| C16 | Fallback luxury auction houses | L6 | LOCAL | **TBD** (Sotheby's BR · Christie's BR — per-market entity) | ⚪ DEFERRED (post-mainnet) |
+| C17 | Legal recovery counsel | L6 | LOCAL | **TBD** (BR firm with DL 911/69 experience) — extrajudicial recovery | 🔴 TODO (2-4 weeks once needed) |
 
 **Catalog totals (recomputed):** 13 + 11 + 17 = **41 blocks** · **17 GLOBAL** · **16 LOCAL** · **8 HYBRID**. (Block IDs are stable identifiers and may not be sequentially numbered after simplifications.)
 
