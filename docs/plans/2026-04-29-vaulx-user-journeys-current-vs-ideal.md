@@ -1,54 +1,95 @@
 # Vaulx User Journeys — Current Demo vs. Ideal Production
 
 **Date:** 2026-04-29
-**Scope:** AS-IS (Devnet hackathon demo, commit `8ecfae1`) vs. IDEAL (mainnet production)
-**Purpose:** Catalogue every persona's journey, surface every gap, and decide every route's fate before deletion. Output two hard artifacts: a route-coverage matrix and a Cut List.
+**Version:** v2 (revised after user directional input)
+**Status:** ANALYSIS DOCUMENT — NO CODE CHANGES YET
+**Purpose:** Catalogue every persona's journey, surface every gap, decide every route's fate before deletion. Output two hard artifacts: a route-coverage matrix and a Cut List + Build List.
 
-**This is an analysis document. No code changes.** Deletions follow a separate plan after the user signs off.
+---
+
+## v2 changelog (deltas from v1)
+
+| What | Where it changes |
+|---|---|
+| Two-stage evaluation flow (online indicative → offline-anchored FINAL terms) | §0, §2.1 |
+| Offline appraiser is a distinct persona with extra information surface (own photos/videos, can find hidden defects) | §2.6b |
+| Online + offline appraisers are FULLY BLINDED via case codes (anti-collusion) | §2.6a, §2.6b, §4 |
+| **Evaluation Risk Officer** added as production sub-persona — reviews trilateral, assigns prudent value | §2.10b |
+| Institutional direct lending demoted — no Vaulx UI in v1; routes via Kamino/Plume | §2.3 |
+| Retail FIDC merged with general Lender persona | §2.3 (was §2.4) |
+| Lender simplification proposal: 2 vaults (USDC + Local) instead of 4 fixtures | §2.3, §3, §7 |
+| Per-loan installment-payment UI elevated to pre-hackathon must-have | §2.2, §3 |
+| Per-loan dashboard detail (LTV, schedule, next payment) elevated | §2.2 |
+| Crossmint sign-in surface unified across all personas via `<UnifiedConnectButton>` | §4, §8 |
+| Admin gating via basic-auth (`NEXT_PUBLIC_VAULX_ADMIN_PUBKEY`) | §2.9, §3 |
+| `/demo/dev/bezel` confirmed DELETE | §3 |
+| Custodian fallback UI confirmed KEEP_DEMO + adds webhook contract spec | §2.5 |
+| 8 NEW pre-hackathon routes added to BUILD column | §3, §8 |
+| §8 Pre-Hackathon Build List added (12 items, with dependency order) | §8 |
+| Open questions: most resolved; only SCD persona surface + 2-vault simplification remain | §7 |
 
 ---
 
 ## 0. Executive summary
 
-Vaulx today is **two products colliding under one Next.js app**: a live hackathon demo (the `/demo/*` tree) and a half-shed legacy Next.js prototype (the `/borrow/*`, `/lend/*`, `/custodian/*` trees). The redesign work shipped today (Civic Auth dropped, Sumsub WebSDK added, lazy KYC gate via `useKycGate`) was a clean cut on the demo side, but the legacy tree was left in place — most of it now duplicates demo intent or shows hard error pages for the canonical demo fixture slugs.
+Vaulx today is **two products colliding under one Next.js app**: a live hackathon demo (the `/demo/*` tree) and a half-shed legacy Next.js prototype (the `/borrow/*`, `/lend/*`, `/custodian/*` trees). The redesign work shipped today (Civic Auth dropped, Sumsub WebSDK added, lazy KYC gate) was a clean cut on the demo side, but the legacy tree was left in place.
 
-Stripping the legacy tree is half the cleanup. The other half is recognising that **"Borrower" and "Admin" are each masking two-to-three distinct personas**:
+After this v2 review, the picture is much sharper:
 
-- **Borrower** is really *first-time borrower* (origination) + *returning borrower* (servicing/renewal/repayment). Renewal is the highest-margin path in the unit economics; today it's a single under-built page.
-- **Admin** is really *operations admin* (devnet seed/state) + *risk-compliance reviewer* (KYC/AML/SCD oversight, missing today) + *treasury / Squads multisig governance* (program upgrades, default execution, missing today). Lumping them together is why the cockpit looks both over-built (11 buttons, 7 ops endpoints) and under-built (zero compliance UI).
+- **The borrower flow has a missing structural stage.** Today: register → online appraisal → loan offer → custody → disburse. **Reality**: register → INDICATIVE online value → custody → offline physical evaluation → 3-eval Risk Officer review → FINAL terms (which can differ from indicative) → borrower accept-or-decline → disburse OR asset return. The current `/demo/borrow/loan-offer/[reqId]` runs at the wrong moment in the flow.
+- **The trilateral appraisal is human-in-the-loop, not auto-converged.** Three valuations land on a Risk Officer's work list. The Risk Officer reviews convergence and assigns the prudent value within bounded override constraints. **No UI for this exists today.** It is pre-hackathon must-have.
+- **Online and offline appraisers are different personas, fully blinded.** Each gets a case code, never sees the other's identity or eval. Anti-collusion is a load-bearing design intent, not a UX nicety.
+- **Two of the original 13 personas don't have Vaulx UI at all in v1.** Institutional Lender (routes via Kamino/Plume) and SCD (legal partner, ideally API-only). Per-installment payment UI was deferred but is now must-have pre-hackathon.
 
-Two roles the council flagged but the codebase does not yet surface:
+**Pre-hackathon build list (12 items, see §8 for ordered dependencies)**:
 
-- **Appraiser** — the BRD describes an appraiser role; the code has `api/appraisal` (backend) and `/demo/borrow/appraisal/[reqId]` (borrower-facing) but no `/appraiser/*` workspace. Either it's deferred to post-hackathon or the spec changed. **UNKNOWN_BLOCKED.**
-- **SCD / Licensed Lending Partner** — legally the creditor of record in BR Phase 0. Surfaces today only as `<CcbDocument>` copy. No portal, no API. **DEFER for prod, KEEP_DEMO state-of-the-art as today.**
+1. Two-stage evaluation flow in borrower side
+2. Final-terms accept/decline + asset-return branch
+3. Per-loan installment payment UI (`/demo/borrow/pay/[trdc]`)
+4. Per-loan dashboard detail screens
+5. Online Appraiser workspace (`/appraiser/online/*`)
+6. Offline Appraiser workspace (`/appraiser/offline/*`)
+7. Evaluation Risk Officer workspace (`/admin/evaluations/*`)
+8. Crossmint unified sign-in across all personas
+9. Admin basic-auth gating
+10. `/demo/dev/bezel` deletion
+11. Custodian webhook contract (real custodians feed Vaulx via webhook; Vaulx UI is fallback)
+12. Lender simplification → 2 vaults (USDC + Local) [PENDING USER VERDICT]
 
-**Top deletion hypotheses to validate during journey walks**:
+**Top deletion hypotheses for §5 Cut List**:
 
-1. Delete every `/borrow/*`, `/lend/*`, and `/custodian/*` legacy route source file. Replace with redirects in `next.config.mjs`. (Cluster of ~20 files, ~2 500 LOC.)
-2. Delete the entire `verify-id` quad-tree (4 routes × 2 trees = 8 routes) — Sumsub replaced gov.br.
-3. Demote `/admin/*` to an internal-only basic-auth tier; do not remove (we use it for the demo).
-4. Delete `/demo/dev/bezel` ("Hello bezel" sandbox).
-5. Keep the `/custodian/*` legacy tree for now — confirm with user whether real custodians use a Vaulx UI in prod or only their own inventory system + webhook.
+- Delete every `/borrow/*`, `/lend/*` legacy route source file. Replace with redirects in `next.config.mjs`.
+- Delete the entire `verify-id` quad-tree (8 routes) — Sumsub replaced gov.br.
+- Delete `/demo/dev/bezel`.
+- Demote `/admin/*` to basic-auth tier; keep, don't remove.
+- KEEP `/custodian/*` legacy as fallback portal; gate behind basic-auth.
 
 ---
 
 ## 1. Persona taxonomy
 
-| # | Persona | Production / Internal / Demo | Has UI today? | First-class for hackathon? |
+| # | Persona | Production / Internal / Demo | Has Vaulx UI in v1? | Pre-hackathon priority |
 |---|---|---|---|---|
-| 1 | First-time Borrower | Production | ✅ `/demo/borrow/*` | ✅ Hero of pitch |
-| 2 | Returning Borrower | Production | ⚠️ partial — `/demo/borrow/renew`, `/demo/borrow/repay` | ⚠️ thin |
-| 3 | Institutional Lender / LP | Production | ✅ `/demo/lend/*` (institutional vaults) | ✅ |
-| 4 | Retail Lender via FIDC | Production | ✅ same routes, retail vault row | ✅ |
-| 5 | Custodian | Production | ✅ `/custodian/intake/[trdc]`, `/custodian/done/[trdc]` (legacy) + `/demo/borrow/custody` (borrower-side) | ⚠️ legacy only |
-| 6 | Appraiser | Production | ❌ no UI; only `api/appraisal` backend | ❌ |
-| 7 | Licensed Lending Partner / SCD | Production | ❌ no UI; legal layer only | ❌ |
-| 8 | Auction Bidder / Recovery Buyer | Production | ✅ `/demo/auction`, `/demo/auction/[trdc]` | ✅ |
-| 9 | Operations Admin (devnet ops) | Internal | ✅ `/admin/demo` cockpit | ✅ for demo only |
-| 10 | Risk / Compliance Admin | Internal | ❌ no UI today | ❌ |
-| 11 | Treasury / Governance / Squads Multisig | Internal | ❌ no Vaulx UI; uses Squads UI | ❌ |
-| 12 | Visitor / Judge | Demo-only | ✅ `/`, `/demo`, `/demo/architecture` | ✅ |
-| 13 | Demo Operator (live walkthrough host) | Demo-only | ✅ `/admin/tests`, `/demo/dev/bezel` | ⚠️ |
+| 1 | First-time Borrower | Production | ✅ `/demo/borrow/*` | **MUST** (rewrite flow) |
+| 2 | Returning Borrower | Production | ⚠️ partial — `/demo/borrow/{renew,repay}` | **MUST** (add per-loan + installments) |
+| 3 | **Lender (USDC + Local)** [merged 3+4] | Production | ✅ `/demo/lend/*` | **MUST** (simplify + Crossmint) |
+| 4 | (merged into 3) | — | — | — |
+| 5 | Custodian | Production | ⚠️ legacy only — `/custodian/*` (fallback) | KEEP_DEMO with webhook spec |
+| 6a | **Online Appraiser** [split from 6] | Production | ❌ — must build `/appraiser/online/*` | **MUST** (BUILD NEW) |
+| 6b | **Offline Appraiser** [split from 6] | Production | ❌ — must build `/appraiser/offline/*` | **MUST** (BUILD NEW) |
+| 7 | SCD partner | Production | ❌ — likely API-only, no portal | DEFER (architecture decision needed) |
+| 8 | Auction Bidder | Production | ✅ `/demo/auction/*` | KEEP (refine post-hackathon) |
+| 9 | Operations Admin (devnet ops) | Internal | ✅ `/admin/demo` cockpit | KEEP_DEMO + basic-auth |
+| 10a | KYC / AML Reviewer [split from 10] | Internal | ❌ no UI today | **DEFER** |
+| 10b | **Evaluation Risk Officer** [split from 10] | Internal | ❌ — must build `/admin/evaluations/*` | **MUST** (BUILD NEW) |
+| 11 | Treasury / Squads multisig | Internal | ❌ — uses Squads UI directly | DEFER |
+| 12 | Visitor / Judge | Demo-only | ✅ `/`, `/demo`, `/demo/architecture` | KEEP |
+| 13 | Demo Operator | Demo-only | ✅ `/admin/tests` | KEEP_DEMO + basic-auth |
+
+**Production-facing with Vaulx UI**: 1, 2, 3, 5, 6a, 6b, 8 (7 personas)
+**Production-facing without Vaulx UI**: 7, 11 (2 personas — handled via API or external tools)
+**Internal**: 9, 10a, 10b (3 personas)
+**Demo-only**: 12, 13 (2 personas)
 
 ---
 
@@ -56,9 +97,9 @@ Two roles the council flagged but the codebase does not yet surface:
 
 ### 2.1 First-time Borrower
 
-> *Maria owns a Submariner. She wants R$30 000 USDC for 90 days using the watch as collateral. She has never used Solana.*
+> *Maria owns a Submariner. She wants R$30 000 USDC for 90 days using the watch as collateral. She has never used Solana. She wants to know IF the loan will work and what TERMS she's accepting BEFORE she ships her R$50 000 watch into a vault.*
 
-**User goal**: get USDC liquidity against a luxury watch in <60 minutes from sign-in to disbursement.
+**User goal**: get USDC liquidity against a luxury watch. Critically: see indicative terms BEFORE shipping; commit only AFTER offline evaluation confirms a value she can accept; have a clean back-out path if final terms differ unfavorably.
 
 **AS-IS routes** (in walk order):
 
@@ -68,7 +109,7 @@ Two roles the council flagged but the codebase does not yet surface:
     → /demo/borrow/wallet                 Crossmint Auth (Google/email/Phantom)
       → /demo/borrow/register             asset form (brand/model/serial/photos)
         → /demo/borrow/appraisal/[reqId]  triangular appraisal screen
-          → /demo/borrow/loan-offer/[reqId]  terms acceptance + CCB preview
+          → /demo/borrow/loan-offer/[reqId]  terms acceptance + CCB preview  ← WRONG MOMENT (see Issue 1)
             → /demo/borrow/custody        custodian booking
               → /demo/borrow/awaiting-custody/[trdc]  waiting state
                 → /demo/borrow/disburse   disbursement → USDC arrives
@@ -76,340 +117,491 @@ Two roles the council flagged but the codebase does not yet surface:
                     → /demo/borrow/dashboard  loan tracking
 ```
 
+**Issue 1 (structural)**: today, terms are "accepted" at `loan-offer` BEFORE custody. This is wrong. The offline physical evaluation can produce a value materially below the online indicative, and the borrower should have the right to decline at that point and request asset return.
+
 **AS-IS journey, step by step**:
 
-1. Lands on `/demo/borrow/onboard` from marketing page. Reads the 4-step explainer. Clicks "Continue to sign-in".
-2. On `/demo/borrow/wallet`, picks Crossmint (Google/email/Apple/SMS) → smart wallet provisioned in ~3s, OR connects existing Phantom/Solflare. **No KYC at sign-in** (lazy gate is the design).
-3. On `/demo/borrow/register`, fills brand/model/serial/photos. Clicks Submit. **First KYC trigger**: `useKycGate("Submit asset for evaluation")` — if no SAS attestation on the connected wallet, `<KycRequiredModal>` opens, mounts `<SumsubVerify>` iframe, runs Sumsub Sandbox flow, mints `KycAttestation` PDA via webhook on GREEN, then resumes the asset submission. Routes to `/demo/borrow/appraisal/[reqId]`.
-4. Appraisal page runs the "three sources, one number" UI: WatchCharts API, Chrono24 (via Apify actor or fallback HTML), and an offline specialist quote. Convergence within 5%. ~15s on demo.
-5. `/demo/borrow/loan-offer/[reqId]` shows: appraised value, max LTV, rate, tenor, weekly amortization, prepay, late fees. CCB preview with `<CcbDocument>`. User clicks "Accept" → CCB hash signed.
-6. `/demo/borrow/custody` shows custodian options (São Paulo, Rio) and time slots. User books. State transitions to `PENDING_CUSTODY`.
-7. `/demo/borrow/awaiting-custody/[trdc]` waits for custodian confirmation. Polls `/api/onchain-events/custody-confirmed`.
-8. `/demo/borrow/disburse` is the **second KYC trigger** if for some reason the user skipped the gate at register time. `useKycGate("Disburse")`. After custody confirms, the disburse instruction fires (server-side via operator key on demo). USDC lands in user's wallet.
-9. `/demo/borrow/funds` lets them spend: Vaulx Card (mock), Pix off-ramp (mock), wallet send (real on-chain transfer).
-10. `/demo/borrow/dashboard` shows the active loan, amortization schedule, days remaining.
+1. Lands on `/demo/borrow/onboard`. Reads explainer. Clicks "Continue".
+2. On `/demo/borrow/wallet`, picks Crossmint or Phantom. KYC NOT triggered.
+3. On `/demo/borrow/register`, fills brand/model/serial/photos. Clicks Submit. **First KYC gate**: `useKycGate("Submit asset for evaluation")` runs Sumsub flow if no SAS attestation.
+4. `/demo/borrow/appraisal/[reqId]` shows triangular convergence.
+5. **`/demo/borrow/loan-offer/[reqId]` shows terms, user accepts, signs CCB.** ← Issue 1.
+6. `/demo/borrow/custody` — book a slot. State `PENDING_CUSTODY`.
+7. `/demo/borrow/awaiting-custody/[trdc]` — wait state.
+8. `/demo/borrow/disburse` — second KYC gate (`useKycGate("Disburse")`) + actual disburse on-chain.
+9. `/demo/borrow/funds` and `/demo/borrow/dashboard` for ongoing UX.
 
 **Real vs. mocked**:
 
-| Step | Real on-chain / live integration | Mocked / hardcoded |
+| Step | Real | Mocked |
 |---|---|---|
-| Sign-in | Crossmint Auth (sandbox) ✅, Phantom/Solflare via wallet-adapter ✅ | — |
-| Asset form | Form state in `useDemoSession` (localStorage) | No persistent backend storage |
-| KYC gate | Sumsub WebSDK sandbox + webhook + on-chain `KycAttestation` PDA mint via operator key ✅ | Sumsub sandbox is GREEN-only; real reject paths untested |
-| Appraisal | WatchCharts API ✅ (with fallback fixture); Apify Chrono24 ✅ when token set | Offline specialist quote is hardcoded |
-| CCB | `<CcbDocument>` renders structured copy | Not signed by SCD; not stored as legal artifact |
-| Custody booking | `useDemoSession` state | No real custodian calendar; slots are fixtures |
-| Custody confirm | Operator presses button in `/admin/demo`; `confirmCustody` ix runs ✅ | Real custodian hardware/QR not integrated |
-| Disburse | `useDeposit` → on-chain `Vault.deposit` ix on Devnet ✅ | Devnet USDC, not mainnet |
-| Funds: card | UI shell only | No real card issuance |
-| Funds: pix | UI shell only | No Dock/Celcoin/Swap integration |
-| Funds: wallet | Real Solana transfer ✅ | — |
-| Dashboard | Reads on-chain Vault + TRDC state ✅ | Amortization rendered from fixtures |
+| Sign-in | Crossmint (sandbox) ✅, Phantom/Solflare ✅ | — |
+| Asset form | `useDemoSession` localStorage | No persistent backend |
+| KYC gate | Sumsub WebSDK + webhook + on-chain `KycAttestation` ✅ | Sandbox-only; reject paths untested |
+| Appraisal (online API) | WatchCharts ✅, Apify Chrono24 ✅ | Offline specialist quote hardcoded |
+| Online appraiser submission | n/a | Doesn't exist (no `/appraiser/online/*`) |
+| Offline appraiser submission | n/a | Doesn't exist (no `/appraiser/offline/*`) |
+| Risk Officer review | n/a | Doesn't exist (no `/admin/evaluations/*`) |
+| Final terms acceptance | n/a (today's "loan-offer" is before custody) | Wrong moment |
+| Asset return on decline | n/a | Doesn't exist — no route, no on-chain ix |
+| CCB | `<CcbDocument>` renders copy | Not signed by SCD; no legal artifact |
+| Custody booking | `useDemoSession` | Slots are fixtures |
+| Custody confirm | `confirmCustody` ix via operator key ✅ | Real custodian hardware not integrated |
+| Disburse | `useDeposit` → on-chain `Vault.deposit` ix ✅ | Devnet USDC |
 
-**IDEAL production journey** (post-mainnet):
+**IDEAL production journey**:
 
-1. Sign-in unchanged (Crossmint with Apple/Google/email/SMS or external wallet).
-2. KYC at register-time: real Sumsub mainnet + Brazil Non-Doc (CPF + liveness vs Serpro, ~60s, no document upload). SAS attestation minted by SCD's operator key (not Vaulx's), or by Vaulx with SCD co-sign.
-3. Asset form persists to backend (Postgres/Supabase). Photo uploads go to Box/S3.
-4. Appraisal runs blinded across 1 online + 1 offline appraiser + 1 automated anchor. Divergence > 20% triggers manual audit. Outcome stored on-chain as a price feed and off-chain as the appraisal record.
-5. CCB signed via ICP-Brasil / Clicksign. Stored by SCD as legal creditor of record. Borrower receives a copy.
-6. Custody booking against a real custodian calendar (Prosegur/Brinks). Confirmation comes via webhook from the custodian's inventory system, not a Vaulx admin button.
-7. Disbursement triggered automatically by custody-confirmation webhook. Fiat off-ramp (BRL via Pix) handled in same flow.
-8. Funds flow with real Vaulx Card (BIN sponsor) + real Pix integration.
-9. Dashboard shows real amortization, payment history, Day-60 renewal nudge.
+```
+0. Marketing  → /
+1. Sign-in    → /demo/borrow/wallet (Crossmint or wallet)
+2. Asset form → /demo/borrow/register
+   → KYC gate (real Sumsub + Brazil Non-Doc CPF flow ~60s)
+3. INDICATIVE evaluation:
+   → API anchor (auto, instant)              ← eval 1 of 3
+   → Borrower sees indicative value + indicative terms
+   → /demo/borrow/indicative-terms/[reqId]   (NEW screen, optional combined with /register)
+   → Borrower decides: ship to vault, or cancel
+4. Custody booking
+   → /demo/borrow/custody
+   → SLOT BOOKED → triggers ONLINE appraiser kickoff (24h SLA)
+   → Online appraiser (blinded, sees case code only) submits  ← eval 2 of 3
+5. Asset arrives at vault
+   → /demo/borrow/awaiting-custody/[trdc]
+   → Custodian confirms intake (webhook → on-chain)
+   → Triggers OFFLINE appraiser kickoff (48h SLA)
+   → Offline appraiser (blinded, takes own photos/videos, finds hidden defects) submits  ← eval 3 of 3
+6. Risk Officer review:
+   → /admin/evaluations/[reqId] (NEW screen)
+   → Reviewer sees all 3 evals + appraiser identities (only the reviewer)
+   → Decides: converged? prudent value? accept/audit/decline
+   → Bounded override: prudent value ∈ [min(3), max(3)] (strict α — see §7 Q-D)
+7. FINAL terms generated based on prudent value
+   → /demo/borrow/final-terms/[reqId] (NEW screen)
+   → Borrower sees: indicative was $X, prudent eval is $Y, final terms reflect $Y
+   → Two CTAs: "Accept and disburse" OR "Decline and request asset return"
+8a. ACCEPT path: signs final CCB → disburse on-chain → /demo/borrow/funds
+8b. DECLINE path: → /demo/borrow/return-asset/[reqId] (NEW screen)
+   → Custodian receives release order → schedules return shipping
+   → Borrower wallet receives any prepaid handling refund (if applicable)
+   → State: TRDC closed (no loan); asset returned
+```
 
 **Gaps**
 
-- **UX**: photo-upload component is a stub. Custodian time-slot picker uses fixtures.
-- **Data/model**: no persistent backend for asset records. `useDemoSession` is localStorage; refresh in a different browser loses state. CCB has no storage.
-- **On-chain**: `KycAttestation` is real but minted by Vaulx operator; SCD co-signing pattern not designed.
-- **Off-chain integrations**: Sumsub mainnet not approved (sandbox only). Pix integration absent. Vaulx Card BIN sponsor absent. Real custodian webhook absent.
-- **Compliance/legal**: no ICP-Brasil signature flow. CCB rendered but not a legally-binding artifact.
-- **Security**: photo uploads have no virus-scan or PII redaction.
+- **UX**:
+  - No two-stage indicative-vs-final screens
+  - No final-terms accept/decline UI
+  - No asset-return flow UI
+  - No dual-clock waiting UI (24h online + 48h offline + Risk Officer review)
+  - Per-asset photo upload is a stub
+- **Data/model**:
+  - No persistent backend for asset records (currently localStorage)
+  - No `appraisal_case` record carrying case code, blinded mappings, eval submissions, Risk Officer decision
+  - CCB has no storage
+- **On-chain**:
+  - `KycAttestation` real but minted by Vaulx operator; SCD co-signing pattern not designed
+  - No "asset return" instruction (analogous to repay-without-disburse)
+  - Loan-offer hash is committed too early in the flow
+- **Off-chain integrations**:
+  - Sumsub mainnet not approved
+  - Brazil Non-Doc CPF flow not enabled (sandbox limitation)
+  - Pix integration absent
+  - Vaulx Card BIN sponsor absent
+  - Real custodian webhook absent
+- **Compliance/legal**:
+  - No ICP-Brasil signature flow
+  - Final-CCB amendment template absent (currently single-CCB-at-loan-offer)
+- **Security**:
+  - Photo uploads have no virus-scan or PII redaction (EXIF, GPS leaks possible)
+  - No EXIF stripping before serving photos to appraisers (blinding leak)
 
 **Redundancy**
 
-- `/borrow/new/asset` (legacy) is a full duplicate of `/demo/borrow/register`. Already redirects via `next.config.mjs`, but the source file still ships in the bundle.
-- `/borrow/new/appraisal/[reqId]` and `/borrow/new/terms/[reqId]` and `/borrow/new/awaiting-custody/[trdc]` are legacy duplicates of their `/demo/borrow/*` counterparts.
-- The "verify-id" quad-tree (`/demo/borrow/verify-id`, `/callback`, `/govbr-login`, `/redirecting`) is dead post-Sumsub migration.
+- `/borrow/new/asset`, `/borrow/new/appraisal/[reqId]`, `/borrow/new/terms/[reqId]`, `/borrow/new/awaiting-custody/[trdc]` are legacy duplicates of `/demo/borrow/*` counterparts.
+- `/demo/borrow/verify-id*` quad-tree dead post-Sumsub.
 
-**Decision**: KEEP_PROD all `/demo/borrow/{onboard,wallet,register,appraisal,loan-offer,custody,awaiting-custody,disburse,funds,funds/card,funds/pix,funds/wallet,dashboard}`. DELETE the four `/demo/borrow/verify-id*` routes. DELETE the four `/borrow/new/*` legacy duplicates. KEEP_DEMO `/admin/demo` for stepping the flow during pitch.
+**Decision**
+
+- KEEP_PROD all `/demo/borrow/{onboard, wallet, register, custody, awaiting-custody, disburse, funds*, dashboard}`.
+- **REWRITE** `/demo/borrow/loan-offer/[reqId]` semantics: rename to `/demo/borrow/indicative-terms/[reqId]` (or add `final-terms`), and split into two screens.
+- **BUILD** `/demo/borrow/final-terms/[reqId]` (post-Risk-Officer-review).
+- **BUILD** `/demo/borrow/return-asset/[reqId]` (decline-and-return path).
+- DELETE the four `/demo/borrow/verify-id*` routes.
+- DELETE the four `/borrow/new/*` legacy duplicates.
 
 ---
 
 ### 2.2 Returning Borrower
 
-> *Maria's first 90-day loan ends in 3 days. She wants to renew at the same rate against the same Rolex without going to a vault again.*
+> *Maria's first 90-day loan ends in 3 days. She also has a previous Datejust loan with 4 installments paid and 2 to go. She wants a single dashboard showing both loans, with next-payment dates, LTV, and clean per-loan actions.*
 
-**User goal**: renew or repay an existing loan with zero new appraisal/custody friction. Renewal is the highest-margin path (no acquisition cost, no new physical handling).
+**User goal**: see all assets and loans at a glance. Pay an installment. Renew a loan. Repay fully. With zero friction (no new appraisal, no new custody, no new KYC).
 
 **AS-IS routes**:
 
 ```
-/demo/borrow/dashboard      shows active loan(s)
+/demo/borrow/dashboard      shows active loan(s) — thin
   → /demo/borrow/renew      single page; pay accrued interest, signs amendment
   → /demo/borrow/repay      single page; full payoff, asset release flow
 ```
 
 **AS-IS journey**:
 
-1. Lands on `/demo/borrow/dashboard`. Sees the active loan card with days-remaining.
-2. Clicks "Renew" or "Repay".
-3. Renew: pays interest in USDC, signs an amendment hash, TRDC state cycles `ACTIVE → RENEWED → ACTIVE`, days-remaining resets.
-4. Repay: pays full principal + interest, asset release event fires, custodian gets the release order, TRDC state goes `ACTIVE → REPAID`. Asset returns to Maria.
+1. `/demo/borrow/dashboard` — thin index. Doesn't surface per-loan detail.
+2. Click "Renew" → `/demo/borrow/renew` (single screen, mocked).
+3. Click "Repay" → `/demo/borrow/repay` (single screen, partial real).
 
 **Real vs. mocked**:
 
 | Step | Real | Mocked |
 |---|---|---|
 | Loan listing | Reads on-chain Vault + Loan PDAs ✅ | — |
-| Renew | UI shell + amendment hash | No on-chain `extend_loan` ix yet (uses `useDemoSession` toggle) |
-| Repay | Has `repay` ix path | Asset-release leg goes through admin button, not custodian webhook |
+| Per-loan detail UI | n/a | Doesn't exist as a route |
+| Installment payment | n/a | Doesn't exist on demo side |
+| Renew | UI shell + amendment hash | No on-chain `extend_loan` ix |
+| Repay | `repay` ix path exists | Asset-release leg is admin button, not custodian webhook |
 
 **IDEAL production journey**:
 
-1. Day-60: borrower receives a WhatsApp + email nudge to renew early ("renew now and save 10% origination fee on next cycle").
-2. Tier-priced rate (Cycle 1 = 2.2%/mo, Cycle 3+ = 2.0%) is shown.
-3. Renew bypasses KYC re-check (existing SAS attestation on wallet). Bypasses appraisal (asset hasn't moved). Bypasses custody (asset hasn't moved).
-4. One-click renewal → on-chain `extend_loan` → updated amortization → CCB amendment signed off-chain.
-5. Repay path: full payoff → custodian webhook fires release order → physical handover scheduled → asset returns.
+1. **Dashboard index** (`/demo/borrow/dashboard`) shows table of:
+   - Asset (brand, model, serial-redacted)
+   - Loan amount
+   - Disbursed / accrued interest / remaining
+   - LTV (live based on current oracle price)
+   - Days to maturity
+   - Next payment date
+   - Action button (Pay / Renew / Repay)
+2. Click into asset → **per-loan detail** (`/demo/borrow/loans/[trdc]`):
+   - Full amortization schedule
+   - Payment history
+   - CCB reference (with link)
+   - Trilateral evaluation summary (anonymous: only the prudent value is shown to borrower)
+   - Action buttons
+3. **Pay installment** (`/demo/borrow/pay/[trdc]`):
+   - Reads next-due amount
+   - User signs USDC transfer to vault
+   - On-chain `pay_installment` ix runs (does not exist today)
+   - Schedule updates on success
+4. **Renew** (`/demo/borrow/renew/[trdc]`):
+   - Day-60 nudge logic (scheduled notifications)
+   - Tier-priced rate (cycle 1 = 2.2%/mo, cycle 3+ = 2.0%)
+   - One-click on-chain `extend_loan` (does not exist today)
+   - CCB amendment signed off-chain
+5. **Repay** (`/demo/borrow/repay/[trdc]`):
+   - Full payoff
+   - Triggers custodian release order
+   - Asset-return logistics
+   - TRDC state `ACTIVE → REPAID`
 
 **Gaps**
 
-- **UX**: no Day-60 nudge UI. No tiered loyalty rate display. No "renew now save 10%" incentive UI.
-- **Data/model**: no notification system (WhatsApp / email queue). No referral credit accounting.
-- **On-chain**: no `extend_loan` instruction. Renewal currently flips client-side state, not chain state.
-- **Off-chain integrations**: WhatsApp Business API absent. Email transactional service absent.
-- **Compliance/legal**: CCB amendment template absent. SCD co-signing flow absent.
+- **UX**: per-loan detail screen missing. Per-installment pay screen missing. Day-60 nudge UI missing.
+- **Data/model**: no notification queue (WhatsApp / email). No referral credit ledger. No tier rate calculator.
+- **On-chain**: `extend_loan`, `pay_installment` ixs missing.
+- **Off-chain**: WhatsApp/email transactional service absent.
+- **Compliance/legal**: CCB amendment template absent.
 - **Security**: none material at this layer.
 
 **Redundancy**
 
-- `/borrow/loans/[trdc]/renew` (legacy) duplicates `/demo/borrow/renew`. DELETE.
-- `/borrow/loans/[trdc]/repay` (legacy) duplicates `/demo/borrow/repay`. DELETE.
-- `/borrow/loans/[trdc]/repaid` (legacy) is a success state — the demo handles the success state in-page on `/demo/borrow/repay`. DELETE.
-- `/borrow/loans/[trdc]/disburse` (legacy) duplicates `/demo/borrow/disburse`. DELETE.
-- `/borrow/loans/[trdc]/pay` (legacy) — per-installment payment. **No demo equivalent.** This is the only place this flow lives. DEFER decision: either migrate to `/demo/borrow/pay` (creating a new demo route) or accept that installment-payment is post-hackathon.
+- `/borrow/loans/[trdc]/{disburse, renew, repay, repaid}` are legacy duplicates of demo equivalents.
+- `/borrow/loans/[trdc]/pay` is the per-installment legacy — **MIGRATE to `/demo/borrow/pay/[trdc]`** (no demo equivalent today, must-have pre-hackathon).
 
-**Decision**: KEEP_PROD `/demo/borrow/{renew,repay,dashboard}`. DELETE all `/borrow/loans/[trdc]/{renew,repay,repaid,disburse}`. UNKNOWN_BLOCKED on `/borrow/loans/[trdc]/pay` — needs user verdict on whether per-installment is a Phase-0 prod requirement.
+**Decision**
+
+- KEEP_PROD `/demo/borrow/{dashboard, renew, repay}`.
+- **BUILD** `/demo/borrow/loans/[trdc]` (per-loan detail).
+- **BUILD** `/demo/borrow/pay/[trdc]` (installment payment).
+- DELETE all legacy `/borrow/loans/[trdc]/{disburse, renew, repay, repaid}`.
+- MIGRATE `/borrow/loans/[trdc]/pay` semantics into the new `/demo/borrow/pay/[trdc]`.
 
 ---
 
-### 2.3 Institutional Lender / LP
+### 2.3 Lender (USDC + Local) [merged from former 2.3 + 2.4]
 
-> *A Brazilian asset manager wants to deploy R$5M USDC into a senior tranche backed by Brazilian luxury-watch CCBs. Needs ISDA-grade onboarding, accredited investor terms, and 8% net APY.*
+> *A São Paulo retail investor has R$10K USDC and wants Brazilian luxury-watch-credit yield. A São Paulo investor with BRL wants the same but in BRL. Both go through the same flow with the same UX.*
 
-**User goal**: deposit large USDC ticket into senior tranche; track yield; withdraw with notice; access auctions if defaults occur.
+**User goal**: deposit into a vault (USDC or Local), earn yield, withdraw.
 
 **AS-IS routes**:
 
 ```
-/demo/lend                            vault index, 4 tranches listed
-  → /demo/lend/vaults/[id]            detail page, deposit form
-  → /demo/lend/onboard                accredited LP application (form)
-  → /demo/lend/liquidity              liquidity strategy explainer
+/demo/lend                    vault index, currently 4 fixture rows (institutional/retail × USDC/BRL)
+  → /demo/lend/vaults/[id]    detail page, deposit form (mocked deposit)
+  → /demo/lend/onboard        accredited LP application (form-only)
+  → /demo/lend/liquidity      liquidity strategy explainer
 ```
 
-**AS-IS journey**:
+**Issue (open question)**: should the 4 fixture rows simplify to 2 (USDC + Local)? The app does not support KYB/business accounts; "institutional" rows are messaging only. **Awaiting user verdict in §7.**
 
-1. Lands on `/demo/lend`. Sees 4 vault cards: Institutional USDC (senior, ~8% APY), Institutional BRL, Retail USDC (subordinate, ~9.5%), Retail BRL.
-2. Clicks Institutional USDC. Lands on `/demo/lend/vaults/inst-usdc`.
-3. Reads APY, TVL, 30-day flow, active loans, avg LTV, reserve %. Sparkline.
-4. Types deposit amount. Clicks "Deposit USDC". **KYC trigger**: `useKycGate("Deposit USDC")`. Modal → Sumsub iframe → SAS attestation → resume.
-5. On-chain `Vault.deposit` runs. LP receives vault share token (or in mock mode, session toast).
-6. (Optionally) navigates to `/demo/lend/onboard` for the institutional LP application: entity name, jurisdiction, AUM, accredited certification.
+**AS-IS journey** (assuming 2-vault simplified):
+
+1. Lands on `/demo/lend`. Sees 2 vault cards: USDC and Local (BRL).
+2. Clicks USDC → `/demo/lend/vaults/usdc`. Reads APY, TVL, sparkline.
+3. Types deposit amount. Clicks "Deposit USDC". **KYC gate** fires.
+4. Connects wallet. Today: only Phantom/Solflare via `<WalletMultiButton>`. **Build target**: `<UnifiedConnectButton>` showing Crossmint + wallet-adapter together.
+5. On-chain `Vault.deposit` runs.
 
 **Real vs. mocked**:
 
 | Step | Real | Mocked |
 |---|---|---|
-| Vault listing | Fixtures (`vault-tranches.ts`) | Should read from on-chain Vault config |
-| Deposit | Vault detail page is fully MOCKED (the page I wired KYC gate into earlier today — the deposit itself uses `setTimeout` + toast); `<LendDepositPanel>` on `/demo/lend` does real on-chain deposit | Inconsistent; two parallel code paths |
+| Vault listing | Fixtures (`vault-tranches.ts`) | Should read from on-chain `VaultConfig` |
+| Deposit (`/demo/lend/page.tsx` via `<LendDepositPanel>`) | On-chain ✅ | — |
+| Deposit (`/demo/lend/vaults/[id]/page.tsx`) | `setTimeout` toast | MOCKED — different code path from `/demo/lend` |
 | KYC | Real Sumsub + on-chain SAS ✅ | Sandbox only |
-| LP application | Form-only, no submission | No backend |
+| Wallet connect | Phantom/Solflare via wallet-adapter ✅ | Crossmint not exposed here |
 
-**IDEAL production journey**:
+**IDEAL production journey** (simplified, retail-focused):
 
-1. Connects wallet (institutional probably has its own custody — Fireblocks, Anchorage). Whitelisted via off-chain master agreement signature, then `whitelist_lp` ix.
-2. KYC bypass for whitelisted entities (or a B2B-grade Sumsub flow).
-3. Deposits via on-chain `Vault.deposit`. Receives vault share token.
-4. Yield accrues from disbursements + repayments; APY recomputes on-chain.
-5. Withdrawal via `Vault.withdraw` subject to 80% utilization cap (queue if over). Real waterfall: senior tranche paid before subordinate.
-6. Default events surface in dashboard with a link to the auction page.
+1. Connects wallet via unified Crossmint + wallet-adapter button.
+2. KYC at first deposit (lazy gate via `useKycGate`).
+3. Reads + accepts vault terms (regulamento, taxa de administração, public auditor for FIDC if Local vault is Brazil-FIDC-wrapped).
+4. Stablecoin deposited via on-chain `Vault.deposit`.
+5. For Local vault (FIDC): stablecoin routed to FIDC intake address, fund admin issues quota token (post-legal-readiness; deferred).
+6. Yield distributed; withdrawal via `Vault.withdraw` subject to utilization cap.
+
+**Production-facing without UI** (for completeness — see §1):
+
+- **Institutional direct lending**: routes via Kamino / Plume integrations. NOT a Vaulx UI flow in v1. Real institutionals have their own custody (Fireblocks, Anchorage) and access Vaulx vaults via DeFi aggregators, not via Vaulx's web app.
 
 **Gaps**
 
-- **UX**: vault detail page is two pages (mocked deposit on `/demo/lend/vaults/[id]`, real deposit via `<LendDepositPanel>` on `/demo/lend` — see Redundancy below).
-- **Data/model**: vault config + APY are fixtures, not on-chain reads.
-- **On-chain**: no utilization cap enforcement on withdraw; no withdrawal queue; no waterfall logic across tranches.
-- **Off-chain integrations**: institutional onboarding has no real backend.
-- **Compliance/legal**: master lending agreement template absent. Whitelist gate absent.
-- **Security**: no LP-side multisig support documented.
+- **UX**:
+  - 4 fixture rows should reduce to 2 (USDC + Local) for clarity
+  - Crossmint not exposed in lender top-bar
+  - Two parallel deposit code paths (`<LendDepositPanel>` real vs `/demo/lend/vaults/[id]` mocked)
+- **Data/model**:
+  - Vault config + APY are fixtures, not on-chain reads
+- **On-chain**:
+  - Withdrawal queue, utilization cap, waterfall logic absent
+- **Off-chain integrations**:
+  - FIDC integration absent (deferred)
+- **Compliance/legal**:
+  - FIDC vehicle absent (3-6 month legal project, deferred)
+- **Security**:
+  - LP-side multisig support not documented
 
 **Redundancy**
 
-- **Two deposit code paths for the same intent**: `/demo/lend/page.tsx` (uses `<LendDepositPanel>`, real on-chain) vs `/demo/lend/vaults/[id]/page.tsx` (mocked `setTimeout`). Different UIs, different code. Either consolidate (one component, swap data source) or accept that vault-detail is "marketing/inspection" and `/demo/lend` is "transact".
-- `/lend/vaults/[id]` (legacy) renders "INVALID VAULT — retail-usdc is not a valid asset mint" for canonical fixture slugs. **DELETE.**
-- `/lend/vaults` and `/lend` already redirect to demo. KEEP redirects, DELETE source.
+- `<LendDepositPanel>` (real) vs `/demo/lend/vaults/[id]` (mocked) — MERGE into single `<DepositForm>` parameterized by env.
+- `/lend/vaults/[id]` legacy renders error for canonical fixtures — DELETE.
+- `/lend/auctions/[id]` legacy same — DELETE.
 
-**Decision**: KEEP_PROD `/demo/lend`, `/demo/lend/vaults/[id]`, `/demo/lend/onboard`, `/demo/lend/liquidity`. MERGE the two deposit code paths (single canonical component reading from on-chain or fixture per env). DELETE `/lend/vaults/[id]` and `/lend/auctions/[id]` source files; keep redirects.
+**Decision**
+
+- KEEP_PROD `/demo/lend`, `/demo/lend/vaults/[id]`, `/demo/lend/onboard`, `/demo/lend/liquidity`.
+- **MERGE** the two deposit code paths.
+- **BUILD** `<UnifiedConnectButton>` and replace `<WalletMultiButton>` calls.
+- DECIDE (§7): collapse 4 fixture rows to 2.
+- DELETE `/lend/vaults/[id]`, `/lend/auctions/[id]` source files; keep parent redirects.
 
 ---
 
-### 2.4 Retail Lender via FIDC
+### 2.4 (merged into 2.3 — Retail FIDC)
 
-> *A São Paulo retail investor wants to put R$10K of stablecoin yield into Brazilian luxury-watch credit, but the regulatory wrapper has to be a FIDC quota (Brazilian SEC-compliant fund) — not a direct DeFi vault token.*
-
-**User goal**: invest in a tokenized FIDC quota that wraps the on-chain Vaulx vault, get monthly yield, withdraw quarterly.
-
-**AS-IS routes**: same as 2.3 — routed to retail vault rows on `/demo/lend/vaults/{retail-usdc,retail-brl}`. **No FIDC-specific UI.**
-
-**AS-IS journey**: identical to institutional today. The "FIDC wrapper" is described in the marketing copy but is not implemented as a separate flow.
-
-**Real vs. mocked**: 100% mocked at the FIDC layer.
-
-**IDEAL production journey**:
-
-1. Connects wallet. Retail Sumsub flow (full doc + selfie or Brazil Non-Doc).
-2. Reads + accepts FIDC quota terms (regulamento, taxa de administração, public auditor).
-3. Stablecoin routed to a FIDC intake address (managed by Vórtx / Oliveira Trust as fund administrator).
-4. FIDC quota token issued to retail investor's wallet (Tokeny ERC-3643 if Polygon, or a Solana ERC-3643-like standard).
-5. Yield distributed monthly. Withdrawal queued quarterly.
-
-**Gaps**
-
-- **UX**: FIDC-specific consent screen absent. Retail risk disclosure absent.
-- **Data/model**: FIDC quota token contract absent on Solana.
-- **On-chain**: no FIDC-quota mint logic; no monthly distribution cron.
-- **Off-chain integrations**: Vórtx / Oliveira Trust fund admin onboarding absent.
-- **Compliance/legal**: CVM-registered FIDC vehicle is a 3-6 month legal project, not in code.
-- **Security**: redemption queue and auditor publication infrastructure absent.
-
-**Redundancy**: shares the deposit-path duplication noted in 2.3.
-
-**Decision**: KEEP_DEMO the retail vault rows on `/demo/lend` for narrative purposes. MARK FIDC integration as DEFER for prod. Document that retail flow is **not yet legally productionable** in any UI copy that promises retail access.
+This persona is now part of 2.3 as the "Local" vault. FIDC integration is deferred to legal-readiness phase.
 
 ---
 
 ### 2.5 Custodian
 
-> *Cofre Brasil's vault operator in São Paulo receives a TRDC-confirmed Rolex shipment. Needs to confirm intake on-chain so the borrower's loan disburses.*
+> *Cofre Brasil's vault operator in São Paulo receives a TRDC-confirmed Rolex shipment. Confirms intake on-chain so the borrower's online appraiser SLA can begin and (later) the loan can disburse.*
 
-**User goal**: physically receive the asset, verify identity & condition, confirm on-chain custody so the loan can disburse.
+**User goal**: physically receive the asset, verify identity & condition, confirm on-chain custody.
 
 **AS-IS routes**:
 
 ```
-/custodian/intake/[trdc]    legacy intake page
-/custodian/done/[trdc]      legacy success page
-/demo/borrow/custody        borrower-side custody booking (different persona)
-/api/admin/demo/confirm-custody   admin shortcut to fire confirm_custody
-/api/onchain-events/custody-confirmed   webhook receiver
+/custodian/intake/[trdc]                      legacy intake page (fallback)
+/custodian/done/[trdc]                        legacy success page (fallback)
+/demo/borrow/custody                          borrower-side custody booking
+/api/admin/demo/confirm-custody               admin shortcut (operator key)
+/api/onchain-events/custody-confirmed         webhook receiver
 ```
 
-**AS-IS journey** (today, demo): the **borrower** books a slot via `/demo/borrow/custody`, then the **operator admin** clicks "Confirm Custody" in `/admin/demo`, which calls `/api/admin/demo/confirm-custody`. The legacy `/custodian/intake/[trdc]` is not part of the demo flow.
+**Verdict (user verdict §7 Q1 resolved)**: real custodians use their own systems and feed Vaulx via API/webhook. Vaulx UI is fallback only.
 
-**Real vs. mocked**:
+**AS-IS journey**: borrower books via `/demo/borrow/custody`. Operator admin clicks "Confirm Custody" in `/admin/demo`. Legacy `/custodian/intake/[trdc]` is not in the live demo.
 
-| Step | Real | Mocked |
-|---|---|---|
-| Booking | `useDemoSession` localStorage | No real custodian calendar |
-| Operator confirm | On-chain `confirm_custody` ix via operator key ✅ | Real custodian doesn't press a Vaulx button |
-| Webhook receiver | `/api/onchain-events/custody-confirmed` exists ✅ | No real custodian system POSTs to it |
+**Real vs. mocked**: webhook receiver exists ✅; no real custodian system POSTs to it today.
 
 **IDEAL production journey**:
 
-1. Asset arrives at Cofre Brasil vault. Operator scans QR code on packaging (links to TRDC mint address).
-2. Operator does physical verification: serial number match, condition check, photos.
-3. Operator's vault inventory system fires a webhook to Vaulx → `/api/onchain-events/custody-confirmed` → `confirm_custody` ix runs with the operator's signing key (NOT Vaulx's).
-4. Borrower's loan auto-disburses.
+1. Asset arrives at Cofre Brasil vault. Operator scans QR on packaging (TRDC mint ref).
+2. Operator does physical verification: serial match, condition, photos.
+3. Operator's vault inventory system fires webhook → `/api/onchain-events/custody-confirmed` → `confirm_custody` ix runs with operator's signing key (NOT Vaulx's).
+4. Custody confirmation **triggers offline appraiser SLA kickoff** (48h timer starts).
+
+**Webhook contract spec** (Phase 1 must be defined):
+
+```
+POST /api/onchain-events/custody-confirmed
+Headers:
+  X-Vaulx-Signature: HMAC-SHA256(body, custodian_secret), hex
+  X-Vaulx-Custodian-Id: cofre-sp-001
+  Content-Type: application/json
+Body:
+  {
+    "trdcMint": "<base58 pubkey>",
+    "scannedAt": "2026-04-29T14:30:00Z",
+    "conditionScore": 4.5,
+    "photos": ["<presigned URL>", ...],
+    "operator": "operator-id-internal-to-custodian",
+    "notes": "..."
+  }
+
+Server:
+  1. Verify HMAC against custodian_secret stored per custodian
+  2. Idempotent on (trdcMint): if already confirmed, return 200 + already=true
+  3. Call vault.confirm_custody ix with custodian signing key
+  4. On success: trigger offline-appraiser job creation (48h SLA timer)
+  5. Return 200 with on-chain tx signature
+```
 
 **Gaps**
 
-- **UX**: real custodians use their own inventory systems; the `/custodian/intake/[trdc]` UI is a placeholder we may never need.
-- **Data/model**: no QR generation pipeline tying TRDC mint → physical packaging.
-- **On-chain**: `confirm_custody` requires Vaulx operator key today; should accept a custodian-specific signer.
-- **Off-chain integrations**: zero real custodian webhooks.
-- **Compliance/legal**: SLA template with custodian absent.
-- **Security**: physical possession proof has no cryptographic binding.
+- Real custodians have no Vaulx UI today — the webhook must be defined, signed contracts negotiated.
+- Per-custodian signing keys not provisioned.
+- QR generation pipeline tying TRDC mint → physical packaging absent.
+- `confirm_custody` ix takes Vaulx operator signature today; should accept any whitelisted custodian signer.
 
 **Redundancy**
 
-- `/custodian/intake/[trdc]` and `/custodian/done/[trdc]` are legacy. They were the original Vaulx custodian UI; now superseded conceptually by webhook-driven flow.
+- `/custodian/intake/[trdc]` and `/custodian/done/[trdc]` are legacy fallback. Ugly chrome (legacy `<SiteHeader>`), but harmless.
 
-**Decision**: UNKNOWN_BLOCKED on the legacy `/custodian/*` routes — needs user verdict. My recommendation: **REMOVE from prod surface, KEEP_DEMO** as a fallback UI for partners who don't have inventory webhooks integrated. So: keep the source files, hide from public nav, gate behind basic-auth in prod.
+**Decision** (user verdict §7 Q1):
 
----
-
-### 2.6 Appraiser
-
-> *A senior watch specialist in Geneva receives an appraisal request blinded to the borrower's identity. Submits a USD valuation with photo evidence. Gets paid per appraisal.*
-
-**User goal**: receive blinded appraisal jobs, submit valuations, get paid.
-
-**AS-IS routes**: **NONE.** The codebase has `api/appraisal` (backend service that does triangular convergence) and `/demo/borrow/appraisal/[reqId]` (borrower-facing screen showing the convergence result), but **no appraiser workspace**.
-
-**Real vs. mocked**: the appraisal CONVERGENCE UI on the borrower side is real (calls the API). The appraiser-side workflow is 0% built.
-
-**IDEAL production journey**:
-
-1. Appraiser logs into `/appraiser` (does not exist).
-2. Sees queue of blinded requests: brand, model, serial (last 4 redacted), photos, urgency.
-3. Submits valuation in USD. Confidence range. Notes.
-4. System aggregates 3 sources → convergence → triggers next loan step.
-5. Appraiser invoiced monthly per submission.
-
-**Gaps**
-
-- **UX**: entire `/appraiser/*` workspace absent (queue, submission form, history).
-- **Data/model**: no appraiser identity, no payout ledger.
-- **On-chain**: appraisal results don't anchor on-chain today (not strictly required — just an off-chain trust signal).
-- **Off-chain integrations**: payout rail (USD ACH) absent.
-- **Compliance/legal**: appraiser NDA absent.
-- **Security**: blinding scheme not designed.
-
-**Redundancy**: none — there's nothing here to be redundant with.
-
-**Decision**: DEFER. Mark as a Phase-1 (post-hackathon) build. Until then, the triangular appraisal uses 1 online API + 1 offline source (hardcoded fixture) + 1 anchor (Chrono24 via Apify), which is enough for the demo narrative.
+- KEEP_DEMO `/custodian/intake/[trdc]`, `/custodian/done/[trdc]` — gate behind basic-auth before mainnet (same gate as `/admin/*`).
+- **BUILD** webhook contract + per-custodian signer whitelist (Phase 1, post-hackathon OK).
+- KEEP_DEMO `/api/admin/demo/confirm-custody` — operator-key shortcut for live demo.
 
 ---
 
-### 2.7 Licensed Lending Partner / SCD
+### 2.6a Online Appraiser
 
-> *A Brazilian SCD (sociedade de crédito direto) is the legal creditor of record on each CCB. Vaulx originates, the SCD issues. The SCD needs full legal-trail access.*
+> *A Geneva-based watch specialist receives blinded appraisal jobs at her desk. She's never told who the customer is, never told who the offline appraiser is. She has 24 hours to submit a USD valuation with confidence range.*
 
-**User goal**: receive each new loan request, sign CCB, hold legal counterparty role for borrower default workflows.
+**User goal**: receive blinded jobs, submit desk valuations with photo evidence, get paid per submission.
 
-**AS-IS routes**: **NONE in UI**. `<CcbDocument>` component renders CCB copy on `/demo/borrow/loan-offer/[reqId]`.
+**AS-IS routes**: **NONE.** No Online Appraiser workspace exists.
 
-**Real vs. mocked**: 0% built. Today Vaulx pretends to be the lender; in prod the SCD is.
+**AS-IS journey**: doesn't exist in the codebase.
+
+**Real vs. mocked**: 0% built.
 
 **IDEAL production journey**:
 
-1. SCD has a portal at `/scd/*` (does not exist) showing pending CCBs.
-2. SCD signs each CCB digitally (ICP-Brasil).
-3. CCB stored as legal artifact in SCD's system + Vaulx mirror.
-4. On default, SCD initiates extrajudicial recovery under DL 911/69.
-5. SCD has read access to repayment ledger.
+1. Online Appraiser logs into `/appraiser/online` (BUILD).
+   - Auth: separate workspace, basic-auth or per-appraiser invite link with token.
+2. Job queue shows blinded cases:
+   ```
+   Case VX-7A2F · Rolex Submariner 116610LN · borrower-redacted · ≤24h SLA · 18h remaining
+   Case VX-91C3 · Patek Philippe Nautilus 5711 · borrower-redacted · ≤24h SLA · 22h remaining
+   ```
+3. Click into case → submission form:
+   - Brand, model, ref number, serial (last 4 redacted)
+   - Photos uploaded by borrower (EXIF-stripped server-side)
+   - Inputs: valuation USD, confidence low/high, notes
+   - Submit
+4. After submit → job leaves queue → eval lands on Risk Officer work list.
+5. History view: past submissions, payouts (off-chain ACH or stablecoin payroll).
 
-**Gaps**
+**Trigger semantics** (per user verdict §7 Q3): online appraiser kickoff = **custody slot reserved + scheduled**. Specifically: when the borrower books a slot in `/demo/borrow/custody`, the system creates an `appraisal_case` row, generates a case code, assigns to an online appraiser from the pool, and starts the 24h SLA timer.
 
-- **UX**: full SCD workspace absent.
-- **Data/model**: SCD identity, CCB ID-to-loan mapping, signing-event audit trail — all absent.
-- **On-chain**: CCB hash on-chain anchors it but doesn't bind SCD as creditor; needs an SCD-signed attestation PDA.
-- **Off-chain integrations**: ICP-Brasil signature provider, SCD's own systems, default-trigger automation — all absent.
-- **Compliance/legal**: this is the single largest legal gap before mainnet.
-- **Security**: SCD-side key management and audit logging absent.
+**Blinding architecture** (load-bearing):
 
-**Redundancy**: none.
+- Appraiser sees: `case_code`, brand/model/serial-redacted, EXIF-stripped photos, urgency.
+- Appraiser DOES NOT see: borrower wallet, borrower email, borrower name, location, the OTHER appraiser's identity or eval, the existing API anchor value.
+- DB: `appraisal_case` table with `case_code` as the appraiser-facing identifier; `appraiser_id` foreign key for internal accounting only.
+- Server: case-fetch APIs return ONLY non-identifying fields. Appraiser-side endpoints reject any query attempting to enumerate by borrower or by other appraiser.
+- Photos: served via signed CDN URLs, EXIF-stripped on upload, no GPS / device id leakage.
 
-**Decision**: DEFER, but document clearly. Add a `<DemoBadge partner="SCD" />` to `/demo/borrow/loan-offer/[reqId]` so demo viewers know the legal layer is mocked.
+**Gaps** (everything is missing today):
+
+- UX: full `/appraiser/online/*` workspace.
+- Data/model: `appraisal_case`, `case_code`, `appraiser_submission` records.
+- On-chain: optional anchoring of submissions (hash of valuation + case-code-hash) — design choice.
+- Off-chain: payout rails (USD ACH or stablecoin payroll).
+- Compliance/legal: appraiser NDA template.
+- Security: blinding scheme rigour.
+
+**Decision**: **BUILD pre-hackathon** — full workspace at `/appraiser/online` and `/appraiser/online/[caseCode]`.
+
+---
+
+### 2.6b Offline Appraiser
+
+> *A São Paulo watchmaker working at the Cofre Brasil vault. Asset arrives, he gets a 48h slot to physically inspect. Takes his own photos and videos. Looks for hidden defects the borrower didn't disclose. Submits a USD valuation with full notes.*
+
+**User goal**: same as 2.6a, but with physical access and the additional responsibility of finding hidden defects.
+
+**AS-IS routes**: **NONE.**
+
+**AS-IS journey**: doesn't exist.
+
+**IDEAL production journey**:
+
+1. Offline Appraiser logs into `/appraiser/offline` (BUILD).
+2. Job queue shows ONLY cases where asset has physically arrived at his vault (custody confirmed):
+   ```
+   Case VX-7A2F · Rolex Submariner 116610LN · in vault since Tue 09:00 · ≤48h SLA · 36h remaining
+   ```
+3. Click into case → enhanced submission form:
+   - Same blinded fields as 2.6a (case code, brand/model/serial-redacted)
+   - **PLUS** ability to take and upload OWN photos and videos (with EXIF/GPS auto-stripped server-side)
+   - **PLUS** defect checklist: case condition, movement integrity, dial flaws, bracelet condition, water-resistance signs, etc.
+   - **PLUS** flags for: undisclosed damage, suspected counterfeit, suspected stolen (triggers escalation), service history mismatch
+   - Inputs: valuation USD, confidence low/high, defect notes, hidden-defect notes (separate field), authenticity verdict
+   - Submit
+4. After submit → joins online appraiser submission and API anchor on Risk Officer work list.
+
+**Trigger semantics**: offline appraiser kickoff = custody confirmed (asset has physically arrived at vault). 48h SLA timer starts then.
+
+**Blinding architecture**: identical to 2.6a. Critically, **offline appraiser cannot see online appraiser's submission**, even though they're working on the same case_code. (The Risk Officer is the only persona that sees both.)
+
+**Photo handling clarification** (per user verdict §7 Q1 photo): offline appraiser sees the borrower's submitted photos AS WELL AS his own newly-captured photos/videos. Risk Officer sees everything. Online appraiser never sees offline-appraiser's photos.
+
+**Gaps**: same as 2.6a, plus:
+
+- Photo/video capture pipeline integrated with vault hardware (cameras, scanners)
+- Defect checklist UX (custom for watch category — different for art, real estate, etc. in future)
+- Authenticity verification escalation flow
+
+**Decision**: **BUILD pre-hackathon** — full workspace at `/appraiser/offline` and `/appraiser/offline/[caseCode]`.
+
+---
+
+### 2.7 SCD partner / Licensed Lending Partner
+
+> *A Brazilian SCD (sociedade de crédito direto) is the legal creditor of record on each CCB. Vaulx originates, the SCD issues. Most modern SCDs expose REST APIs for digital CCB issuance.*
+
+**User goal**: receive each new CCB request, sign digitally, return signed CCB reference. Hold legal counterparty role for default workflows.
+
+**AS-IS**: zero — no UI, no API integration. `<CcbDocument>` renders CCB copy on `/demo/borrow/loan-offer/[reqId]`.
+
+**Architecture decision** (open question in v1, refined in v2):
+
+Many Brazilian SCDs (Cooperforte, FidoCred, etc.) expose REST APIs for digital CCB issuance. **If Vaulx integrates via API**, the SCD never sees a Vaulx UI:
+
+- Vaulx sends JSON `{borrower, asset, terms}` to SCD endpoint.
+- SCD returns signed CCB reference.
+- Stored on Vaulx side + SCD side.
+- For default: SCD initiates extrajudicial recovery via DL 911/69; Vaulx triggers the on-chain auction.
+
+This collapses Persona 7 from "needs a portal" to "no UI surface needed; API client".
+
+**Decision**:
+
+- **DEFER** SCD UI design.
+- **DOCUMENT** as architecture decision: the prod path is API-client integration with a partner SCD, not a Vaulx-built portal.
+- Add `<DemoBadge partner="SCD">` to `/demo/borrow/loan-offer/[reqId]` and (post-rewrite) `/demo/borrow/final-terms/[reqId]` so demo viewers know the legal layer is mocked.
 
 ---
 
 ### 2.8 Auction Bidder / Recovery Buyer
 
-> *A whitelisted luxury-watch reseller enters Vaulx auctions when borrowers default. Buys the watch at 15-20% below market, gets clean title.*
+> *A whitelisted luxury-watch reseller enters Vaulx auctions when borrowers default. Buys at 15-20% below market.*
 
 **User goal**: bid on defaulted collateral, win, receive asset + cleared title.
 
@@ -425,220 +617,179 @@ Two roles the council flagged but the codebase does not yet surface:
 /lend/auctions/[id]        legacy (renders error)
 ```
 
-**AS-IS journey**:
-
-1. Operator clicks "Default & Auction" in `/admin/demo` → triggers `default-and-auction` endpoint → on-chain default + auction creation.
-2. Bidder navigates to `/demo/auction`. Sees list with countdown timers.
-3. Clicks into `/demo/auction/[trdc]`. Reads asset details, current high bid, time remaining.
-4. Connects wallet, places bid, receives confirmation.
-5. Auction settles → highest bidder gets the asset; protocol takes 5% fee.
+**AS-IS journey**: operator forces default in `/admin/demo` → auction created → bidder lands on `/demo/auction`, sees countdown, bids.
 
 **Real vs. mocked**:
 
 | Step | Real | Mocked |
 |---|---|---|
-| Auction list | API + fixtures (`auction-bids.ts`, `auction-floor.ts`) | Mostly fixtures |
-| Default trigger | Admin button → on-chain ✅ | Bypasses 7-day notice period |
-| Bidding UI | API endpoint exists | Demo-only timer (60s instead of 7d) |
-| Settlement | TBD on-chain | — |
+| Auction list | API + fixtures | Mostly fixtures |
+| Default trigger | Admin button → on-chain ✅ | Bypasses 7-day notice |
+| Bidding UI | API endpoint exists | Demo timer 60s instead of 7d |
+| Settlement | TBD | — |
 | Whitelist | Not enforced | Should be enforced |
 
 **IDEAL production journey**:
 
-1. SCD initiates extrajudicial recovery under DL 911/69 (off-chain legal event).
-2. Squads multisig calls `execute_default` (on-chain).
+1. SCD initiates extrajudicial recovery under DL 911/69 (off-chain).
+2. Squads multisig calls `execute_default` on-chain.
 3. 7-day privileged auction window opens. Whitelisted bidders only: existing lenders of that vault + 20 pre-approved watch resellers.
 4. Bids clear at 15-20% below M3 median.
 5. Winning bidder receives asset; remaining proceeds (if any) return to borrower.
-6. Unsold lots roll to public luxury auction houses (Sotheby's, Christie's, etc.).
 
 **Gaps**
 
-- **UX**: whitelist UI absent. 7-day timer is currently 60s for demo. No "M3 median" rendered in pricing context.
-- **Data/model**: bidder whitelist not on-chain.
-- **On-chain**: `execute_default` requires Squads multisig signature in prod; today uses single operator key.
-- **Off-chain integrations**: DL 911/69 paperwork generation absent.
-- **Compliance/legal**: legal validity of auction settlement absent.
-- **Security**: no challenge period; no escrow guarantees.
+- Whitelist UI absent. 7-day timer is 60s for demo. Squads multisig integration absent. DL 911/69 paperwork generation absent.
 
-**Redundancy**
+**Redundancy**: `/lend/auctions/[id]` legacy → DELETE.
 
-- `/lend/auctions/[id]` (legacy) shows "INVALID AUCTION" for canonical IDs. DELETE.
-
-**Decision**: KEEP_PROD `/demo/auction`, `/demo/auction/[trdc]`. DELETE `/lend/auctions/[id]` source. Migrate timer + whitelist + multisig to prod-grade post-hackathon.
+**Decision**: KEEP_PROD `/demo/auction*`. DELETE `/lend/auctions/[id]` source. Migrate timer + whitelist + multisig to prod-grade post-hackathon.
 
 ---
 
 ### 2.9 Operations Admin (devnet ops)
 
-> *Vaulx operator running the live demo for judges. Needs to step the borrower flow through any stage, reset state, mint test USDC, simulate custody confirm + default + auction.*
-
-**User goal**: drive the demo on stage; respond to judge "what happens if X" questions.
+> *Vaulx operator running the live demo. Drives state changes through the cockpit.*
 
 **AS-IS routes**:
 
 ```
-/admin/demo                cockpit (multi-button)
-/api/admin/demo/disburse
-/api/admin/demo/confirm-custody
-/api/admin/demo/seed-pool
-/api/admin/demo/mint-trdc
-/api/admin/demo/repay
-/api/admin/demo/default-and-auction
-/api/admin/demo/reset
+/admin/demo                  cockpit
+/api/admin/demo/{disburse, confirm-custody, seed-pool, mint-trdc, repay, default-and-auction, reset}
+/api/admin/tests/stream      live SSE Anchor test runner
 ```
 
-**AS-IS journey**:
+**AS-IS journey**: operator opens cockpit, clicks one of 7 buttons.
 
-1. Operator opens `/admin/demo`.
-2. Clicks one of 7 buttons depending on demo phase. Each button hits its endpoint, signs with operator key, runs on-chain.
-3. Watches result toast.
+**Real vs. mocked**: 100% real on-chain on Devnet ✅.
 
-**Real vs. mocked**: 100% real on-chain on Devnet ✅. The page itself is a thin wrapper around 7 API calls.
+**Production**: this persona is **devnet-only**. In prod, replaced by:
 
-**IDEAL production journey** (this persona is **devnet-only**):
+- automated cron for `mark_overdue`
+- webhooks for custody-confirmed
+- Squads multisig for default/auction
 
-In production, Operations Admin is replaced by:
-- automated cron for `mark_overdue` (no human button)
-- webhooks for custody-confirmed (no human button)
-- Squads multisig for default/auction (separate persona — see 2.11)
+**Gap**: no basic-auth on `/admin/demo` today. **Anyone with the URL can fire ops endpoints. Security gap.**
 
-So the entire `/admin/demo` cockpit is **demo-only infrastructure**. It must not ship to mainnet.
-
-**Gaps**
-
-- No basic-auth on `/admin/demo` today — anyone with the URL can fire ops endpoints. **Security gap.**
-- No `NODE_ENV !== "production"` guard on the route + endpoints.
-
-**Redundancy**: none — the cockpit is purpose-built.
-
-**Decision**: KEEP_DEMO `/admin/demo`. Add `NEXT_PUBLIC_VAULX_ADMIN_PUBKEY` cookie-or-header guard before mainnet. Document as devnet-only.
+**Decision** (user verdict §7 Q3): KEEP_DEMO `/admin/demo` and `/admin/tests`. **BUILD** basic-auth gating using `NEXT_PUBLIC_VAULX_ADMIN_PUBKEY` cookie pattern. Document as devnet-only.
 
 ---
 
-### 2.10 Risk / Compliance Admin
+### 2.10a KYC / AML Reviewer (DEFERRED)
 
-> *A Vaulx compliance officer reviews flagged Sumsub applicants, tracks SCD audit events, monitors AML alerts.*
+> *Compliance officer who reviews flagged Sumsub applicants and AML alerts.*
 
-**User goal**: review high-risk applicants, freeze accounts, generate audit trails.
+**AS-IS**: no UI.
 
-**AS-IS routes**: **NONE.**
+**IDEAL**: `/risk` workspace (does not exist) showing YELLOW Sumsub queue, account-freeze actions, AML alerts.
 
-**AS-IS journey**: doesn't exist in the codebase.
-
-**Real vs. mocked**: 0% built. The on-chain `KycAttestation` PDA can be revoked via `close_kyc_attestation` admin ix, but there's no UI.
-
-**IDEAL production journey**:
-
-1. `/risk` (does not exist) shows queue of YELLOW Sumsub reviews.
-2. Officer views applicant details, escalates or approves.
-3. Freeze action calls `freeze_account` ix (does not exist).
-4. AML alerts surface from on-chain transaction monitoring (does not exist).
-5. Audit log exports to PDF for regulator.
-
-**Gaps**: everything. UI, model, on-chain freeze ix, AML monitoring, audit export.
-
-**Redundancy**: none.
-
-**Decision**: DEFER to Phase 1. Document the missing surface so it's not forgotten.
+**Decision**: DEFER to Phase 1.
 
 ---
 
-### 2.11 Treasury / Governance / Squads Multisig
+### 2.10b Evaluation Risk Officer (BUILD NOW)
 
-> *Vaulx founders + Marcelo + Edson form a 2-of-3 Squads multisig that owns program upgrade authority, vault parameters, and default execution.*
+> *Vaulx compliance/risk officer. Sees the trilateral landed in queue, reviews convergence, assigns prudent value within bounded override.*
 
-**User goal**: upgrade programs safely; tune parameters; execute defaults under multisig consent.
+**User goal**: prevent fraud, prevent collusion, ensure prudent loan-to-value.
 
-**AS-IS routes**: **NONE in Vaulx UI.** Uses Squads' own UI at app.squads.so.
-
-**AS-IS journey**: today, operator key signs all admin actions. Program upgrade authority is **already** the Squads V4 PDA per commit `5e90d81`, but admin actions (`set_kyc_required`, vault config, etc.) use the operator key.
-
-**Real vs. mocked**:
-
-| Step | Real | Mocked |
-|---|---|---|
-| Program upgrade authority | Squads V4 vault PDA ✅ | — |
-| Admin instructions | Operator key (single signer) | Should require Squads multisig |
-| Default execution | Single signer | Should require Squads |
+**AS-IS**: **NONE.** No UI, no work queue, no convergence logic.
 
 **IDEAL production journey**:
 
-1. Founder proposes a program upgrade or parameter change in Squads UI.
-2. 2-of-3 signatures collected.
-3. Squads PDA executes the on-chain ix.
-4. Vaulx UI shows current parameter values (read-only).
+1. Login at `/admin/evaluations` (BUILD). Auth: gated like other admin routes (basic-auth or wallet-pubkey check).
+2. Work queue shows pending cases:
+   ```
+   Case VX-7A2F · Rolex Submariner 116610LN
+     API anchor   : $14 800 (WatchCharts)
+     Online       : $13 500 (submitted by appraiser X, 6h ago) — case anonymity respected, but Risk Officer DOES see appraiser ID for audit
+     Offline      : $5 200 (submitted by appraiser Y, 2h ago) — flagged: hidden defects in dial
+     SPREAD       : 65% — DIVERGENT — needs review
+     [Open case →]
+   ```
+3. Click case → review screen:
+   - All 3 evals side-by-side with full notes
+   - Photos from borrower + offline appraiser's photos/videos
+   - Defect flags from offline
+   - Bounded override slider:
+     ```
+     Prudent value:    $5 200    [|________________]    $14 800
+                       MIN              ↑               MAX
+                                        $5 500 (override)
+     ```
+   - Risk Officer enters prudent value → must be within `[min, max]` of the 3 evals (strict α — see §7 Q-D).
+   - Decision buttons:
+     - **Accept** → final terms generated using prudent value → notification fires to borrower
+     - **Audit** → manual audit workflow (does not trigger 4th eval — per user verdict §7 Q-D); flags case for further investigation
+     - **Decline** → loan declined; asset return triggered for borrower
+4. After accept: state transitions; borrower sees `/demo/borrow/final-terms/[reqId]`.
 
-**Gaps**
+**Bounded override formula** (user verdict: stay within bounds, no 4th eval):
 
-- **UX**: no read-only parameter display in Vaulx UI.
-- **On-chain**: admin ixs accept single-signer; need to verify Squads PDA can sign them.
-- **Off-chain integrations**: Squads SDK not used in any client.
-- **Compliance/legal**: multisig key-recovery procedures absent.
-- **Security**: emergency pause + emergency-only admin paths absent.
+- `prudent_value ∈ [min(API, online, offline), max(API, online, offline)]` (strict α — recommended).
+- If Risk Officer wants to go below floor or above ceiling: must "Audit" or "Decline", not "Accept with override".
 
-**Redundancy**: none.
+**Blinding visibility rules**:
 
-**Decision**: DEFER UI to post-hackathon. Add a small "Admin → Squads" link in `/admin/demo` for navigation continuity.
+- Risk Officer is the ONLY persona that sees:
+  - All 3 evaluations side-by-side
+  - Both appraiser identities
+  - Borrower identity
+  - Borrower-uploaded photos + offline-captured photos
+- Risk Officer's actions (accept/audit/decline) are logged with their identity for audit trail.
+
+**Workflow**:
+
+```
+1. API anchor created on borrower commit (auto)            ← eval 1
+2. Custody booking → online appraiser job created → 24h SLA starts
+3. Online appraiser submits                                 ← eval 2
+4. Custody confirmed → offline appraiser job created → 48h SLA starts
+5. Offline appraiser submits (with own photos + defect flags)  ← eval 3
+6. Case appears on /admin/evaluations queue
+7. Risk Officer reviews, decides accept/audit/decline
+8. If accept: prudent value committed → final terms generated → borrower notified
+```
+
+**Gaps** (everything missing today):
+
+- UX: full `/admin/evaluations/*` workspace.
+- Data/model: case work queue, decision audit log, override-bound enforcement.
+- On-chain: optional commit of prudent value as on-chain attestation by Risk Officer's key.
+- Off-chain: borrower notification (email/WhatsApp) on decision.
+- Security: Risk Officer auth must be stronger than other admin (sees borrower PII + appraiser identities).
+
+**Decision**: **BUILD pre-hackathon** — full workspace at `/admin/evaluations` and `/admin/evaluations/[reqId]`.
+
+---
+
+### 2.11 Treasury / Squads multisig
+
+> *Founders + Marcelo + Edson form a 2-of-3 Squads multisig owning program upgrade authority + parameter changes + default execution.*
+
+**AS-IS**: no Vaulx UI. Uses Squads UI directly. Program upgrade authority is ALREADY the Squads V4 vault PDA per commit `5e90d81`.
+
+**Decision**: DEFER. Add a small "Admin → Squads" link in `/admin/demo` for navigation continuity post-hackathon.
 
 ---
 
 ### 2.12 Visitor / Judge
 
-> *A Colosseum judge or potential investor lands on the Vaulx homepage. Has 90 seconds. Wants to understand what it is and try the demo.*
+> *Colosseum judge or potential investor. Has 90 seconds.*
 
-**User goal**: understand Vaulx in <2 minutes; pick a path (lend or borrow); try it without commitment.
+**AS-IS routes**: `/`, `/demo`, `/demo/architecture`.
 
-**AS-IS routes**:
-
-```
-/                          marketing landing
-/demo                      demo entry hub
-/demo/architecture         architecture pitch slide
-```
-
-**AS-IS journey**:
-
-1. Lands on `/`. Reads hero ("Lend against the world's most resilient assets.").
-2. Scrolls. Sees the 6-step explainer (`05 Sign — Download and sign the Brazilian CCB...`).
-3. Clicks one of the demo CTAs → `/demo/lend` or `/demo/borrow/onboard`.
-4. Optionally `/demo/architecture` for technical pitch.
-
-**Real vs. mocked**: marketing pages are static + fixtures.
-
-**IDEAL production journey**: same shape, with refreshed copy when prod is live.
-
-**Gaps**
-
-- Favicon 404 on every route (~known, cosmetic).
-- "Demo" badging is implicit; some judges may not realise it's not live.
-
-**Redundancy**: none.
-
-**Decision**: KEEP_DEMO + KEEP_PROD. Marketing pages stay as the front door.
+**Decision**: KEEP. Marketing pages stay.
 
 ---
 
 ### 2.13 Demo Operator (live walkthrough host)
 
-> *Vaulx founder or staff running the demo on stage at Colosseum. Needs to recover from broken states fast.*
+> *Vaulx founder running the demo on stage.*
 
-**User goal**: reset / advance the demo without leaving the page.
+**AS-IS routes**: `/admin/tests`, `/demo/dev/bezel`.
 
-**AS-IS routes**:
-
-```
-/admin/tests        live SSE Anchor test runner
-/demo/dev/bezel     "Hello bezel" sandbox
-```
-
-**AS-IS journey**: ad-hoc — open `/admin/tests` to verify on-chain code is healthy; use `/admin/demo` (covered in 2.9) for state actions.
-
-**Real vs. mocked**: `/admin/tests` is real (streams `anchor test` output via SSE). `/demo/dev/bezel` is a "Hello world" page that's not used.
-
-**IDEAL production journey**: this persona ceases to exist post-hackathon.
-
-**Decision**: KEEP_DEMO `/admin/tests` (useful for live debugging). DELETE `/demo/dev/bezel`.
+**Decision** (user verdict §7 Q4): KEEP_DEMO `/admin/tests`. **DELETE** `/demo/dev/bezel`.
 
 ---
 
@@ -646,158 +797,177 @@ So the entire `/admin/demo` cockpit is **demo-only infrastructure**. It must not
 
 51 page routes in `apps/web/src/app/**/page.tsx` as of `8ecfae1`. Each gets a verdict.
 
-Legend:
-- **KEEP_PROD** — required for production user journey
-- **KEEP_DEMO** — required for hackathon/demo only; gate behind env or remove for mainnet
-- **MERGE** — valuable but duplicates another route; consolidate
-- **DEFER** — real future need, build post-hackathon
-- **DELETE** — no clear user, no journey, no legal need; safe to remove
-- **UNKNOWN_BLOCKED** — needs user verdict before deletion
+Legend (refined v2):
+- **KEEP_PROD** — required for production
+- **KEEP_DEMO** — hackathon/demo only; gate behind basic-auth in prod
+- **MERGE** — duplicates another route; consolidate
+- **DEFER** — real future need; build post-hackathon
+- **DELETE** — no clear user, no journey, no legal need
+- **BUILD** — must build pre-hackathon (new route)
+- **MIGRATE** — legacy, but value should move to a new demo route
+- **UNKNOWN_BLOCKED** — needs user verdict
 
-### 3.1 Marketing / entry (3)
+### 3.1 Marketing / entry (3 routes)
 
-| Route | Persona | Demo moment | Prod | Status | Verdict | Reason |
-|---|---|---|---|---|---|---|
-| `/` | Visitor | Cold open | yes | real | KEEP_PROD | Marketing front door |
-| `/demo` | Visitor | Demo hub | no | real | KEEP_DEMO | Demo-only entry; not needed in prod |
-| `/demo/architecture` | Visitor (technical) | Architecture pitch | no | real | KEEP_DEMO | Pitch slide for judges |
+| Route | Persona | Verdict | Reason |
+|---|---|---|---|
+| `/` | Visitor | KEEP_PROD | Marketing front door |
+| `/demo` | Visitor | KEEP_DEMO | Demo-only entry |
+| `/demo/architecture` | Visitor | KEEP_DEMO | Pitch slide |
 
-### 3.2 Borrower demo path (16)
+### 3.2 Borrower demo path — current routes (16)
 
-| Route | Persona | Demo moment | Prod | Status | Verdict | Reason |
-|---|---|---|---|---|---|---|
-| `/demo/borrow/onboard` | First-time Borrower | Step 1 intro | yes | real | KEEP_PROD | Single-step explainer |
-| `/demo/borrow/wallet` | First-time Borrower | Step 2 sign-in | yes | Crossmint sandbox | KEEP_PROD | Sign-in surface |
-| `/demo/borrow/register` | First-time Borrower | Step 3 asset form + KYC gate | yes | mocked persistence | KEEP_PROD | Hero CTA |
-| `/demo/borrow/appraisal/[reqId]` | First-time Borrower | Step 4 triangular appraisal | yes | partial real | KEEP_PROD | Convergence UI is the wow moment |
-| `/demo/borrow/loan-offer/[reqId]` | First-time Borrower | Step 5 terms + CCB preview | yes | mocked SCD | KEEP_PROD | Conversion screen |
-| `/demo/borrow/custody` | First-time Borrower | Step 6 booking | yes | fixtures | KEEP_PROD | Booking step |
-| `/demo/borrow/awaiting-custody/[trdc]` | First-time Borrower | Step 7 wait state | yes | webhook poll real | KEEP_PROD | Bridges off-chain → on-chain |
-| `/demo/borrow/disburse` | First-time Borrower | Step 8 KYC gate + disburse | yes | on-chain real | KEEP_PROD | Money-touching CTA |
-| `/demo/borrow/funds` | First-time Borrower | Step 9 spend hub | yes | UI only | KEEP_PROD | Hub |
-| `/demo/borrow/funds/card` | First-time Borrower | Step 9a card | partial | shell only | KEEP_DEMO | No real BIN sponsor |
-| `/demo/borrow/funds/pix` | First-time Borrower | Step 9b Pix | partial | shell only | KEEP_DEMO | No Dock/Celcoin yet |
-| `/demo/borrow/funds/wallet` | First-time Borrower | Step 9c wallet send | yes | real on-chain | KEEP_PROD | Real wallet send |
-| `/demo/borrow/dashboard` | Returning Borrower | Loan tracking | yes | partial real | KEEP_PROD | Active-loan view |
-| `/demo/borrow/renew` | Returning Borrower | Renewal flow | yes | mocked extend ix | KEEP_PROD | Highest-margin path |
-| `/demo/borrow/repay` | Returning Borrower | Repayment + release | yes | mocked release | KEEP_PROD | Required path |
-| `/demo/borrow/verify-id` | (none — dead) | (none) | no | dead post-Sumsub | DELETE | Civic/gov.br dropped today |
-| `/demo/borrow/verify-id/callback` | (none — dead) | (none) | no | dead | DELETE | Civic/gov.br dropped |
-| `/demo/borrow/verify-id/govbr-login` | (none — dead) | (none) | no | dead | DELETE | Civic/gov.br dropped |
-| `/demo/borrow/verify-id/redirecting` | (none — dead) | (none) | no | dead | DELETE | Civic/gov.br dropped |
+| Route | Persona | Verdict | Reason |
+|---|---|---|---|
+| `/demo/borrow/onboard` | First-time Borrower | KEEP_PROD | Step 1 intro |
+| `/demo/borrow/wallet` | First-time Borrower | KEEP_PROD | Sign-in surface |
+| `/demo/borrow/register` | First-time Borrower | KEEP_PROD | Asset form + KYC gate |
+| `/demo/borrow/appraisal/[reqId]` | First-time Borrower | KEEP_PROD | API anchor display + indicative |
+| `/demo/borrow/loan-offer/[reqId]` | First-time Borrower | **REWRITE** | Repurpose as `/demo/borrow/indicative-terms/[reqId]` (pre-custody) — NOT final terms |
+| `/demo/borrow/custody` | First-time Borrower | KEEP_PROD | Booking — triggers online appraiser kickoff |
+| `/demo/borrow/awaiting-custody/[trdc]` | First-time Borrower | KEEP_PROD | Wait state with dual SLA clocks |
+| `/demo/borrow/disburse` | First-time Borrower | KEEP_PROD | Money-touching CTA |
+| `/demo/borrow/funds` | First-time Borrower | KEEP_PROD | Spend hub |
+| `/demo/borrow/funds/card` | First-time Borrower | KEEP_DEMO | No real BIN sponsor yet |
+| `/demo/borrow/funds/pix` | First-time Borrower | KEEP_DEMO | No Pix integration yet |
+| `/demo/borrow/funds/wallet` | First-time Borrower | KEEP_PROD | Real wallet send |
+| `/demo/borrow/dashboard` | Returning Borrower | KEEP_PROD + EXTEND | Add per-loan detail link |
+| `/demo/borrow/renew` | Returning Borrower | KEEP_PROD | Renewal flow |
+| `/demo/borrow/repay` | Returning Borrower | KEEP_PROD | Repayment flow |
+| `/demo/borrow/verify-id*` (4 routes) | (none — dead) | DELETE | Civic/gov.br dropped |
 
-### 3.3 Lender demo path (4)
+### 3.3 Borrower demo path — NEW routes to BUILD (5)
 
-| Route | Persona | Demo moment | Prod | Status | Verdict | Reason |
-|---|---|---|---|---|---|---|
-| `/demo/lend` | LP | Lend index | yes | real deposit panel | KEEP_PROD | Lender front door |
-| `/demo/lend/vaults/[id]` | LP | Vault detail + deposit | yes | mocked deposit | KEEP_PROD + MERGE | Detail page valuable; merge deposit code with `/demo/lend` |
-| `/demo/lend/onboard` | Institutional LP | LP application | yes | form-only | KEEP_PROD | Onboarding intake |
-| `/demo/lend/liquidity` | LP | Strategy explainer | yes | static | KEEP_PROD | Explainer |
+| Route | Persona | Verdict | Reason |
+|---|---|---|---|
+| `/demo/borrow/final-terms/[reqId]` | First-time Borrower | **BUILD** | Post-Risk-Officer accept/decline |
+| `/demo/borrow/return-asset/[reqId]` | First-time Borrower | **BUILD** | Decline → asset return path |
+| `/demo/borrow/loans/[trdc]` | Returning Borrower | **BUILD** | Per-loan detail (LTV, schedule, next payment) |
+| `/demo/borrow/pay/[trdc]` | Returning Borrower | **BUILD** | Installment payment |
+| `/demo/borrow/loans/[trdc]/details` (or merge into `/demo/borrow/loans/[trdc]`) | Returning Borrower | optional | Could be one route — design call |
 
-### 3.4 Auction demo path (2)
+### 3.4 Lender demo path (4 + simplification decision)
 
-| Route | Persona | Demo moment | Prod | Status | Verdict | Reason |
-|---|---|---|---|---|---|---|
-| `/demo/auction` | Auction Bidder | Default → auction | yes | partial real | KEEP_PROD | Auction list |
-| `/demo/auction/[trdc]` | Auction Bidder | Bid UI | yes | partial real | KEEP_PROD | Bidding screen |
+| Route | Persona | Verdict | Reason |
+|---|---|---|---|
+| `/demo/lend` | Lender | KEEP_PROD | Index |
+| `/demo/lend/vaults/[id]` | Lender | KEEP_PROD + MERGE | Detail + merge deposit code path with `<LendDepositPanel>` |
+| `/demo/lend/onboard` | Lender | KEEP_PROD | Onboarding |
+| `/demo/lend/liquidity` | Lender | KEEP_PROD | Strategy explainer |
+| Vault fixture rows | — | UNKNOWN_BLOCKED (§7 Q11) | Collapse 4 → 2 (USDC + Local)? |
 
-### 3.5 Demo internal / sandbox (1)
+### 3.5 Auction demo path (2)
 
-| Route | Persona | Demo moment | Prod | Status | Verdict | Reason |
-|---|---|---|---|---|---|---|
-| `/demo/dev/bezel` | Demo Operator | none | no | "Hello bezel" stub | DELETE | No load-bearing role |
+| Route | Persona | Verdict | Reason |
+|---|---|---|---|
+| `/demo/auction` | Auction Bidder | KEEP_PROD | Index |
+| `/demo/auction/[trdc]` | Auction Bidder | KEEP_PROD | Bidding |
 
-### 3.6 Admin (2)
+### 3.6 NEW: Appraiser workspace (4 routes — BUILD)
 
-| Route | Persona | Demo moment | Prod | Status | Verdict | Reason |
-|---|---|---|---|---|---|---|
-| `/admin/demo` | Operations Admin | Cockpit, all 7 ops | demo only | real on-chain Devnet | KEEP_DEMO | Drives the demo; gate behind basic-auth |
-| `/admin/tests` | Demo Operator | Live SSE test runner | demo only | real | KEEP_DEMO | Live debugging during pitch |
+| Route | Persona | Verdict | Reason |
+|---|---|---|---|
+| `/appraiser/online` | Online Appraiser | **BUILD** | Job queue, 24h SLA visible |
+| `/appraiser/online/[caseCode]` | Online Appraiser | **BUILD** | Submission form, blinded |
+| `/appraiser/offline` | Offline Appraiser | **BUILD** | Job queue, 48h SLA visible |
+| `/appraiser/offline/[caseCode]` | Offline Appraiser | **BUILD** | Submission form + own photos + defect flags |
 
-### 3.7 Custodian legacy (2)
+### 3.7 NEW: Risk Officer workspace (2 routes — BUILD)
 
-| Route | Persona | Demo moment | Prod | Status | Verdict | Reason |
-|---|---|---|---|---|---|---|
-| `/custodian/intake/[trdc]` | Custodian | none in current demo | UNKNOWN | legacy | UNKNOWN_BLOCKED | Real custodians may want their own portal vs webhook |
-| `/custodian/done/[trdc]` | Custodian | none | UNKNOWN | legacy | UNKNOWN_BLOCKED | Same question |
+| Route | Persona | Verdict | Reason |
+|---|---|---|---|
+| `/admin/evaluations` | Evaluation Risk Officer | **BUILD** | Trilateral work queue |
+| `/admin/evaluations/[reqId]` | Evaluation Risk Officer | **BUILD** | Single review with bounded override |
 
-### 3.8 Legacy `/borrow/*` tree (10)
+### 3.8 Demo internal / sandbox (1)
 
-| Route | Demo moment | Prod | Status | Verdict | Reason |
-|---|---|---|---|---|---|
-| `/borrow/new/asset` | none | no | redirect | DELETE source | Already redirects to `/demo/borrow/onboard`; remove the source `page.tsx` |
-| `/borrow/new/appraisal/[reqId]` | none | no | client-redirect | DELETE | Superseded by `/demo/borrow/appraisal/[reqId]` |
-| `/borrow/new/terms/[reqId]` | none | no | client-redirect | DELETE | Superseded by `/demo/borrow/loan-offer/[reqId]` |
-| `/borrow/new/awaiting-custody/[trdc]` | none | no | live legacy | DELETE | Renders legacy chrome; superseded by demo equivalent |
-| `/borrow/loans/[trdc]/disburse` | none | no | live legacy | DELETE | Superseded by `/demo/borrow/disburse` |
-| `/borrow/loans/[trdc]/pay` | none | UNKNOWN | live legacy | UNKNOWN_BLOCKED | Per-installment payment — no demo equivalent; needs verdict |
-| `/borrow/loans/[trdc]/renew` | none | no | live legacy | DELETE | Superseded by `/demo/borrow/renew` |
-| `/borrow/loans/[trdc]/repaid` | none | no | live legacy | DELETE | Superseded by demo's in-page success state |
-| `/borrow/loans/[trdc]/repay` | none | no | live legacy | DELETE | Superseded by `/demo/borrow/repay` |
-| `/borrow/verify-id` | none | no | redirect to dead | DELETE redirect + target | Civic/gov.br dropped |
-| `/borrow/verify-id/callback` | none | no | redirect to dead | DELETE redirect | Civic/gov.br dropped |
-| `/borrow/verify-id/govbr-login` | none | no | redirect to dead | DELETE redirect | Civic/gov.br dropped |
-| `/borrow/verify-id/redirecting` | none | no | redirect to dead | DELETE redirect | Civic/gov.br dropped |
+| Route | Verdict | Reason |
+|---|---|---|
+| `/demo/dev/bezel` | DELETE (user verdict §7 Q4) | "Hello bezel" stub |
 
-### 3.9 Legacy `/lend/*` tree (5)
+### 3.9 Admin (2)
 
-| Route | Demo moment | Prod | Status | Verdict | Reason |
-|---|---|---|---|---|---|
-| `/lend` | none | no | redirect | KEEP redirect, DELETE source | Source is dead; redirect is cheap |
-| `/lend/vaults` | none | no | redirect | KEEP redirect, DELETE source | Same |
-| `/lend/vaults/[id]` | none | no | renders error | DELETE | "INVALID VAULT — retail-usdc is not a valid asset mint" |
-| `/lend/auctions` | none | no | redirect | KEEP redirect, DELETE source | Same |
-| `/lend/auctions/[id]` | none | no | renders error | DELETE | "INVALID AUCTION — t1 is not a valid pubkey" |
+| Route | Persona | Verdict | Reason |
+|---|---|---|---|
+| `/admin/demo` | Operations Admin | KEEP_DEMO + basic-auth | User verdict §7 Q3 |
+| `/admin/tests` | Demo Operator | KEEP_DEMO + basic-auth | Live SSE test runner |
 
-### Route count summary
+### 3.10 Custodian (2)
+
+| Route | Persona | Verdict | Reason |
+|---|---|---|---|
+| `/custodian/intake/[trdc]` | Custodian | KEEP_DEMO + basic-auth | Fallback only (user verdict §7 Q1) |
+| `/custodian/done/[trdc]` | Custodian | KEEP_DEMO + basic-auth | Fallback only |
+
+### 3.11 Legacy `/borrow/*` tree (10)
+
+| Route | Verdict | Reason |
+|---|---|---|
+| `/borrow/new/asset` | DELETE source, keep redirect | Already redirects to `/demo/borrow/onboard` |
+| `/borrow/new/appraisal/[reqId]` | DELETE | Superseded |
+| `/borrow/new/terms/[reqId]` | DELETE | Superseded by both `indicative-terms` and `final-terms` |
+| `/borrow/new/awaiting-custody/[trdc]` | DELETE | Superseded |
+| `/borrow/loans/[trdc]/disburse` | DELETE | Superseded |
+| `/borrow/loans/[trdc]/pay` | **MIGRATE** to `/demo/borrow/pay/[trdc]` | Per-installment payment — must-have pre-hackathon |
+| `/borrow/loans/[trdc]/renew` | DELETE | Superseded |
+| `/borrow/loans/[trdc]/repaid` | DELETE | Superseded by demo's in-page success state |
+| `/borrow/loans/[trdc]/repay` | DELETE | Superseded |
+| `/borrow/verify-id*` (4 routes) | DELETE redirects + targets | Civic/gov.br dropped |
+
+### 3.12 Legacy `/lend/*` tree (5)
+
+| Route | Verdict | Reason |
+|---|---|---|
+| `/lend` | KEEP redirect, DELETE source | Source dead; redirect cheap |
+| `/lend/vaults` | KEEP redirect, DELETE source | Same |
+| `/lend/vaults/[id]` | DELETE | "INVALID VAULT" for canonical fixtures |
+| `/lend/auctions` | KEEP redirect, DELETE source | Same |
+| `/lend/auctions/[id]` | DELETE | "INVALID AUCTION" |
+
+### Route count summary (v2)
 
 | Verdict | Count |
 |---|---|
 | KEEP_PROD | 18 |
 | KEEP_DEMO | 8 |
-| KEEP redirect, DELETE source | 3 |
-| DELETE | 16 |
+| KEEP redirect / DELETE source | 3 |
+| **DELETE** | **16** |
+| **BUILD** (new pre-hackathon routes) | **11** (5 borrower + 4 appraiser + 2 risk officer) |
 | MERGE | 1 |
-| DEFER | 0 (no current routes) |
-| UNKNOWN_BLOCKED | 3 (`/custodian/*` × 2, `/borrow/loans/[trdc]/pay`) |
-| **Total** | **49 page routes** (51 minus 2 already covered as KEEP redirect+source delete) |
-
-Plus **8 future routes** explicitly DEFERRED:
-- `/appraiser/*` workspace (persona 6)
-- `/scd/*` portal (persona 7)
-- `/risk/*` compliance review (persona 10)
-- A treasury read-only view (persona 11)
+| MIGRATE | 1 |
+| REWRITE | 1 (`/demo/borrow/loan-offer/[reqId]` → `/demo/borrow/indicative-terms/[reqId]`) |
+| UNKNOWN_BLOCKED | 1 (4-vault → 2-vault simplification) |
 
 ---
 
 ## 4. Component / domain redundancy matrix
 
-Cross-route redundancies in components, lib code, and concepts.
-
 | Concept | Used in | Duplicates what | Canonical owner | Action |
 |---|---|---|---|---|
-| Deposit form | `<LendDepositPanel>` (real on-chain), `/demo/lend/vaults/[id]/page.tsx` (mocked setTimeout) | Each other | `<LendDepositPanel>` | MERGE: extract a single `<DepositForm>` component, parameterise with `mode: "real" | "mock"` |
-| KYC gate copy | `useKycGate("Deposit USDC")`, `useKycGate("Disburse")`, `useKycGate("Submit asset for evaluation")` | Each other | `<KycRequiredModal>` | KEEP — small case-of-currency bug to fix (lowercase `usdc`) |
-| `useDemoSession` shape | `_lib/use-demo-session.ts` | Carries `civic` and `govbr` fields that are now dead | `_lib/types.ts` | DELETE `civic` and `govbr` fields; migrate any tests |
-| `<CivicAuthGate>` and `<CivicAuthRoot>` | (deleted today) | Sumsub via `useKycGate` | `useKycGate` | DONE (commit `adf3212`) |
-| gov.br mock storage | `lib/govbr/mock-storage.ts`, `lib/govbr/...` | Sumsub | Sumsub | DELETE entire `lib/govbr/` |
-| `<IdentityGates>` (legacy) | `apps/web/src/app/borrow/new/{asset,terms}/...` | `useKycGate` | `useKycGate` | DELETE with the legacy `/borrow/new/*` tree |
-| Wallet connect button | `<WalletMultiButton>` (Phantom/Solflare) on `/demo/lend`, `/demo/lend/vaults/[id]` + `<CrossmintWallet>` only on `/demo/borrow/wallet` | Inconsistent surfaces | A single `<UnifiedConnectButton>` | DEFER until post-hackathon — combining Crossmint + wallet-adapter into one click is its own design task |
-| `SiteHeader` (legacy) | All `/borrow/*`, `/lend/*`, `/custodian/*` legacy pages, `/`, `/admin/*` | `<DemoShell>` (demo) | `<DemoShell>` | KEEP `SiteHeader` for marketing + admin only; remove from any non-demo route after legacy tree deletion |
-| Vault tranche fixtures | `_fixtures/vault-tranches.ts` | Should be on-chain `VaultConfig` reads | `VaultConfig` | DEFER — reading on-chain Vault config is a Phase-1 task |
-| Auction floor + bids fixtures | `_fixtures/auction-{floor,bids}.ts` | Should be on-chain Auction PDAs | Auction program | DEFER |
-| Custodian slots fixtures | `_fixtures/custodian-slots.ts` | Should be real custodian calendar | Custodian system | DEFER |
+| Deposit form | `<LendDepositPanel>` (real on-chain) + `/demo/lend/vaults/[id]` (mocked setTimeout) | Each other | New `<DepositForm>` parameterized by env | MERGE |
+| Wallet connect button | `<WalletMultiButton>` (Phantom/Solflare) on `/demo/lend*` + `<CrossmintWallet>` only on `/demo/borrow/wallet` | Inconsistent surfaces | New `<UnifiedConnectButton>` showing both | **BUILD** pre-hackathon |
+| KYC gate copy | `useKycGate("Deposit USDC")`, `useKycGate("Disburse")`, `useKycGate("Submit asset for evaluation")` | Each other | `<KycRequiredModal>` | KEEP — fix lowercase `usdc` cosmetic bug |
+| `useDemoSession` shape | `_lib/use-demo-session.ts` | Carries dead `civic` and `govbr` fields | `_lib/types.ts` | DELETE dead fields; migrate tests |
+| `<CivicAuthGate>`, `<CivicAuthRoot>` | (deleted today) | Sumsub via `useKycGate` | `useKycGate` | DONE (commit `adf3212`) |
+| gov.br mock storage | `lib/govbr/*` | Sumsub | Sumsub | DELETE entire dir |
+| `<IdentityGates>` (legacy) | `/borrow/new/{asset,terms}*` | `useKycGate` | `useKycGate` | DELETE with legacy tree |
+| `SiteHeader` (legacy chrome) | `/borrow/*`, `/lend/*`, `/custodian/*` legacy + `/`, `/admin/*` | `<DemoShell>` | `<DemoShell>` | KEEP `SiteHeader` for marketing + admin only; remove from non-demo routes after legacy delete |
+| Vault tranche fixtures | `_fixtures/vault-tranches.ts` | Should be on-chain `VaultConfig` reads | `VaultConfig` | DEFER |
+| Auction fixtures | `_fixtures/auction-{floor,bids}.ts` | Should be on-chain Auction PDAs | Auction program | DEFER |
+| Custodian slot fixtures | `_fixtures/custodian-slots.ts` | Should be real custodian calendar | Custodian system | DEFER |
+| **Case-code blinding utilities** | None (yet) | — | New `lib/appraisal/case-code.ts` | **BUILD** — case-code generator, blinding-aware fetchers |
+| **Photo EXIF stripper** | None (yet) | — | New `lib/photos/exif-strip.ts` | **BUILD** — server-side EXIF/GPS removal before serving to appraisers |
+| **Bounded override slider** | None (yet) | — | New `<BoundedOverrideSlider>` | **BUILD** — used in `/admin/evaluations/[reqId]` |
 
 ---
 
 ## 5. Cut list
 
-The single artifact to act on. Everything below is approved-for-deletion contingent on user sign-off.
+The single artifact to act on. Approved-for-deletion contingent on user sign-off.
 
-### 5.1 DELETE NOW (16 routes + 4 redirect targets + lib/govbr)
+### 5.1 DELETE NOW (16 routes + 4 redirect rules + lib/govbr)
 
-**Page routes** (delete the `page.tsx` and any sibling files in the same directory):
+**Page routes**:
 
 ```
 apps/web/src/app/demo/borrow/verify-id/page.tsx
@@ -820,16 +990,16 @@ apps/web/src/app/lend/auctions/page.tsx
 apps/web/src/app/lend/auctions/[id]/page.tsx
 ```
 
-**Redirect rules in `next.config.mjs`** to drop (since targets are being deleted):
+**Redirect rules in `next.config.mjs`** to drop:
 
 ```
 /borrow/verify-id          → /demo/borrow/verify-id      (drop)
-/borrow/verify-id/callback → /demo/borrow/onboard        (drop, target dead)
-/borrow/verify-id/govbr-login → /demo/borrow/verify-id   (drop, target dead)
-/borrow/verify-id/redirecting → /demo/borrow/verify-id   (drop, target dead)
+/borrow/verify-id/callback → /demo/borrow/onboard        (drop)
+/borrow/verify-id/govbr-login → /demo/borrow/verify-id   (drop)
+/borrow/verify-id/redirecting → /demo/borrow/verify-id   (drop)
 ```
 
-**Redirect rules in `next.config.mjs`** to ADD (catch-all so legacy share-links don't 404):
+**Redirect rules in `next.config.mjs`** to ADD:
 
 ```
 /lend/vaults/:id*           → /demo/lend/vaults/:id*
@@ -841,55 +1011,69 @@ apps/web/src/app/lend/auctions/[id]/page.tsx
 **Lib code** to remove:
 
 ```
-apps/web/src/lib/govbr/                  (entire directory)
-apps/web/src/components/vaulx/govbr-gate.tsx   (entire file)
-apps/web/src/components/vaulx/identity-gates.tsx   (entire file — only legacy callers used it)
+apps/web/src/lib/govbr/                            (entire directory)
+apps/web/src/components/vaulx/govbr-gate.tsx       (entire file)
+apps/web/src/components/vaulx/identity-gates.tsx   (entire file)
 ```
 
 **Type / state cleanup**:
 
 ```
 apps/web/src/app/demo/_lib/types.ts:
-  - Remove `civic: { jwtHash: string; verifiedAt: number | null }`
-  - Remove `govbr: { name: string; cpf: string; verifiedAt: number | null }`
+  Remove: civic: { jwtHash: string; verifiedAt: number | null }
+  Remove: govbr: { name: string; cpf: string; verifiedAt: number | null }
 
 apps/web/src/app/demo/_lib/use-demo-session.ts:
-  - Remove initial values for civic + govbr
-  - Update tour-steps refs that mention these fields
+  Remove civic + govbr initial state
+  Update tour-steps refs
 ```
 
-### 5.2 DELETE pending user verdict (UNKNOWN_BLOCKED — 3)
+### 5.2 MIGRATE (1)
 
 ```
-apps/web/src/app/custodian/intake/[trdc]/page.tsx          (Persona 5 — real custodians: portal vs webhook?)
-apps/web/src/app/custodian/done/[trdc]/page.tsx            (Persona 5 — same)
-apps/web/src/app/borrow/loans/[trdc]/pay/page.tsx          (Persona 2 — per-installment pay: keep & migrate or accept post-hackathon?)
+/borrow/loans/[trdc]/pay   → /demo/borrow/pay/[trdc]   (per-installment payment, must-have pre-hackathon)
 ```
 
-### 5.3 KEEP_DEMO with prod gating (gate, don't delete)
+### 5.3 REWRITE (1)
 
 ```
-/admin/demo               — gate behind basic-auth (`NEXT_PUBLIC_VAULX_ADMIN_PUBKEY`)
-/admin/tests              — gate behind basic-auth
-/demo                     — keep for hackathon; remove from prod nav
-/demo/architecture        — pitch slide; keep
+/demo/borrow/loan-offer/[reqId]   → rename to /demo/borrow/indicative-terms/[reqId]
+                                   semantics: pre-custody indicative-only; no CCB sign here
 ```
 
-### 5.4 MERGE (1)
+### 5.4 KEEP_DEMO + basic-auth (5)
 
 ```
-/demo/lend/vaults/[id]/page.tsx (mocked deposit)  +  apps/web/src/app/demo/_components/lend-deposit-panel.tsx (real deposit)
-  → single canonical <DepositForm> component, env-gated mode.
+/admin/demo              gate behind NEXT_PUBLIC_VAULX_ADMIN_PUBKEY
+/admin/tests             same
+/custodian/intake/[trdc] same — fallback for partners without webhook integration
+/custodian/done/[trdc]   same
+/demo                    keep for hackathon; remove from prod nav
 ```
 
-### 5.5 DEFER (post-hackathon Phase 1)
+### 5.5 BUILD pre-hackathon (11 new routes)
 
-- `/appraiser/*` workspace
-- `/scd/*` portal
-- `/risk/*` compliance review
-- `/treasury` read-only Squads view
-- WhatsApp/email notification infrastructure for renewal nudges
-- Real custodian webhook integration
+```
+/demo/borrow/final-terms/[reqId]      Risk-Officer-anchored final-terms accept/decline
+/demo/borrow/return-asset/[reqId]     decline path → asset return logistics
+/demo/borrow/loans/[trdc]             per-loan detail (LTV, schedule, next pay)
+/demo/borrow/pay/[trdc]               installment payment
+/appraiser/online                     online appraiser job queue (24h SLA)
+/appraiser/online/[caseCode]          online valuation submission (blinded)
+/appraiser/offline                    offline appraiser job queue (48h SLA)
+/appraiser/offline/[caseCode]         offline valuation submission (own photos + defects)
+/admin/evaluations                    Risk Officer trilateral work queue
+/admin/evaluations/[reqId]            single 3-eval review with bounded override
+[unified-connect-button]              <UnifiedConnectButton> component (not a route)
+```
+
+### 5.6 DEFER (post-hackathon Phase 1)
+
+- `/risk` KYC/AML reviewer workspace (Persona 10a)
+- `/scd` portal — SCD partner integration via API; no UI surface
+- `/treasury` Squads multisig view
+- WhatsApp/email notification infrastructure
+- Real custodian webhook integration (contract spec defined here in §2.5)
 - FIDC quota token + fund admin onboarding
 - ICP-Brasil signature integration
 - Pix off-ramp (Dock/Celcoin)
@@ -901,39 +1085,103 @@ apps/web/src/app/borrow/loans/[trdc]/pay/page.tsx          (Persona 2 — per-in
 
 Before any file is deleted, verify:
 
-1. **Route is not in the demo script.** Walk the demo top-to-bottom: lender flow + borrower flow + admin cockpit. Note every URL that loads. Cross-reference this list against the DELETE list. If a DELETE-tagged route appears in the walk, **STOP** and reclassify.
-2. **Route is not referenced in marketing copy or pitch deck.** `grep -rn "{route}" docs/ *.md`.
-3. **Route is not referenced from a non-deleted page.** `grep -rn "{route}" apps/web/src/`.
-4. **Route is not in any test file.** `grep -rn "{route}" apps/web/e2e/ apps/web/src/**/__tests__/`.
-5. **Route is not behind a paid feature flag.** (None today; future-proofing.)
-6. **On-chain dependencies are removed.** If the route was the only caller of an on-chain ix, decide whether to remove the ix or keep it for future use.
-7. **`next.config.mjs` redirects are updated.** Either drop dead redirects or repoint surviving ones.
-8. **Build green** after deletion: `pnpm --filter @vaulx/web build`.
-9. **Tests green**: `pnpm --filter @vaulx/web test` and the new Playwright `apps/web/e2e/` suite.
-10. **Vercel preview deploys cleanly** before merging to main.
+1. Route is not in the demo script. Walk lender + borrower + admin top-to-bottom.
+2. Route is not in marketing copy or pitch deck. `grep -rn "{route}" docs/ *.md`.
+3. Route is not referenced from a non-deleted page.
+4. Route is not in any test file (`apps/web/e2e/`, `apps/web/src/**/__tests__/`).
+5. Route is not behind a paid feature flag.
+6. On-chain dependencies are removed.
+7. `next.config.mjs` redirects updated.
+8. Build green: `pnpm --filter @vaulx/web build`.
+9. Tests green: vitest + Playwright (`pnpm exec playwright test`).
+10. Vercel preview deploys cleanly before merging to main.
 
 ---
 
 ## 7. Open questions for the user
 
-These need a yes/no/punt before I can produce a concrete deletion PR.
+Status after v2 (most resolved). Still open:
 
-1. **`/custodian/intake/[trdc]` and `/custodian/done/[trdc]`** — real custodians: do they use a Vaulx UI in prod or only their own inventory + a webhook to us? If "only their own", DELETE both. If "Vaulx UI as a fallback for partners without their own system", KEEP_DEMO.
-2. **`/borrow/loans/[trdc]/pay`** — per-installment payment flow has no demo equivalent. Keep & migrate to `/demo/borrow/pay`? Or accept that installment payment is a post-hackathon Phase-1 build and DELETE this legacy?
-3. **`/admin/demo` + `/admin/tests`** — gate behind basic-auth before mainnet, or simply remove from public nav and rely on URL obscurity? Recommend: real basic-auth via existing `NEXT_PUBLIC_VAULX_ADMIN_PUBKEY` machinery.
-4. **`/demo/dev/bezel`** — DELETE confirmed? It's a "Hello bezel" stub, no load-bearing.
-5. **Appraiser workspace** — is this a Phase-1 build or out-of-scope entirely until Phase-2? Affects whether `<DemoBadge partner="Manual appraisal">` should appear on `/demo/borrow/appraisal/[reqId]`.
-6. **SCD portal** — same question. Affects whether `<DemoBadge partner="SCD">` should appear on `/demo/borrow/loan-offer/[reqId]`.
-7. **Crossmint sign-in surface beyond `/demo/borrow/wallet`** — should `<CrossmintWallet>` be wired into the lender top-bar so non-crypto LPs can sign in without leaving `/demo/lend`? Currently lender side uses only Phantom/Solflare via `<WalletMultiButton>`.
+| # | Question | Status |
+|---|---|---|
+| 1 | `/custodian/*` legacy → KEEP_DEMO fallback | RESOLVED — KEEP_DEMO, gate behind basic-auth, build webhook contract |
+| 2 | `/borrow/loans/[trdc]/pay` → migrate or delete | RESOLVED — MIGRATE to `/demo/borrow/pay/[trdc]` (must-have pre-hackathon) |
+| 3 | `/admin/*` gating | RESOLVED — basic-auth via `NEXT_PUBLIC_VAULX_ADMIN_PUBKEY` |
+| 4 | `/demo/dev/bezel` deletion | RESOLVED — DELETE confirmed |
+| 5 | Appraiser workspace | RESOLVED — BUILD now, two distinct personas (online + offline), fully blinded |
+| 6 | SCD portal | UNRESOLVED — recommended API-client; user "tough question, not sure"; DEFER, document |
+| 7 | Crossmint on lender side | RESOLVED — BUILD via `<UnifiedConnectButton>` |
+| **Q-A** | Online appraiser SLA start | RESOLVED — at custody slot booking |
+| **Q-B** | Online + offline same person? | RESOLVED — different people, fully blinded via case codes |
+| **Q-C** | Risk Officer = who? | RESOLVED for v1 — Vaulx employee |
+| **Q-D** | Override bounds | RESOLVED — strict α: `[min(3 evals), max(3 evals)]`, no 4th eval |
+| **Q-Photo** | What photos do appraisers see? | RESOLVED — online sees borrower's; offline sees borrower's + takes own; Risk Officer sees all |
+| **Q-Decline** | Re-eval on Risk Officer decline | UNRESOLVED — DEFER, must decide before prod |
+| **Q-Vaults** | Collapse 4 fixtures to 2 (USDC + Local)? | UNRESOLVED — pending product call |
+
+**Final still-open verdicts needed before cleanup PR**:
+
+1. **Vault simplification**: collapse 4 → 2? My recommendation: yes, simplify. Two vaults (USDC, Local), no retail/institutional split.
+2. **SCD architecture confirmation**: API-client vs portal? My recommendation: API-client, defer build.
+3. **Re-eval-on-decline policy**: only matters post-hackathon; can stay open for now.
 
 ---
 
-## 8. What this document is NOT
+## 8. Pre-hackathon build list (ordered)
 
-- It is **not** a build plan. After your verdicts on §7, I produce a separate cleanup plan via `superpowers:writing-plans`.
-- It is **not** a marketing artefact. Internal consumption only.
-- It is **not** a final design. It captures the gap between what's built and what production needs; the design for Phase 1 (post-hackathon prod path) is its own brainstorming session.
+11 new routes + 1 unified component + 4 backend pieces, ordered by dependency.
+
+### Phase A — foundations (no UI dependencies)
+
+1. **`<UnifiedConnectButton>`** (component) — replaces `<WalletMultiButton>` everywhere; integrates Crossmint Auth + wallet-adapter modal in one click. Affects every page that has a connect button.
+2. **`appraisal_case` data model** — Postgres/Supabase table: `case_code`, `borrower_pubkey`, `asset_brand`, `asset_model`, `asset_serial_redacted`, `online_appraiser_id`, `offline_appraiser_id`, `online_eval`, `offline_eval`, `api_anchor`, `risk_officer_decision`, `prudent_value`, `decision_reason`, `created_at`, timestamps for SLA tracking.
+3. **Case-code generator** (`lib/appraisal/case-code.ts`) — generates `VX-XXXX` codes; uniqueness check.
+4. **Photo EXIF stripper** (`lib/photos/exif-strip.ts`) — server-side EXIF/GPS removal before serving to appraisers.
+5. **Admin basic-auth gate** — wires `NEXT_PUBLIC_VAULX_ADMIN_PUBKEY` cookie to all `/admin/*` and `/custodian/*` routes.
+
+### Phase B — appraiser workspaces
+
+6. **`/appraiser/online`** + **`/appraiser/online/[caseCode]`** — job queue + submission form with 24h SLA visible. Blinded.
+7. **`/appraiser/offline`** + **`/appraiser/offline/[caseCode]`** — same structure + own photo upload + defect checklist.
+
+### Phase C — Risk Officer workspace
+
+8. **`/admin/evaluations`** — work queue showing pending trilaterals.
+9. **`/admin/evaluations/[reqId]`** — single review with bounded override slider. Decision actions: accept / audit / decline. **Strict α bound enforcement client AND server.**
+
+### Phase D — borrower flow rewrite
+
+10. **`/demo/borrow/loan-offer/[reqId]`** REWRITE → `/demo/borrow/indicative-terms/[reqId]` (pre-custody, indicative only).
+11. **`/demo/borrow/final-terms/[reqId]`** BUILD — post-Risk-Officer-review, accept/decline.
+12. **`/demo/borrow/return-asset/[reqId]`** BUILD — decline → return path.
+13. **`/demo/borrow/loans/[trdc]`** BUILD — per-loan detail (LTV, schedule, next payment, action buttons).
+14. **`/demo/borrow/pay/[trdc]`** BUILD — installment payment.
+
+### Phase E — vault simplification (decided in §7)
+
+15. If approved: collapse 4 fixture rows to 2 (`usdc`, `local`); update `_fixtures/vault-tranches.ts`; merge `<LendDepositPanel>` and `/demo/lend/vaults/[id]/page.tsx` deposit code paths.
+
+### Phase F — cleanup
+
+16. Execute the §5.1 DELETE NOW list (16 routes + redirect updates + lib/govbr removal + types cleanup).
+
+### Phase G — polish
+
+17. Custodian webhook contract documentation + per-custodian signing key provisioning (POST-hackathon OK if rushed).
 
 ---
 
-**End of journey analysis.** Awaiting verdicts on §7 to produce the cleanup plan.
+## 9. What this document is NOT
+
+- **Not** a build plan. After §7 verdicts, I produce a separate cleanup-and-build plan via `superpowers:writing-plans`.
+- **Not** a marketing artifact. Internal consumption only.
+- **Not** a final design for Phase 1 (post-hackathon prod). Phase 1 design is its own brainstorming session.
+
+---
+
+## 10. Document history
+
+- **v1** (2026-04-29 morning): initial 13-persona analysis, 51-route matrix, cut list. Council review surfaced 9 issues + Risk Officer omission.
+- **v2** (2026-04-29 afternoon): rewrites with two-stage evaluation flow, Risk Officer + Online/Offline Appraiser personas, blinding architecture, bounded override, pre-hackathon build list of 11 new routes. SCD reframed as API-client; Lender simplified.
+
+**End of v2 journey analysis.** Awaiting verdicts on §7 to produce the cleanup-and-build plan.
