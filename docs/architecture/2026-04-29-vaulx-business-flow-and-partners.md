@@ -1,67 +1,62 @@
-# Vaulx — Business Flow & Partner Integrations
+# Vaulx — Business Flow & Partners
 
-**Date:** 2026-04-29
-**Audience:** team meeting · business / partnerships / strategy
-**Purpose:** show what the user experiences, what happens behind the scenes, and which partner is needed at each step. End-to-end.
-**Companion:** technical snapshot at [`2026-04-29-vaulx-architecture-snapshot.md`](./2026-04-29-vaulx-architecture-snapshot.md).
+**Date:** 2026-04-29 · **Audience:** business / partnerships team meeting
+**Companion:** technical view at [`2026-04-29-vaulx-architecture-snapshot.md`](./2026-04-29-vaulx-architecture-snapshot.md)
 
 ---
 
-## 1. The big picture (one diagram)
+## 1. The big picture
 
 ```mermaid
 flowchart LR
-    subgraph "USER side"
-        BORROWER([Borrower<br/>watch owner])
-        LENDER([Lender<br/>USDC supplier])
-        BIDDER([Bidder<br/>watch reseller])
+    subgraph "Users"
+        BORROWER([Borrower])
+        LENDER([Lender])
+        BIDDER([Bidder])
     end
 
-    subgraph "VAULX (the protocol + the app)"
-        APP[Vaulx web app<br/>+ Solana programs]
-        OPS[Vaulx ops<br/>Risk Officer / Admin]
-    end
+    APP[VAULX<br/>app + Solana programs]
+    OPS[Vaulx ops<br/>Risk Officer]
 
-    subgraph "ID & Auth partners"
-        CRO[Crossmint<br/>sign-in + smart wallet]
+    subgraph "ID & Auth"
+        CRO[Crossmint<br/>sign-in · smart wallet · on/off-rails]
         SUM[Sumsub<br/>KYC + liveness]
-        SER[Serpro<br/>BR govt CPF db<br/>via Sumsub]
+        SER[Serpro<br/>BR govt CPF · via Sumsub]
     end
 
     subgraph "Valuation"
-        WC[WatchCharts API]
+        WC[WatchCharts]
         AP[Apify · Chrono24]
-        OAPP[Online appraiser<br/>desk-based · 24h SLA]
-        OFFAP[Offline appraiser<br/>watchmaker · 48h SLA]
+        OAPP[Online appraiser<br/>desk · 24h]
+        OFFAP[Offline appraiser<br/>watchmaker · 48h]
     end
 
-    subgraph "Custody & physical"
-        CUS[Custodian<br/>Cofre Brasil / Brinks /<br/>Prosegur]
-        SHIP[Courier<br/>insured shipping]
+    subgraph "Custody"
+        CUS[Custodian]
+        SHIP[Insured courier]
     end
 
-    subgraph "Legal & financial"
-        SCD[SCD partner<br/>legal creditor of record<br/>e.g. Cooperforte]
-        ICP[ICP-Brasil<br/>digital signature<br/>via Clicksign / D4Sign]
-        FIDC[FIDC fund admin<br/>Vórtx / Oliveira Trust]
+    subgraph "Legal & finance"
+        SCD[SCD partner<br/>legal creditor]
+        ICP[Digital signature<br/>ICP-Brasil]
+        FIDC[FIDC fund admin<br/>retail Local vault]
     end
 
-    subgraph "Money rails"
-        PIX[Pix off-ramp<br/>Dock / Celcoin / Swap]
-        CARD[Vaulx Card<br/>BIN sponsor TBD]
-        KAM[Kamino / Plume<br/>institutional liquidity]
+    subgraph "On/Off rails"
+        RAMP[On/Off ramp]
+        PIX[Pix]
+        DEBIT[Debit card]
     end
 
-    subgraph "On-chain infra"
-        SOL[Solana mainnet<br/>via Helius RPC]
-        SQ[Squads multisig<br/>upgrade + governance]
+    subgraph "On-chain"
+        SOL[Solana<br/>via Helius RPC]
+        SQ[Squads multisig<br/>governance]
         SAS[Solana Attestation<br/>Service]
     end
 
     subgraph "Recovery"
-        AUC[Whitelisted bidders<br/>20 watch resellers]
-        SOTHE[Auction houses<br/>Sotheby's, Christie's<br/>fallback]
-        LEGAL[BR legal counsel<br/>DL 911/69 recovery]
+        BIDDERS[Whitelisted resellers]
+        LEGAL[BR legal counsel<br/>DL 911/69]
     end
 
     BORROWER --> APP
@@ -81,414 +76,219 @@ flowchart LR
     OPS --> SCD
     SCD --> ICP
     APP --> FIDC
+    APP --> RAMP
     APP --> PIX
-    APP --> CARD
-    LENDER -.->|institutional<br/>route| KAM
-    KAM --> APP
+    APP --> DEBIT
     APP --> SOL
     SOL --> SAS
     SOL --> SQ
-    APP --> AUC
-    AUC --> SOTHE
+    APP --> BIDDERS
     SCD --> LEGAL
 ```
 
-**Reading this in 60 seconds:**
-
-- **3 user types** enter the app (borrower, lender, bidder).
-- **Vaulx** sits in the middle, surrounded by **6 partner clusters**: ID/Auth, Valuation, Custody, Legal/Finance, Money rails, On-chain infra, Recovery.
-- Most partner integrations are **server-to-server APIs**, not UIs (so the user always feels like they're using one app).
-- The only partners with their own user-facing surface are: Crossmint (sign-in modal), Sumsub (KYC iframe).
+**60-second read:**
+- 3 user types enter Vaulx.
+- 7 partner clusters surround it: ID & Auth, Valuation, Custody, Legal & finance, On/Off rails, On-chain, Recovery.
+- Most partner integrations are server-to-server APIs. Only Crossmint and Sumsub have user-facing surfaces.
 
 ---
 
-## 2. Partner inventory by integration status
+## 2. Partner inventory
 
-| Partner | Role | Status | Integration type |
-|---|---|---|---|
-| **Crossmint** | Sign-in (Google/Apple/email/SMS) + smart-wallet provisioning | ✅ Live (sandbox) | iframe + REST |
-| **Sumsub** | KYC: ID + liveness + Brazil Non-Doc CPF | ✅ Live (sandbox) | iframe + webhook |
-| **Serpro** | BR govt CPF verification | ✅ Live via Sumsub | Sumsub-managed |
-| **Solana Attestation Service** | On-chain reusable KYC credential | ✅ Live | on-chain PDA |
-| **Helius RPC** | Solana Devnet/mainnet RPC | ✅ Live | REST |
-| **Squads V4** | Multisig upgrade authority + future admin signing | ✅ Live (upgrade only) | on-chain PDA |
-| **WatchCharts API** | Online watch-price anchor | ✅ Live | REST |
-| **Apify · Chrono24** | Secondary online price anchor | ✅ Live | REST (fallback fixture) |
-| **Vercel** | Hosting + serverless | ✅ Live | platform |
-| **Supabase** | DB (asset records, appraiser cases, payouts) | 🟡 Env wired, light usage | client SDK |
-| **Online appraisers** | Desk-based human valuation | ❌ Not hired yet | will need workspace + SLA contract |
-| **Offline appraisers / watchmakers** | Physical inspection at vault | ❌ Not hired yet | will need workspace + SLA contract |
-| **Custodian: Cofre Brasil** (or Brinks / Prosegur) | Physical vault + intake/release | ❌ No integration | webhook + per-custodian signing key |
-| **Insured courier** | Asset shipping | ❌ TBD partner | API or PDF labels |
-| **SCD partner** (Cooperforte / FidoCred / similar) | Legal creditor of record · CCB issuance · default trigger | ❌ No integration | REST API (no UI) |
-| **ICP-Brasil signature** (Clicksign / D4Sign) | Digital CCB signature | ❌ No integration | REST API |
-| **FIDC fund admin** (Vórtx / Oliveira Trust) | Retail FIDC quota wrapper | ❌ No integration | manual paperwork + REST |
-| **Tokeny** (or Solana ERC-3643-like) | Identity-bound token for FIDC quotas | ❌ No integration | SDK |
-| **Pix off-ramp** (Dock / Celcoin / Swap) | USDC ↔ BRL Pix conversion | ❌ No integration | REST |
-| **Vaulx Card BIN sponsor** | Visa/Mastercard BIN for "spend USDC like cash" | ❌ Sponsor not signed | API + KYB |
-| **Kamino / Plume** | Institutional USDC liquidity routing | ❌ No integration | DeFi vault wrapper |
-| **WhatsApp Business + transactional email** | Renewal nudges, status updates | ❌ No integration | REST |
-| **Whitelisted reseller network** | Primary auction bidders | ❌ Not curated | wallet whitelist on-chain |
-| **Sotheby's / Christie's** | Fallback luxury auction houses | ❌ No agreement | manual + API |
-| **BR legal counsel** | DL 911/69 extrajudicial recovery paperwork | ❌ Not retained | manual |
+### What's live today (we use these in the demo)
 
-**Live + sandbox partners**: 9
-**Partners needed before mainnet**: 16
+| Partner | Role |
+|---|---|
+| **Crossmint** | sign-in (Google/Apple/email/SMS) + smart-wallet provisioning + on/off-rails |
+| **Sumsub** | KYC (ID + liveness + BR Non-Doc CPF flow) |
+| **Serpro** | BR government CPF database (via Sumsub) |
+| **Solana Attestation Service** | reusable on-chain KYC credential |
+| **Helius RPC** | Solana network access |
+| **Squads V4** | multisig (program upgrade authority today; admin signing in prod) |
+| **WatchCharts** | online watch-price anchor |
+| **Apify · Chrono24** | secondary price anchor |
+| **Vercel** | hosting |
+| **Supabase** | DB (light usage today; production target for asset records and appraiser cases) |
 
----
+### Roles still needed (no name committed yet)
 
-## 3. Borrower journey — end to end
-
-The full happy-path borrower journey, with every partner touch flagged.
-
-```mermaid
-sequenceDiagram
-    participant B as Borrower
-    participant V as Vaulx app
-    participant P as Partners
-
-    B->>V: 1. Discover & land on /
-    Note over P: (no partner — marketing only)
-
-    B->>V: 2. Sign in
-    V->>P: Crossmint (Google/Apple/email/SMS) OR own wallet
-    P-->>V: Solana pubkey provisioned
-
-    B->>V: 3. Register asset (brand/model/serial/photos)
-    Note over P: KYC gate fires here on first money-touching action
-
-    V->>P: Sumsub WebSDK iframe
-    P->>P: Sumsub → Serpro CPF check (BR users)
-    P-->>V: webhook: GREEN
-    V->>P: Solana: mint KYC attestation PDA
-    Note over V,P: User now has a reusable Solana SAS credential
-
-    V->>P: 4a. Online API anchor (WatchCharts + Apify Chrono24)
-    P-->>V: indicative range (1 of 3 evals)
-
-    V->>V: 5. Show INDICATIVE value + INDICATIVE terms
-    B->>V: 6. Decide: ship to vault or cancel
-
-    Note over V,P: When borrower books custody slot →<br/>online appraiser job created (24h SLA)
-
-    V->>P: Online human appraiser (blinded · 24h)
-    P-->>V: 2 of 3 evals submitted
-
-    B->>P: 7. Ship asset (insured courier)
-    P->>P: Custodian: Cofre Brasil / Brinks / Prosegur
-    P->>V: webhook: asset received
-    V->>V: Solana: confirm_custody on-chain
-
-    Note over V,P: Custody confirmed → offline appraiser job created (48h SLA)
-
-    V->>P: Offline watchmaker · physical inspection
-    Note over P: Takes own photos/videos · finds hidden defects
-    P-->>V: 3 of 3 evals submitted (with defect flags)
-
-    V->>V: 8. Risk Officer reviews trilateral
-    Note over V: Bounded override:<br/>prudent_value ∈ [min, max] of 3 evals
-
-    V->>P: SCD partner: issue final CCB
-    P->>P: ICP-Brasil signature
-    P-->>V: signed CCB reference
-
-    V->>V: 9. Show FINAL terms (may differ from indicative)
-    B->>V: 10. Accept OR decline
-
-    alt ACCEPT
-        B->>V: sign final CCB
-        V->>P: Solana: vault.disburse → loan.create_ccb_trdc
-        P-->>B: USDC arrives in wallet
-        B->>P: Spend: Pix off-ramp / Vaulx Card / wallet send
-    else DECLINE
-        V->>P: Custodian: schedule asset return
-        P->>P: Insured courier: return shipping
-        P-->>B: Asset returned · TRDC closed (no loan)
-    end
-```
-
-### Borrower step-by-step partner table
-
-| # | User step | What happens behind the scenes | Partner(s) needed | Status today |
-|---|---|---|---|---|
-| 1 | Land on `/` | Marketing static page | — | ✅ live |
-| 2 | Sign in | Crossmint provisions smart wallet OR Phantom/Solflare connects | **Crossmint** + wallet adapters | ✅ sandbox |
-| 3 | Submit asset form | Form persisted (today: localStorage; prod: Supabase) | (Supabase prod) | 🟡 light |
-| 4 | KYC gate fires (first money-touching action) | Sumsub iframe → ID + liveness → webhook → on-chain SAS mint signed by Vaulx operator | **Sumsub** (+ Serpro via Sumsub for BR) | ✅ sandbox |
-| 5 | See indicative value | API anchor: WatchCharts + Chrono24 returns price range | **WatchCharts** + **Apify** | ✅ live |
-| 5b | Online appraiser submits | Blinded case-coded job assigned to a human watch specialist; 24h SLA | **Online appraiser** (contracted desk worker) | ❌ not hired |
-| 6 | Borrower decides to ship | App generates shipping label | **Insured courier** (TBD) | ❌ no partner |
-| 7 | Asset arrives at vault | Custodian scans, photographs, fires webhook | **Custodian** (Cofre Brasil / Brinks / Prosegur) | ❌ no integration |
-| 7b | Offline appraiser inspects | Physical inspection at vault; can take own photos/videos; finds hidden defects; 48h SLA | **Offline appraiser / watchmaker** | ❌ not hired |
-| 8 | Risk Officer reviews 3 evals | Internal Vaulx ops decides convergence + prudent value | (internal Vaulx hire) | ❌ no UI yet |
-| 8b | CCB legally issued | SCD signs CCB; ICP-Brasil binds digital signature | **SCD partner** + **ICP-Brasil** | ❌ no partner |
-| 9 | Final terms shown | Borrower sees prudent eval $Y vs indicative $X | (Vaulx UI) | ❌ flow needs rewrite |
-| 10a | Borrower accepts | On-chain disburse runs; USDC lands in wallet | **Helius RPC** | ✅ Devnet only |
-| 10b | Borrower declines | Custodian release; courier return | **Custodian** + **courier** | ❌ no integration |
-| 11 | Spend USDC | Pix conversion → BRL OR card swipe OR direct wallet send | **Pix partner** (Dock/Celcoin) + **Vaulx Card BIN sponsor** | ❌ shells only |
-| 12 | Day-60 nudge | WhatsApp / email reminder to renew | **WhatsApp Business** + email transactional | ❌ no integration |
-| 13 | Pay installment / renew / repay | On-chain ix; SCD co-signs CCB amendment | **SCD** + **Solana** | ❌ no SCD; ✅ Solana |
-| 14 | (Default path — see §5) | Trigger SCD recovery + on-chain auction | **SCD** + **legal counsel** + **bidder network** | ❌ all missing |
+| Role | Examples in market |
+|---|---|
+| **Custodian** | Cofre Brasil, Brinks, Prosegur (any insured BR vault provider) |
+| **Insured courier** | local logistics with insured high-value handling |
+| **Online appraiser network** | desk-based watch specialists; we hire the pool |
+| **Offline appraiser network** | watchmakers stationed near the custodian vault |
+| **SCD partner** | regulated BR sociedade de crédito direto (legal creditor of record) |
+| **Digital signature provider** | any ICP-Brasil-accredited e-sig provider |
+| **FIDC fund admin** | regulated BR fund administrator (for retail Local vault) |
+| **On/off ramps** | Pix + debit card rails (multiple providers possible; Crossmint covers part of this) |
+| **Institutional liquidity routing** | Kamino, Plume (DeFi aggregators — institutionals deposit via these, not via Vaulx UI) |
+| **Whitelisted reseller network** | ~20 watch resellers with on-chain whitelist for primary auctions |
+| **BR legal counsel** | retained for DL 911/69 extrajudicial recovery paperwork |
+| **Notification channels** | WhatsApp Business + transactional email (provider TBD) |
 
 ---
 
-## 4. Lender journey — end to end
-
-### Retail lender (USDC or Local/BRL via FIDC wrapper)
-
-```mermaid
-sequenceDiagram
-    participant L as Lender
-    participant V as Vaulx app
-    participant P as Partners
-
-    L->>V: 1. Discover & land on /demo/lend
-    L->>V: 2. Sign in
-    V->>P: Crossmint OR own wallet
-    P-->>V: Solana pubkey
-
-    L->>V: 3. Browse vaults (USDC / Local)
-    L->>V: 4. Click Deposit
-    V->>P: Sumsub WebSDK (KYC gate)
-    P-->>V: GREEN → SAS attestation minted
-
-    alt Local vault (BRL · FIDC-wrapped)
-        L->>P: FIDC quota subscription terms
-        P->>P: Vórtx / Oliveira Trust as fund admin
-        L->>P: Stablecoin → FIDC intake address
-        P->>P: Tokeny issues FIDC quota token
-        P-->>L: Quota token in wallet
-    else USDC vault (no FIDC)
-        L->>V: Sign on-chain Vault.deposit
-        V->>P: Helius RPC → vault.deposit
-        P-->>L: Vault share token in wallet
-    end
-
-    Note over L,V: Yield accrues passively from borrower repayments<br/>(routed through SCD → vault inflow)
-
-    L->>V: 5. Withdraw (subject to 80% utilisation cap)
-    V->>P: vault.withdraw on-chain
-    P-->>L: USDC / BRL returned
-```
-
-### Institutional lender — DOES NOT use Vaulx UI
-
-```mermaid
-flowchart LR
-    INST[Institutional LP<br/>e.g. asset manager,<br/>family office]
-    KAM[Kamino<br/>or Plume]
-    VAULT[Vaulx vault<br/>on-chain]
-
-    INST -->|deposits via| KAM
-    KAM -->|aggregates into| VAULT
-    VAULT -.->|yield distributes back to| KAM
-    KAM -.->|to| INST
-```
-
-**Why no Vaulx UI for institutional?** The app today doesn't support KYB / business accounts. Institutionals use their own custody (Fireblocks, Anchorage) and discover Vaulx vaults through DeFi aggregators. Building a B2B onboarding UI in Vaulx is post-launch.
-
-### Lender step-by-step partner table
-
-| # | User step | Behind the scenes | Partner | Status |
-|---|---|---|---|---|
-| 1 | Land on `/demo/lend` | static UI | — | ✅ live |
-| 2 | Sign in | Crossmint or wallet | **Crossmint** | ✅ borrower side only — needs wiring on lender side |
-| 3 | KYC at first deposit | Sumsub flow | **Sumsub** | ✅ sandbox |
-| 4 | Deposit USDC vault | On-chain `vault.deposit` | **Helius RPC** | ✅ Devnet |
-| 4b | Deposit Local (BRL) vault | FIDC quota subscription → fund admin → Tokeny mint | **Vórtx** / **Oliveira Trust** + **Tokeny** | ❌ no integration |
-| 5 | Yield accrual | From borrower repayments routed via SCD → on-chain inflow | **SCD** | ❌ |
-| 6 | Withdraw | On-chain `vault.withdraw`; queued if utilisation > 80% | **Helius RPC** | ❌ utilisation cap not implemented |
-| 7 | Tax reporting | Statement export | **Brazilian tax-doc partner** (TBD) | ❌ |
-
----
-
-## 5. Default & recovery journey
-
-When a borrower fails to pay, the asset is seized and auctioned. This is the lender's safety net.
+## 3. Borrower journey
 
 ```mermaid
 sequenceDiagram
     participant B as Borrower
     participant V as Vaulx
-    participant SCD as SCD partner
-    participant LEG as BR legal counsel
-    participant CUS as Custodian
-    participant BID as Whitelisted bidder
-    participant SOTH as Sotheby's / Christie's
+    participant P as Partners
 
-    Note over B: Borrower misses payment + grace period
-
-    V->>SCD: notify default event
-    SCD->>LEG: initiate DL 911/69 extrajudicial recovery
-    LEG-->>SCD: legal authority granted
-
-    SCD->>V: trigger on-chain default
-    V->>V: Squads multisig: execute_af_default
-    V->>V: auction created on-chain (7-day window)
-
-    Note over V,BID: Whitelist: existing lenders of that vault<br/>+ 20 pre-approved watch resellers
-
-    BID->>V: place bid (USDC)
-    V->>V: bid recorded on-chain
-    Note over V: Settlement: highest bid wins<br/>at 15-20% below M3 median
-
-    alt Bid received within 7 days
-        V->>CUS: release asset to winning bidder
-        V->>V: USDC distributed: lenders → reserve → protocol fee → borrower (if surplus)
-    else No bid
-        V->>SOTH: forward to luxury auction house
-        SOTH-->>V: secondary sale completes
+    B->>V: 1. Sign in
+    V->>P: Crossmint OR own wallet
+    B->>V: 2. Register asset (form + photos)
+    Note over V,P: KYC gate fires here<br/>Sumsub iframe → SAS attestation on-chain
+    V->>V: 3. Show indicative value (API anchor)
+    V->>P: Online appraiser (24h SLA, blinded)
+    B->>V: 4. Decide: ship or cancel
+    B->>P: Insured courier → Custodian
+    Note over V,P: Custody confirmed → 48h SLA starts
+    V->>P: Offline watchmaker (48h SLA, blinded, finds hidden defects)
+    V->>V: 5. Risk Officer reviews 3 evals → prudent value
+    V->>P: SCD signs final CCB (digital signature)
+    V->>B: 6. Show FINAL terms (may differ from indicative)
+    alt ACCEPT
+        B->>V: sign · receive USDC on-chain
+        B->>P: spend via on/off ramp · Pix · debit card
+    else DECLINE
+        V->>P: custodian releases · courier returns asset
     end
 ```
 
-### Recovery partner table
+### Step-by-step partner table
 
-| # | Step | Partner | Status |
-|---|---|---|---|
-| 1 | Default detection | (Vaulx cron + on-chain `mark_overdue`) | ❌ cron not built |
-| 2 | Legal recovery initiation | **SCD partner** + **BR legal counsel** | ❌ no partner |
-| 3 | On-chain default execution | **Squads multisig** | ✅ multisig live; ix not yet wired |
-| 4 | Auction window (7 days) | (Vaulx auction program) | 🟡 60s demo timer; needs prod-grade timing |
-| 5 | Whitelisted bidders | **20 watch resellers** | ❌ network not curated |
-| 6 | Fallback house auction | **Sotheby's / Christie's** | ❌ no agreement |
-| 7 | Settlement & distribution | (on-chain CPI) | 🟡 partial |
+| Step | What happens | Partner |
+|---|---|---|
+| 1. Sign in | smart wallet provisioned OR Phantom connects | **Crossmint** |
+| 2. KYC | first money-touching CTA fires Sumsub iframe; SAS attestation minted on-chain | **Sumsub** + **Serpro** + **SAS** |
+| 3a. Indicative value | online API anchor (1 of 3) | **WatchCharts** + **Apify** |
+| 3b. Online appraisal | desk specialist submits within 24h, blinded by case code | **Online appraiser pool** |
+| 4. Ship to vault | insured courier → custodian intake → on-chain custody confirm | **Custodian** + **Courier** |
+| 5a. Offline appraisal | watchmaker physical inspection within 48h, can take own photos/videos | **Offline appraiser pool** |
+| 5b. Risk Officer review | Vaulx ops reviews trilateral, assigns prudent value within bounded override | (internal Vaulx) |
+| 5c. CCB signed | SCD becomes legal creditor; ICP-Brasil binds digital signature | **SCD** + **digital signature provider** |
+| 6. Final terms | borrower sees prudent eval; accepts or declines | (Vaulx UI) |
+| 7a. Accept → disburse | USDC on-chain | **Helius RPC** |
+| 7b. Decline → return | custodian releases; courier returns | **Custodian** + **Courier** |
+| 8. Spend | USDC → fiat | **On/off rails** (Pix · debit card) |
+| 9. Renew / Repay | CCB amendment + on-chain ix | **SCD** + **Helius** |
 
 ---
 
-## 6. Integration types — how each partner plugs in
-
-Partners integrate in three different shapes. The shape matters for engineering effort and user experience.
+## 4. Lender journey
 
 ```mermaid
-flowchart TB
-    subgraph "TYPE A — Partner has UI in our app"
-        A1["Crossmint sign-in modal"]
-        A2["Sumsub KYC iframe"]
+flowchart LR
+    subgraph "Retail (uses Vaulx UI)"
+        L1([Retail lender])
     end
 
-    subgraph "TYPE B — Server-to-server API (invisible to user)"
-        B1["WatchCharts API"]
-        B2["Apify Chrono24"]
-        B3["SCD partner REST"]
-        B4["ICP-Brasil signature REST"]
-        B5["Pix off-ramp REST"]
-        B6["WhatsApp Business API"]
-        B7["Email transactional"]
+    subgraph "Institutional (does NOT use Vaulx UI)"
+        L2([Institutional LP])
     end
 
-    subgraph "TYPE C — Webhook in (partner pushes to us)"
-        C1["Custodian intake confirmation"]
-        C2["Sumsub applicant review"]
-        C3["Pix payment confirmation"]
-        C4["FIDC quota issuance confirmation"]
-    end
+    L1 -->|sign in| CRO[Crossmint or wallet]
+    CRO --> KYC[Sumsub KYC gate]
+    KYC --> DEP[Deposit USDC or Local · on-chain]
+    L2 -->|deposits via| AGG[Kamino / Plume]
+    AGG --> DEP
 
-    subgraph "TYPE D — On-chain (cryptographic integration)"
-        D1["Solana Attestation Service"]
-        D2["Squads multisig"]
-        D3["Bubblegum cNFT (TRDC)"]
-        D4["Helius RPC"]
-    end
+    DEP --> YIELD[Yield accrues from<br/>borrower repayments via SCD]
+    YIELD --> L1
+    YIELD --> AGG
+    AGG --> L2
 ```
 
-**Engineering effort by type**:
-- Type A (iframe/SDK) — 1-2 weeks per partner
-- Type B (REST API) — 1-3 weeks per partner
-- Type C (webhook) — 1 week per partner (we define the contract; partner posts to us)
-- Type D (on-chain) — already in place
-
----
-
-## 7. Critical-path partnerships
-
-If we had to pick the **5 partnerships most critical** to ship a real Brazilian product (in order):
-
-| Rank | Partner | Why critical | Blocks |
-|---|---|---|---|
-| 1 | **SCD partner** (Cooperforte, FidoCred, etc.) | Without an SCD as legal creditor of record, no real CCB can be issued. We can't lend to Brazilians legally. | Every loan in BR |
-| 2 | **Custodian** (Cofre Brasil / Brinks / Prosegur) | Without physical custody, no asset is secured. Lenders won't fund. | Every loan |
-| 3 | **Online + offline appraisers** | Without humans-in-the-loop, the trilateral collapses to API-only. Risk pricing breaks. | Every loan |
-| 4 | **ICP-Brasil signature** (Clicksign / D4Sign) | CCB needs a legally binding signature. Without it, CCB has no enforceability. | Every loan in BR |
-| 5 | **Pix off-ramp** (Dock / Celcoin / Swap) | Brazilian borrowers need BRL, not USDC. Without Pix conversion, the user experience breaks at "spend". | Borrower spend UX |
-
-The other 11 needed-partners are important but not blocking. Vaulx Card, FIDC wrapper, Kamino routing, auction houses — all can come post-MVP.
-
----
-
-## 8. What changes hands at each step
-
-This is the question the legal team will ask: **who owns what, when?**
-
-| Step | Asset | Money | Legal status |
-|---|---|---|---|
-| Sign-in | — | — | borrower has account |
-| KYC | borrower's identity data → Sumsub → Vaulx (hash) | — | borrower KYC'd; on-chain attestation reusable |
-| Asset register | borrower's photos → Vaulx storage | — | no commitment yet |
-| Indicative terms | — | — | non-binding indicative |
-| Ship to vault | borrower's watch → courier → custodian | (insurance premium paid by Vaulx) | custodian holds physical possession; ownership still borrower's |
-| Custody confirmed | watch in Vaulx-controlled vault | — | possession transferred; **TRDC cNFT minted** representing the asset claim |
-| Offline eval + Risk Officer review | watch in vault | — | trilateral evaluation complete |
-| Final CCB signed | watch in vault | (no money flow yet) | **fiduciary alienation** under DL 911/69 — SCD becomes creditor; borrower's title transferred to SCD as security |
-| Disburse | watch in vault | USDC: Vaulx vault → borrower wallet | loan active; SCD owns CCB; lender provides USDC |
-| Repay (full) | watch in vault | USDC: borrower → SCD → Vaulx vault → lenders | **fiduciary alienation released**; title returns to borrower |
-| Renew | watch in vault | USDC: borrower → vault (interest only) | CCB amended; principal extended |
-| Repay → asset release | watch → courier → borrower | — | borrower full ownership restored |
-| Default (no payment) | watch in vault | — | SCD initiates DL 911/69; possession claim ripens |
-| Auction | watch sold to bidder | USDC: bidder → vault → distribute | bidder takes title; lenders recover principal; protocol takes 5% |
-
----
-
-## 9. Status summary — where we are vs. where we need to be
-
-### Hackathon demo (May 10) — what's needed
-
-| Item | Status | Owner |
-|---|---|---|
-| Sign-in (Crossmint sandbox) | ✅ done | shipped |
-| KYC (Sumsub sandbox) | ✅ done | shipped |
-| Triangular appraisal (online sources) | ✅ done | shipped (with fallback fixtures) |
-| Online appraiser workspace | ❌ build needed | engineering |
-| Offline appraiser workspace | ❌ build needed | engineering |
-| Risk Officer review screen | ❌ build needed | engineering |
-| Custody booking | 🟡 fixtures | engineering |
-| Custody confirm (admin button) | ✅ done (devnet) | shipped |
-| Disburse on-chain | ✅ done (Devnet) | shipped |
-| Per-loan dashboard + installment pay | ❌ build needed | engineering |
-| Auction trigger | ✅ done (admin button) | shipped |
-| Auction bidding UI | 🟡 partial (60s timer) | engineering |
-| Lender flow + Crossmint | 🟡 lacks Crossmint surface | engineering |
-| Demo polish + deletion of legacy 16 routes | ❌ awaiting verdict | engineering |
-
-### Mainnet readiness — partnerships needed (post-hackathon)
-
-| Partner | Earliest realistic ETA |
+| Step | Partner |
 |---|---|
-| SCD partner contract signed | 1-2 months |
-| Custodian agreement (Cofre Brasil / Brinks) | 1-2 months |
-| Online + offline appraiser network curated | 1 month |
-| ICP-Brasil signature integration | 2-4 weeks |
-| Pix off-ramp partner contract | 1-2 months |
-| FIDC fund admin onboarded (for retail Local vault) | 3-6 months |
-| Vaulx Card BIN sponsor | 3-6 months |
-| Whitelisted reseller network (20 resellers) | 1-2 months |
-| Sotheby's / Christie's fallback agreement | 2-4 months |
-| Brazilian legal counsel (DL 911/69) | 2-4 weeks |
-
-**Realistic mainnet target**: ~3-4 months after hackathon, contingent on SCD + Custodian + Pix partnerships landing in parallel.
+| Sign in | **Crossmint** (retail) · own wallet (any) |
+| KYC at first deposit | **Sumsub** + on-chain **SAS** |
+| Deposit USDC vault | **Helius RPC** (on-chain) |
+| Deposit Local (BRL) vault | **FIDC fund admin** (retail FIDC wrapper, post-legal-readiness) |
+| Yield distribution | borrower repayments routed via **SCD** → on-chain inflow |
+| Withdraw | on-chain (subject to utilisation cap) |
+| Institutional path | route via **Kamino / Plume**; no Vaulx UI |
 
 ---
 
-## 10. Talking points for the meeting
+## 5. Default & recovery
 
-1. **Today, Vaulx has 9 working partners** (Crossmint, Sumsub via Serpro, WatchCharts, Apify, Helius, Squads, Solana SAS, Vercel, Supabase). All sandbox-tier or live-tier where applicable.
-2. **16 partners still needed** before mainnet, but only 5 are critical-path: SCD, Custodian, Appraisers (×2 personas), ICP-Brasil signature, Pix off-ramp.
-3. **Most partner integrations are server-to-server APIs** — the user only sees Crossmint and Sumsub UIs; everything else is invisible.
-4. **The trilateral appraisal + Risk Officer review is a load-bearing trust mechanism** — it's where Vaulx differentiates from naive DeFi (which uses one oracle, gets gamed). Two distinct human appraisers, blinded, with bounded human override is our anti-fraud architecture.
-5. **What's NOT in scope for v1**: institutional B2B onboarding (route via Kamino/Plume instead), retail FIDC wrapper (legal-readiness phase), Vaulx Card.
-6. **Realistic path to mainnet is 3-4 months** post-hackathon, gated mostly on SCD + Custodian partnerships landing.
+When a borrower stops paying, the lenders need to recover capital from the asset.
+
+```mermaid
+flowchart LR
+    DEFAULT[Borrower defaults] --> SCD[SCD initiates recovery<br/>under DL 911/69]
+    SCD --> LEGAL[BR legal counsel]
+    LEGAL --> EXEC[Squads multisig<br/>execute_default on-chain]
+    EXEC --> AUC[7-day privileged auction<br/>whitelisted resellers + lenders]
+    AUC -->|bid received| WIN[Winning bidder gets asset<br/>USDC distributed to lenders]
+    AUC -->|no bid| FALLBACK[Fallback: luxury auction houses]
+```
+
+| Step | Partner |
+|---|---|
+| Recovery initiation | **SCD** + **BR legal counsel** |
+| On-chain default execution | **Squads multisig** |
+| Primary auction (7 days) | **Whitelisted reseller network** + existing **lenders** of the vault |
+| Fallback auction | luxury houses (e.g. Sotheby's, Christie's — agreement TBD) |
 
 ---
 
-**End of business flow snapshot.** Companion docs:
-- Technical architecture: [`2026-04-29-vaulx-architecture-snapshot.md`](./2026-04-29-vaulx-architecture-snapshot.md)
-- Per-persona journey + gap analysis: [`../plans/2026-04-29-vaulx-user-journeys-current-vs-ideal.md`](../plans/2026-04-29-vaulx-user-journeys-current-vs-ideal.md)
+## 6. Critical-path partnerships
+
+If we have to pick the **5 most important partnerships** before mainnet:
+
+| Rank | Role | Why critical |
+|---|---|---|
+| 1 | **SCD partner** | Legal creditor of record. Without it, no compliant CCB can be issued. |
+| 2 | **Custodian** | Without insured physical custody, lenders won't fund. |
+| 3 | **Online + offline appraiser network** | Two distinct human-review pools. Without them, the trilateral collapses to API-only and risk pricing breaks. |
+| 4 | **Digital signature provider** (ICP-Brasil) | CCB needs legally binding signature. |
+| 5 | **On/off rails** (Pix + debit card) | Brazilian borrowers need BRL, not USDC. Crossmint covers part of this; remaining Pix/debit-card rails to be confirmed. |
+
+The other roles (FIDC fund admin, institutional Kamino/Plume routing, reseller network, fallback houses, notification channels) are important but not blocking the first mainnet borrower.
+
+---
+
+## 7. Status: hackathon vs mainnet
+
+### For the hackathon (May 10) — what's already done vs still needed
+
+**Done:**
+Sign-in (Crossmint sandbox), KYC (Sumsub sandbox), online price anchor (WatchCharts + Apify), on-chain disburse, custody confirm via admin button, auction trigger, 4 Solana programs deployed, 27 Playwright e2e tests passing on prod.
+
+**Still needed (engineering, pre-hackathon):**
+Two-stage borrower flow rewrite, online + offline appraiser workspaces, Risk Officer review screen, per-loan dashboard + installment payment, Crossmint on lender side, admin basic-auth, deletion of 16 legacy routes.
+
+### For mainnet — partnerships to land (rough timing)
+
+| Role | Realistic ETA |
+|---|---|
+| SCD partner | 1–2 months |
+| Custodian agreement | 1–2 months |
+| Appraiser network (online + offline) | 1 month |
+| Digital signature provider | 2–4 weeks |
+| On/off rails (Pix + debit card) | 1–2 months |
+| BR legal counsel | 2–4 weeks |
+| FIDC fund admin (retail Local) | 3–6 months |
+| Whitelisted reseller network | 1–2 months |
+
+**Realistic mainnet target**: ~3-4 months post-hackathon, gated on top-5 critical-path partnerships.
+
+---
+
+## 8. Talking points
+
+1. **9 partners are live or sandbox today**: Crossmint, Sumsub (+ Serpro), WatchCharts, Apify, Helius, Squads, Solana SAS, Vercel, Supabase.
+2. **5 partnership categories are critical-path** before mainnet: SCD · Custodian · Appraiser network · Digital signature · On/off rails. The rest can come after first borrower.
+3. **Most integrations are invisible APIs.** Users only see Crossmint and Sumsub directly. SCD, custodian, appraisers, signature provider, payment rails — all server-to-server.
+4. **The trilateral appraisal + Risk Officer review is our anti-fraud architecture.** Two blinded human appraisers + bounded human override. This is what separates Vaulx from naive DeFi (single oracle gets gamed).
+5. **Institutional liquidity is OUT of v1 Vaulx UI.** No KYB onboarding screens. Institutionals deposit via Kamino / Plume aggregators.
+6. **Mainnet ETA: 3–4 months post-hackathon**, gated mostly on SCD + Custodian partnerships landing in parallel.
+
+---
+
+**End.** Companion docs: technical [`architecture-snapshot`](./2026-04-29-vaulx-architecture-snapshot.md) · journey [`current-vs-ideal`](../plans/2026-04-29-vaulx-user-journeys-current-vs-ideal.md).
