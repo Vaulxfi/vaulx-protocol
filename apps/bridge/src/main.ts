@@ -2,13 +2,36 @@ import express, { type Request, type Response } from "express";
 
 import { createBridgeProvider } from "./chain/provider";
 import { loadConfig } from "./config";
+import { createHmacMiddleware } from "./http/hmac";
 import { createChainAccountRouter } from "./http/routes/chain-account";
 
 const config = loadConfig();
 const provider = createBridgeProvider(config);
 const app = express();
 
-app.use(express.json({ limit: "64kb" }));
+// Capture the raw body bytes alongside JSON parsing — the HMAC middleware
+// signs over the literal bytes, not the re-stringified parse, so we have to
+// stash them before Express discards them.
+app.use(
+  express.json({
+    limit: "64kb",
+    verify: (req, _res, buf) => {
+      (req as Request).rawBody = buf.toString("utf8");
+    },
+  }),
+);
+
+// HMAC-SHA256 over (timestamp + method + originalUrl + rawBody). Health is
+// whitelisted so monitoring probes can hit it without negotiating auth;
+// every other route — including read-only ones like `/chain/account/:pda`
+// — requires a valid signature.
+app.use(
+  createHmacMiddleware({
+    secret: config.bridgeSharedSecret,
+    freshnessSeconds: config.hmacFreshnessSeconds,
+    unauthenticatedPaths: new Set(["/chain/health"]),
+  }),
+);
 
 /**
  * GET /chain/health — liveness probe. Intentionally unauthenticated so a

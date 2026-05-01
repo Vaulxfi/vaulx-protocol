@@ -4,9 +4,8 @@ import path from "node:path";
 import "dotenv/config";
 
 /**
- * Loaded once at boot; consumed by `main.ts` and the chain layer. HMAC
- * secret + webhook target arrive in subsequent commits as the corresponding
- * features come online.
+ * Loaded once at boot; consumed by `main.ts` and the chain layer. Webhook
+ * target arrives in a subsequent commit when the listener comes online.
  */
 export interface BridgeConfig {
   port: number;
@@ -19,6 +18,18 @@ export interface BridgeConfig {
    * developer's machine without extra config.
    */
   operatorKeypairPath: string;
+  /**
+   * Shared secret used to HMAC-sign every Laravel → bridge request. Required
+   * — boot fails fast if absent because a bridge with no secret accepts
+   * any caller. Generate with `openssl rand -hex 32`.
+   */
+  bridgeSharedSecret: string;
+  /**
+   * Maximum |now - timestamp| (in seconds) the HMAC middleware will accept.
+   * Defends against replay; must be loose enough to tolerate clock drift
+   * between Laravel and bridge hosts. Defaults to 300s (±5min).
+   */
+  hmacFreshnessSeconds: number;
 }
 
 const DEFAULT_OPERATOR_KEYPAIR_PATH = path.join(
@@ -28,6 +39,17 @@ const DEFAULT_OPERATOR_KEYPAIR_PATH = path.join(
   "id.json",
 );
 
+function requireEnv(name: string): string {
+  const v = process.env[name];
+  if (v === undefined || v === "") {
+    throw new Error(
+      `Missing required env: ${name}. Set it before starting the bridge ` +
+        `(see apps/bridge/.env.example).`,
+    );
+  }
+  return v;
+}
+
 export function loadConfig(): BridgeConfig {
   return {
     port: Number.parseInt(process.env.BRIDGE_PORT ?? "8787", 10),
@@ -36,5 +58,10 @@ export function loadConfig(): BridgeConfig {
     solanaCluster: process.env.SOLANA_CLUSTER ?? "devnet",
     operatorKeypairPath:
       process.env.OPERATOR_KEYPAIR_PATH ?? DEFAULT_OPERATOR_KEYPAIR_PATH,
+    bridgeSharedSecret: requireEnv("BRIDGE_SHARED_SECRET"),
+    hmacFreshnessSeconds: Number.parseInt(
+      process.env.BRIDGE_HMAC_FRESHNESS_SECONDS ?? "300",
+      10,
+    ),
   };
 }
