@@ -327,6 +327,9 @@ async function main(): Promise<void> {
     `\n[Moment 2] create_ccb_trdc loanId=${loanId.toBase58()} trdc=${trdcPda.toBase58()}`,
   );
 
+  // payer = borrower so trdc_state.borrower (= createCcbTrdc.payer) matches
+  // the borrowerAta.authority used by the atomic confirm_custody. Borrower
+  // already has SOL from the airdrop loop above.
   const sig2: string = await (loanProgram.methods as any)
     .createCcbTrdc(
       loanId,
@@ -339,11 +342,13 @@ async function main(): Promise<void> {
     .accounts({
       trdcState: trdcPda,
       trdcProgram: trdcProgramId,
-      payer: payer.publicKey,
+      payer: borrower.publicKey,
       systemProgram: SystemProgram.programId,
       loanConfig: loanConfigPda,
-      gatewayToken: SystemProgram.programId, // civic disabled => any account
+      kycAttestation: SystemProgram.programId, // kyc gate disabled
+      priceFeed: SystemProgram.programId, // oracle disabled
     })
+    .signers([borrower])
     .rpc();
   console.log(`[Moment 2] tx: ${sig2}`);
   await connection.confirmTransaction(sig2, "confirmed");
@@ -367,73 +372,38 @@ async function main(): Promise<void> {
   );
 
   // ==========================================================================
-  // Moment 3 — confirm_custody
+  // Moment 3 + 4 — atomic confirm_custody (folds disburse_from_vault in)
+  //
+  // Per the merge spec (§3 Area E DoD: "one transaction, both gate and
+  // disburse"), confirm_custody now atomically:
+  //   PendingCustody → ActiveInCustody → vault::disburse → Active
+  // signed only by the custodian. The on-chain ActiveInCustody window is
+  // collapsed inside the same tx; observers see status flip directly to
+  // Active. Both `custodyConfirmed` and `disbursed` events appear in the
+  // same tx signature.
   // ==========================================================================
   const docHashBytes = randomBytes32();
   const docHashHex = toHex(docHashBytes);
-  console.log(
-    `\n[Moment 3] confirm_custody trdc=${trdcPda.toBase58()} doc_hash=0x${docHashHex.slice(0, 16)}…`,
-  );
 
-  const sig3: string = await (loanProgram.methods as any)
-    .confirmCustody(Array.from(docHashBytes))
-    .accounts({
-      trdcState: trdcPda,
-      loanConfig: loanConfigPda,
-      trdcProgram: trdcProgramId,
-      custodian: custodian.publicKey,
-    })
-    .signers([custodian])
-    .rpc();
-  console.log(`[Moment 3] tx: ${sig3}`);
-  await connection.confirmTransaction(sig3, "confirmed");
-
-  const row3 = await pollForEvent(supabase, sig3, "custodyConfirmed");
-  const payload3 = row3.payload ?? {};
-  const rawDocHash = payload3.doc_hash ?? payload3.docHash;
-  const rxDocHashHex = Array.isArray(rawDocHash)
-    ? toHex(rawDocHash as number[])
-    : typeof rawDocHash === "string"
-      ? rawDocHash.replace(/^0x/, "").toLowerCase()
-      : "";
-  if (rxDocHashHex !== docHashHex) {
-    fail(
-      `[Moment 3] payload.doc_hash=${rxDocHashHex} expected ${docHashHex}`,
-    );
-  }
-  const trdcAfterCustody = (await (trdcProgram.account as any).trdcState.fetch(
-    trdcPda,
-  )) as { status: Record<string, unknown> };
-  if (!Object.prototype.hasOwnProperty.call(trdcAfterCustody.status, "activeInCustody")) {
-    fail(
-      `[Moment 3] TRDC status=${JSON.stringify(
-        trdcAfterCustody.status,
-      )} expected activeInCustody`,
-    );
-  }
-  console.log(`[Moment 3] OK custodyConfirmed -> status=ActiveInCustody`);
-
-  // ==========================================================================
-  // Moment 4 — disburse_from_vault
-  // ==========================================================================
   const [loanAuthorityPda] = PublicKey.findProgramAddressSync(
     [Buffer.from("loan_authority")],
     loanProgramId,
   );
 
   // vault_ata (off-curve owner) should already exist — initialize_vault creates
-  // it via moment-1-e2e. But if somebody nuked it, bail with guidance.
+  // it via moment-1-e2e. Bail early with guidance if missing.
   const { getAssociatedTokenAddressSync } = await import("@solana/spl-token");
   const vaultAta = getAssociatedTokenAddressSync(mintPk, vaultPda, true);
   const vaultAtaInfo = await connection.getAccountInfo(vaultAta);
   if (!vaultAtaInfo) {
     fail(
       `vault_ata ${vaultAta.toBase58()} missing; moment-1-e2e.ts is the ` +
-        `canonical place to create it. Re-run it before Moment 4.`,
+        `canonical place to create it. Re-run it before Moment 3+4.`,
     );
   }
 
-  // Borrower ATA — create via payer if absent.
+  // Borrower ATA — created BEFORE confirm_custody so the atomic ix's
+  // `token::authority = trdc_state.borrower` constraint passes.
   const borrowerAtaAcc = await getOrCreateAssociatedTokenAccount(
     connection,
     payer,
@@ -449,32 +419,51 @@ async function main(): Promise<void> {
   )) as { totalAssets: BN };
 
   console.log(
-    `\n[Moment 4] disburse_from_vault amount=${LOAN_AMOUNT.toString()} ` +
-      `borrower=${borrower.publicKey.toBase58()}`,
+    `\n[Moment 3+4] atomic confirm_custody (gate + disburse) ` +
+      `trdc=${trdcPda.toBase58()} doc_hash=0x${docHashHex.slice(0, 16)}… ` +
+      `amount=${LOAN_AMOUNT.toString()} borrower=${borrower.publicKey.toBase58()}`,
   );
 
-  const sig4: string = await (loanProgram.methods as any)
-    .disburseFromVault(LOAN_AMOUNT)
+  const sigConfirm: string = await (loanProgram.methods as any)
+    .confirmCustody(Array.from(docHashBytes))
     .accounts({
       trdcState: trdcPda,
       loanConfig: loanConfigPda,
+      trdcProgram: trdcProgramId,
+      custodian: custodian.publicKey,
       vault: vaultPda,
       assetMint: mintPk,
       vaultAta,
       borrowerAta,
       loanAuthority: loanAuthorityPda,
-      borrower: borrower.publicKey,
-      trdcProgram: trdcProgramId,
       vaultProgram: vaultProgramId,
       tokenProgram: TOKEN_PROGRAM_ID,
       instructionsSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
+      priceFeed: SystemProgram.programId, // oracle disabled
     })
-    .signers([borrower])
+    .signers([custodian])
     .rpc();
-  console.log(`[Moment 4] tx: ${sig4}`);
-  await connection.confirmTransaction(sig4, "confirmed");
+  console.log(`[Moment 3+4] tx: ${sigConfirm}`);
+  await connection.confirmTransaction(sigConfirm, "confirmed");
 
-  const row4 = await pollForEvent(supabase, sig4, "disbursed");
+  // Moment 3 — custodyConfirmed event in the atomic tx.
+  const row3 = await pollForEvent(supabase, sigConfirm, "custodyConfirmed");
+  const payload3 = row3.payload ?? {};
+  const rawDocHash = payload3.doc_hash ?? payload3.docHash;
+  const rxDocHashHex = Array.isArray(rawDocHash)
+    ? toHex(rawDocHash as number[])
+    : typeof rawDocHash === "string"
+      ? rawDocHash.replace(/^0x/, "").toLowerCase()
+      : "";
+  if (rxDocHashHex !== docHashHex) {
+    fail(
+      `[Moment 3] payload.doc_hash=${rxDocHashHex} expected ${docHashHex}`,
+    );
+  }
+  console.log(`[Moment 3] OK custodyConfirmed (atomic tx)`);
+
+  // Moment 4 — disbursed event in the same atomic tx.
+  const row4 = await pollForEvent(supabase, sigConfirm, "disbursed");
   const payload4 = row4.payload ?? {};
   const payloadAmount = String(payload4.amount);
   if (payloadAmount !== LOAN_AMOUNT.toString()) {
@@ -535,9 +524,8 @@ async function main(): Promise<void> {
       `borrower      : ${borrower.publicKey.toBase58()}`,
       `custodian     : ${custodian.publicKey.toBase58()}`,
       `vault         : ${vaultPda.toBase58()}`,
-      `M2 tx (create): ${sig2}`,
-      `M3 tx (cust)  : ${sig3}`,
-      `M4 tx (disb)  : ${sig4}`,
+      `M2 tx (create)        : ${sig2}`,
+      `M3+4 tx (atomic c+d)  : ${sigConfirm}`,
       `borrower USDC : ${borrowerBefore.toString()} -> ${borrowerAfter.toString()}`,
       `vault_ata     : ${vaultAtaBefore.toString()} -> ${vaultAtaAfter.toString()}`,
       `total_assets  : ${vaultBefore.totalAssets.toString()} -> ${vaultAfter.totalAssets.toString()}`,

@@ -158,7 +158,25 @@ describe("auction / default flow (Task 3.2)", () => {
       .signers([lender])
       .rpc();
 
-    // Create TRDC with past-due `dueTs`, confirm custody, disburse -> Active.
+    // Borrower keypair + ATA created BEFORE createCcbTrdc so trdc.borrower
+    // (= createCcbTrdc payer) matches borrowerAta.authority — required by the
+    // atomic confirm_custody constraint `token::authority = trdc.borrower`.
+    const borrower = Keypair.generate();
+    {
+      const sig = await provider.connection.requestAirdrop(
+        borrower.publicKey,
+        2 * LAMPORTS_PER_SOL,
+      );
+      await provider.connection.confirmTransaction(sig, "confirmed");
+    }
+    const borrowerAta = await createAssociatedTokenAccount(
+      provider.connection,
+      payer,
+      assetMint,
+      borrower.publicKey,
+    );
+
+    // Create TRDC with past-due `dueTs`, then atomically confirm + disburse.
     const loanId = Keypair.generate().publicKey;
     const [trdcStatePda] = PublicKey.findProgramAddressSync(
       [Buffer.from("trdc_state"), loanId.toBuffer()],
@@ -176,14 +194,17 @@ describe("auction / default flow (Task 3.2)", () => {
       .accounts({
         trdcState: trdcStatePda,
         trdcProgram: trdcProgram.programId,
-        payer: provider.wallet.publicKey,
+        payer: borrower.publicKey,
         systemProgram: SystemProgram.programId,
         loanConfig: loanConfigPda,
         kycAttestation: SystemProgram.programId,
-          priceFeed: SystemProgram.programId,
+        priceFeed: SystemProgram.programId,
       })
+      .signers([borrower])
       .rpc();
 
+    // Atomic confirm_custody — flips trdc PendingCustody → Active and
+    // disburses opts.loanAmount from the vault to borrowerAta in the same tx.
     await loanProgram.methods
       .confirmCustody(rand32())
       .accounts({
@@ -191,43 +212,17 @@ describe("auction / default flow (Task 3.2)", () => {
         loanConfig: loanConfigPda,
         trdcProgram: trdcProgram.programId,
         custodian: custodian.publicKey,
-      })
-      .signers([custodian])
-      .rpc();
-
-    const borrower = Keypair.generate();
-    {
-      const sig = await provider.connection.requestAirdrop(
-        borrower.publicKey,
-        2 * LAMPORTS_PER_SOL,
-      );
-      await provider.connection.confirmTransaction(sig, "confirmed");
-    }
-    const borrowerAta = await createAssociatedTokenAccount(
-      provider.connection,
-      payer,
-      assetMint,
-      borrower.publicKey,
-    );
-
-    await loanProgram.methods
-      .disburseFromVault(opts.loanAmount)
-      .accounts({
-        trdcState: trdcStatePda,
-        loanConfig: loanConfigPda,
         vault: vaultPda,
         assetMint,
         vaultAta,
         borrowerAta,
         loanAuthority: loanAuthorityPda,
-        borrower: borrower.publicKey,
-        trdcProgram: trdcProgram.programId,
         vaultProgram: vaultProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
         instructionsSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
         priceFeed: SystemProgram.programId,
       })
-      .signers([borrower])
+      .signers([custodian])
       .rpc();
 
     return {

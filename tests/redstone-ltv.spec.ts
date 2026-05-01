@@ -460,7 +460,7 @@ describe("loan / redstone-pattern price feed (Item 5)", () => {
     await unsetOracleAdmin();
   });
 
-  it("test_disburse_rejected_when_price_feed_ref_bytes_mismatch (SR-2)", async () => {
+  it("wrong_feed_at_atomic_confirm_reverts (SR-2)", async () => {
     const vaultProgram = anchor.workspace.Vault as Program<any>;
     await ensureVaultConfig(vaultProgram, provider);
     const loanAuthorityPda = PublicKey.findProgramAddressSync(
@@ -590,8 +590,28 @@ describe("loan / redstone-pattern price feed (Item 5)", () => {
       .signers([lender])
       .rpc();
 
-    // Create TRDC bound to refB (cheaper watch). 50% LTV against $50k feed
-    // = 25k atoms-eq cap. Borrow 1k atoms — well under the cap.
+    // Borrower keypair + ATA created BEFORE createCcbTrdc — atomic confirm
+    // requires borrowerAta.authority == trdc.borrower.
+    const borrower = Keypair.generate();
+    {
+      const sigBorrower = await provider.connection.requestAirdrop(
+        borrower.publicKey,
+        2 * LAMPORTS_PER_SOL,
+      );
+      await provider.connection.confirmTransaction(sigBorrower, "confirmed");
+    }
+    const borrowerAta = await createAssociatedTokenAccount(
+      provider.connection,
+      adminWallet,
+      assetMint,
+      borrower.publicKey,
+    );
+
+    const { custodian } = await ensureLoanConfig(loanProgram, provider);
+
+    // Sanity — TRDC bound to refB; atomic confirm with the MATCHING feed
+    // (refB) succeeds. The oracle re-check inside do_atomic_disburse passes
+    // because the feed PDA derives from trdc.ref_bytes (= refBytesB).
     const loanId = Keypair.generate().publicKey;
     const [trdcStatePda] = PublicKey.findProgramAddressSync(
       [Buffer.from("trdc_state"), loanId.toBuffer()],
@@ -609,16 +629,15 @@ describe("loan / redstone-pattern price feed (Item 5)", () => {
       .accounts({
         trdcState: trdcStatePda,
         trdcProgram: trdcProgram.programId,
-        payer: provider.wallet.publicKey,
+        payer: borrower.publicKey,
         systemProgram: SystemProgram.programId,
         loanConfig: loanConfigPda,
         kycAttestation: SystemProgram.programId,
         priceFeed: feedPdaB,
       })
+      .signers([borrower])
       .rpc();
 
-    // confirm_custody → ActiveInCustody so disburse gets past the FSM check.
-    const { custodian } = await ensureLoanConfig(loanProgram, provider);
     await loanProgram.methods
       .confirmCustody(Array.from(Buffer.alloc(32)))
       .accounts({
@@ -626,47 +645,26 @@ describe("loan / redstone-pattern price feed (Item 5)", () => {
         loanConfig: loanConfigPda,
         trdcProgram: trdcProgram.programId,
         custodian: custodian.publicKey,
-      })
-      .signers([custodian])
-      .rpc();
-
-    const borrower = Keypair.generate();
-    const sigBorrower = await provider.connection.requestAirdrop(
-      borrower.publicKey,
-      2 * LAMPORTS_PER_SOL,
-    );
-    await provider.connection.confirmTransaction(sigBorrower, "confirmed");
-    const borrowerAta = await createAssociatedTokenAccount(
-      provider.connection,
-      adminWallet,
-      assetMint,
-      borrower.publicKey,
-    );
-
-    // Sanity — disburse with the MATCHING feed (refB) succeeds. This rules
-    // out unrelated breakage in the disburse path.
-    await loanProgram.methods
-      .disburseFromVault(new BN("500000000"))
-      .accounts({
-        trdcState: trdcStatePda,
-        loanConfig: loanConfigPda,
         vault: vaultPda,
         assetMint,
         vaultAta,
         borrowerAta,
         loanAuthority: loanAuthorityPda,
-        borrower: borrower.publicKey,
-        trdcProgram: trdcProgram.programId,
         vaultProgram: vaultProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
         instructionsSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
         priceFeed: feedPdaB,
       })
-      .signers([borrower])
+      .signers([custodian])
       .rpc();
 
-    // Now build a SECOND TRDC bound to refB and try to disburse with refA's
-    // feed — the substitution attack. Must fail at the SR-2 binding.
+    // Substitution attack — second TRDC bound to refB; try atomic confirm
+    // with feedPdaA (wrong feed). The oracle re-check inside
+    // do_atomic_disburse re-derives the canonical PriceFeed PDA from
+    // trdc.ref_bytes and rejects the supplied feedPdaA at the address
+    // check, before any token movement. Pre-atomic refactor this test
+    // lived on disburse_from_vault; it now exercises the same SR-2 binding
+    // at confirm-and-disburse time.
     const loanId2 = Keypair.generate().publicKey;
     const [trdcStatePda2] = PublicKey.findProgramAddressSync(
       [Buffer.from("trdc_state"), loanId2.toBuffer()],
@@ -684,51 +682,42 @@ describe("loan / redstone-pattern price feed (Item 5)", () => {
       .accounts({
         trdcState: trdcStatePda2,
         trdcProgram: trdcProgram.programId,
-        payer: provider.wallet.publicKey,
+        payer: borrower.publicKey,
         systemProgram: SystemProgram.programId,
         loanConfig: loanConfigPda,
         kycAttestation: SystemProgram.programId,
         priceFeed: feedPdaB,
       })
-      .rpc();
-    await loanProgram.methods
-      .confirmCustody(Array.from(Buffer.alloc(32)))
-      .accounts({
-        trdcState: trdcStatePda2,
-        loanConfig: loanConfigPda,
-        trdcProgram: trdcProgram.programId,
-        custodian: custodian.publicKey,
-      })
-      .signers([custodian])
+      .signers([borrower])
       .rpc();
 
     let threw = false;
     let code: string | undefined;
     try {
       await loanProgram.methods
-        .disburseFromVault(new BN("500000000"))
+        .confirmCustody(Array.from(Buffer.alloc(32)))
         .accounts({
           trdcState: trdcStatePda2,
           loanConfig: loanConfigPda,
+          trdcProgram: trdcProgram.programId,
+          custodian: custodian.publicKey,
           vault: vaultPda,
           assetMint,
           vaultAta,
           borrowerAta,
           loanAuthority: loanAuthorityPda,
-          borrower: borrower.publicKey,
-          trdcProgram: trdcProgram.programId,
           vaultProgram: vaultProgram.programId,
           tokenProgram: TOKEN_PROGRAM_ID,
           instructionsSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
           priceFeed: feedPdaA, // <-- wrong feed for refB-bound TRDC
         })
-        .signers([borrower])
+        .signers([custodian])
         .rpc();
     } catch (e: any) {
       threw = true;
       code = e.error?.errorCode?.code ?? e.code;
     }
-    expect(threw, "wrong-feed disburse must revert").to.eq(true);
+    expect(threw, "wrong-feed atomic confirm must revert").to.eq(true);
     expect(code).to.eq("InvalidOracle");
 
     await unsetOracleAdmin();

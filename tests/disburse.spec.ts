@@ -149,6 +149,24 @@ describe("loan / disburse_from_vault — CPI-only gate (Task 2.2)", () => {
         .rpc();
     }
 
+    // Borrower keypair + ATA created BEFORE createCcbTrdc so trdc.borrower
+    // (= createCcbTrdc payer) matches borrowerAta.authority. Required by the
+    // atomic confirm_custody constraint `token::authority = trdc.borrower`.
+    const borrower = Keypair.generate();
+    {
+      const sig = await provider.connection.requestAirdrop(
+        borrower.publicKey,
+        2 * LAMPORTS_PER_SOL,
+      );
+      await provider.connection.confirmTransaction(sig, "confirmed");
+    }
+    const borrowerAta = await createAssociatedTokenAccount(
+      provider.connection,
+      payer,
+      assetMint,
+      borrower.publicKey,
+    );
+
     // Create TRDC (create_ccb_trdc). 50% LTV -> OK.
     const loanId = Keypair.generate().publicKey;
     const [trdcStatePda] = PublicKey.findProgramAddressSync(
@@ -167,15 +185,18 @@ describe("loan / disburse_from_vault — CPI-only gate (Task 2.2)", () => {
       .accounts({
         trdcState: trdcStatePda,
         trdcProgram: trdcProgram.programId,
-        payer: provider.wallet.publicKey,
+        payer: borrower.publicKey,
         systemProgram: SystemProgram.programId,
         loanConfig: loanConfigPda,
         kycAttestation: SystemProgram.programId,
-          priceFeed: SystemProgram.programId,
+        priceFeed: SystemProgram.programId,
       })
+      .signers([borrower])
       .rpc();
 
     if (opts.confirmCustody) {
+      // Atomic confirm_custody — flips trdc PendingCustody → Active and
+      // disburses loan_amount from the vault to borrowerAta in the same tx.
       await loanProgram.methods
         .confirmCustody(rand32())
         .accounts({
@@ -183,23 +204,19 @@ describe("loan / disburse_from_vault — CPI-only gate (Task 2.2)", () => {
           loanConfig: loanConfigPda,
           trdcProgram: trdcProgram.programId,
           custodian: custodian.publicKey,
+          vault: vaultPda,
+          assetMint,
+          vaultAta,
+          borrowerAta,
+          loanAuthority: loanAuthorityPda,
+          vaultProgram: vaultProgram.programId,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          instructionsSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
+          priceFeed: SystemProgram.programId,
         })
         .signers([custodian])
         .rpc();
     }
-
-    const borrower = Keypair.generate();
-    const sig = await provider.connection.requestAirdrop(
-      borrower.publicKey,
-      2 * LAMPORTS_PER_SOL,
-    );
-    await provider.connection.confirmTransaction(sig, "confirmed");
-    const borrowerAta = await createAssociatedTokenAccount(
-      provider.connection,
-      payer,
-      assetMint,
-      borrower.publicKey,
-    );
 
     return {
       assetMint,
@@ -289,69 +306,47 @@ describe("loan / disburse_from_vault — CPI-only gate (Task 2.2)", () => {
     expect(code).to.eq("UnauthorizedDisbursar");
   });
 
-  it("test_disburse_happy_path — 50k of 100k vault liquidity, event emitted", async () => {
-    const liquidity = new BN("100000000000"); // 100k USDC
-    const amount = new BN("50000000000"); //  50k USDC
+  it("test_disburse_after_atomic_fails_with_invalid_state — standalone path is unreachable on the happy flow", async () => {
+    // After setupVaultAndTrdc(confirmCustody: true) the atomic confirm has
+    // already moved funds and flipped trdc to Active. Calling the standalone
+    // disburse_from_vault now must fail at the FSM check — the ix is kept
+    // alive only as the negative-test target for the custody gate and the
+    // cross-program-gate test.
     const f = await setupVaultAndTrdc({
-      vaultLiquidity: liquidity,
+      vaultLiquidity: new BN("100000000000"),
       confirmCustody: true,
     });
 
-    const borrowerBefore = (await getAccount(provider.connection, f.borrowerAta)).amount;
-    const vaultBefore = (await getAccount(provider.connection, f.vaultAta)).amount;
-    const vBefore = await vaultProgram.account.vault.fetch(f.vaultPda);
-
-    const captured: any[] = [];
-    const parser = new anchor.EventParser(vaultProgram.programId, vaultProgram.coder);
-
-    const sigDisburse = await loanProgram.methods
-      .disburseFromVault(amount)
-      .accounts({
-        trdcState: f.trdcStatePda,
-        loanConfig: loanConfigPda,
-        vault: f.vaultPda,
-        assetMint: f.assetMint,
-        vaultAta: f.vaultAta,
-        borrowerAta: f.borrowerAta,
-        loanAuthority: loanAuthorityPda,
-        borrower: f.borrower.publicKey,
-        trdcProgram: trdcProgram.programId,
-        vaultProgram: vaultProgram.programId,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        instructionsSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
-        priceFeed: SystemProgram.programId,
-      })
-      .signers([f.borrower])
-      .rpc();
-
-    await provider.connection.confirmTransaction(sigDisburse, "confirmed");
-
-    const borrowerAfter = (await getAccount(provider.connection, f.borrowerAta)).amount;
-    const vaultAfter = (await getAccount(provider.connection, f.vaultAta)).amount;
-    const vAfter = await vaultProgram.account.vault.fetch(f.vaultPda);
-
-    expect((borrowerAfter - borrowerBefore).toString()).to.eq(amount.toString());
-    expect((vaultBefore - vaultAfter).toString()).to.eq(amount.toString());
-    expect(
-      new BN(vBefore.totalAssets.toString()).sub(new BN(vAfter.totalAssets.toString())).toString(),
-    ).to.eq(amount.toString());
-
-    // TRDC state should be Active (transitioned from ActiveInCustody).
-    const trdc = await trdcProgram.account.trdcState.fetch(f.trdcStatePda);
-    expect(trdc.status).to.deep.equal({ active: {} });
-
-    // Parse Disbursed event from logs.
-    const tx = await provider.connection.getTransaction(sigDisburse, {
-      commitment: "confirmed",
-      maxSupportedTransactionVersion: 0,
-    });
-    const logs = tx?.meta?.logMessages ?? [];
-    for (const ev of parser.parseLogs(logs)) {
-      if (ev.name === "disbursed") captured.push(ev.data);
+    let threw = false;
+    let code: string | undefined;
+    try {
+      await loanProgram.methods
+        .disburseFromVault(new BN(50))
+        .accounts({
+          trdcState: f.trdcStatePda,
+          loanConfig: loanConfigPda,
+          vault: f.vaultPda,
+          assetMint: f.assetMint,
+          vaultAta: f.vaultAta,
+          borrowerAta: f.borrowerAta,
+          loanAuthority: loanAuthorityPda,
+          borrower: f.borrower.publicKey,
+          trdcProgram: trdcProgram.programId,
+          vaultProgram: vaultProgram.programId,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          instructionsSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
+          priceFeed: SystemProgram.programId,
+        })
+        .signers([f.borrower])
+        .rpc();
+    } catch (e: any) {
+      threw = true;
+      code = e.error?.errorCode?.code ?? e.code;
     }
-    expect(captured.length).to.be.greaterThan(0);
-    const ev = captured[0];
-    expect(ev.vault.toBase58()).to.eq(f.vaultPda.toBase58());
-    expect(ev.amount.toString()).to.eq(amount.toString());
+    expect(
+      threw,
+      "standalone disburse must revert when trdc is already Active",
+    ).to.eq(true);
+    expect(code).to.eq("InvalidStateTransition");
   });
 });
