@@ -5,6 +5,10 @@ import { loadConfig } from "./config";
 import { createHmacMiddleware } from "./http/hmac";
 import { createChainAccountRouter } from "./http/routes/chain-account";
 import { createChainTypedRouter } from "./http/routes/chain-typed";
+import {
+  startWebhookListener,
+  type ListenerHandle,
+} from "./webhook/listener";
 
 const config = loadConfig();
 const provider = createBridgeProvider(config);
@@ -54,9 +58,38 @@ app.get("/chain/health", (_req: Request, res: Response) => {
 app.use(createChainTypedRouter(provider.connection));
 app.use(createChainAccountRouter(provider.connection));
 
-app.listen(config.port, () => {
+let listenerHandle: ListenerHandle | null = null;
+if (config.laravelWebhookBaseUrl) {
+  listenerHandle = startWebhookListener({
+    connection: provider.connection,
+    secret: config.bridgeSharedSecret,
+    baseUrl: config.laravelWebhookBaseUrl,
+  });
+} else {
+  console.log(
+    "[webhook] disabled — set LARAVEL_WEBHOOK_BASE_URL to enable on-chain → Laravel forwarding",
+  );
+}
+
+const server = app.listen(config.port, () => {
   console.log(
     `[bridge] listening on http://127.0.0.1:${config.port} ` +
       `(cluster=${config.solanaCluster}, operator=${provider.operator.publicKey.toBase58()})`,
   );
 });
+
+// Graceful shutdown: release RPC subscriptions before the HTTP server
+// closes, so the validator doesn't keep ghost subs around until timeout.
+for (const sig of ["SIGTERM", "SIGINT"] as const) {
+  process.on(sig, () => {
+    void (async () => {
+      console.log(`[bridge] ${sig} — shutting down`);
+      if (listenerHandle) {
+        await listenerHandle.shutdown();
+      }
+      server.close(() => {
+        process.exit(0);
+      });
+    })();
+  });
+}

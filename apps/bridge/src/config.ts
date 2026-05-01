@@ -30,6 +30,12 @@ export interface BridgeConfig {
    * between Laravel and bridge hosts. Defaults to 300s (±5min).
    */
   hmacFreshnessSeconds: number;
+  /**
+   * Base URL where Laravel exposes `POST /api/onchain-events/<event>`. When
+   * unset, the webhook listener is disabled (handy for local dev or
+   * read-only deploys). Validated as a parseable URL at boot.
+   */
+  laravelWebhookBaseUrl: string | null;
 }
 
 const DEFAULT_OPERATOR_KEYPAIR_PATH = path.join(
@@ -50,6 +56,16 @@ function requireEnv(name: string): string {
   return v;
 }
 
+function parseOptionalUrl(name: string, raw: string | undefined): string | null {
+  if (!raw) return null;
+  try {
+    new URL(raw);
+  } catch {
+    throw new Error(`${name} is not a valid URL: ${raw}`);
+  }
+  return raw;
+}
+
 export function loadConfig(): BridgeConfig {
   return {
     port: Number.parseInt(process.env.BRIDGE_PORT ?? "8787", 10),
@@ -62,6 +78,10 @@ export function loadConfig(): BridgeConfig {
     hmacFreshnessSeconds: Number.parseInt(
       process.env.BRIDGE_HMAC_FRESHNESS_SECONDS ?? "300",
       10,
+    ),
+    laravelWebhookBaseUrl: parseOptionalUrl(
+      "LARAVEL_WEBHOOK_BASE_URL",
+      process.env.LARAVEL_WEBHOOK_BASE_URL,
     ),
   };
 }
