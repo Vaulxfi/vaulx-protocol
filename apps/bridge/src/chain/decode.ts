@@ -9,13 +9,27 @@ interface RegistryEntry {
 }
 
 /**
+ * Public lookup table from program nickname → on-chain program id (base58).
+ * Typed routes consume this to validate `account.owner` against the program
+ * they expect. Keys also drive the `ProgramName` type used by `decodeAs`.
+ */
+export const PROGRAM_IDS = {
+  loan: (loanIdl as { address: string }).address,
+  vault: (vaultIdl as { address: string }).address,
+  trdc: (trdcIdl as { address: string }).address,
+  auction: (auctionIdl as { address: string }).address,
+};
+
+export type ProgramName = keyof typeof PROGRAM_IDS;
+
+/**
  * One-time registry build. Keyed by program id (base58 string) so account
  * decode lookups go owner → entry in O(1). Each entry caches its
  * BorshAccountsCoder so we don't re-parse the IDL on every request.
  */
 const REGISTRY: Record<string, RegistryEntry> = (() => {
   const r: Record<string, RegistryEntry> = {};
-  const programs: Array<readonly [string, unknown]> = [
+  const programs: Array<readonly [ProgramName, unknown]> = [
     ["loan", loanIdl],
     ["vault", vaultIdl],
     ["trdc", trdcIdl],
@@ -32,6 +46,26 @@ const REGISTRY: Record<string, RegistryEntry> = (() => {
   }
   return r;
 })();
+
+/**
+ * Typed-known decode: given a program nickname and the IDL account type
+ * name, decode `data` as that account. Throws if the discriminator/layout
+ * doesn't match — callers should catch and surface as 500 `decode_failed`,
+ * which only fires when the on-disk IDL drifted from the deployed program.
+ */
+export function decodeAs<T = unknown>(
+  programName: ProgramName,
+  accountType: string,
+  data: Buffer,
+): T {
+  const entry = REGISTRY[PROGRAM_IDS[programName]];
+  if (!entry) {
+    // Type-level impossibility — defensive throw to make the failure mode
+    // legible if someone bypasses the type system.
+    throw new Error(`unknown program: ${programName}`);
+  }
+  return entry.coder.decode<T>(accountType, data);
+}
 
 export interface DecodedAccount {
   /** One of: "loan" | "vault" | "trdc" | "auction". */

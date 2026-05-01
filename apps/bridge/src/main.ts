@@ -4,6 +4,7 @@ import { createBridgeProvider } from "./chain/provider";
 import { loadConfig } from "./config";
 import { createHmacMiddleware } from "./http/hmac";
 import { createChainAccountRouter } from "./http/routes/chain-account";
+import { createChainTypedRouter } from "./http/routes/chain-typed";
 
 const config = loadConfig();
 const provider = createBridgeProvider(config);
@@ -50,6 +51,7 @@ app.get("/chain/health", (_req: Request, res: Response) => {
   });
 });
 
+app.use(createChainTypedRouter(provider.connection));
 app.use(createChainAccountRouter(provider.connection));
 
 app.listen(config.port, () => {
