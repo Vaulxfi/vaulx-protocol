@@ -96,6 +96,15 @@
     },
     {
       "name": "confirm_custody",
+      "docs": [
+        "Atomic gate-and-disburse — the load-bearing ix from Vaulxfi/program adopted",
+        "here per the merge spec (§3 Area E DoD: \"one transaction, both gate and",
+        "disburse\"). The custodian's signature flips PendingCustody → ActiveInCustody",
+        "→ Active, runs vault::disburse, and stamps `doc_hash` on TRDCState — all",
+        "reverting together if any step fails. The borrower is intentionally absent",
+        "from this tx; `borrower_ata.authority` is pinned to `trdc_state.borrower` at",
+        "the accounts-struct level so the principal cannot be redirected."
+      ],
       "discriminator": [
         87,
         103,
@@ -141,6 +150,79 @@
         {
           "name": "custodian",
           "signer": true
+        },
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "asset_mint"
+        },
+        {
+          "name": "vault_ata",
+          "writable": true
+        },
+        {
+          "name": "borrower_ata",
+          "docs": [
+            "SR (atomic-only): borrower_ata.owner pinned to trdc_state.borrower so",
+            "the custodian — who is the only signer in this tx — cannot redirect",
+            "principal to a wallet other than the loan's borrower of record.",
+            "`disburse_from_vault` (standalone) intentionally keeps the looser",
+            "constraint to preserve existing test coverage."
+          ],
+          "writable": true
+        },
+        {
+          "name": "loan_authority",
+          "docs": [
+            "program re-derives and requires this as the signer."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  97,
+                  110,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault_program",
+          "address": "4PPyUvazjDBvFndGUL2rgKTwZrFbsSP1tk4a2uMhE9MS"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "instructions_sysvar",
+          "docs": [
+            "vault::disburse so its Layer 2 check can read it."
+          ],
+          "address": "Sysvar1nstructions1111111111111111111111111"
+        },
+        {
+          "name": "price_feed",
+          "docs": [
+            "`loan_config.oracle_admin != Pubkey::default()`. When the oracle is",
+            "unset, callers may pass any account (e.g. SystemProgram)."
+          ]
         }
       ],
       "args": [
