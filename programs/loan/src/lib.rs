@@ -262,6 +262,13 @@ pub mod loan {
         Ok(())
     }
 
+    /// Atomic gate-and-disburse — the load-bearing ix from Vaulxfi/program adopted
+    /// here per the merge spec (§3 Area E DoD: "one transaction, both gate and
+    /// disburse"). The custodian's signature flips PendingCustody → ActiveInCustody
+    /// → Active, runs vault::disburse, and stamps `doc_hash` on TRDCState — all
+    /// reverting together if any step fails. The borrower is intentionally absent
+    /// from this tx; `borrower_ata.authority` is pinned to `trdc_state.borrower` at
+    /// the accounts-struct level so the principal cannot be redirected.
     pub fn confirm_custody(
         ctx: Context<ConfirmCustody>,
         doc_hash: [u8; 32],
@@ -271,6 +278,7 @@ pub mod loan {
             LoanError::UnauthorizedCustodian
         );
 
+        // Step 1: PendingCustody → ActiveInCustody (writes doc_hash on TRDCState).
         trdc::cpi::confirm_custody_transition(
             CpiContext::new(
                 ctx.accounts.trdc_program.to_account_info(),
@@ -280,6 +288,31 @@ pub mod loan {
                 },
             ),
             doc_hash,
+        )?;
+
+        // The CPI mutated trdc_state on chain; refresh our in-memory copy so the
+        // helper's `status == ActiveInCustody` invariant reads the post-CPI state
+        // (mirrors the existing `pay_installment` reload-after-CPI pattern).
+        ctx.accounts.trdc_state.reload()?;
+
+        // Steps 2 + 3: oracle re-check (if armed), vault::disburse, and
+        // ActiveInCustody → Active. THE invariant lives in `do_atomic_disburse`.
+        let amount = ctx.accounts.trdc_state.loan_amount;
+        do_atomic_disburse(
+            &ctx.accounts.trdc_state,
+            &ctx.accounts.loan_config,
+            &ctx.accounts.vault.to_account_info(),
+            &ctx.accounts.asset_mint.to_account_info(),
+            &ctx.accounts.vault_ata.to_account_info(),
+            &ctx.accounts.borrower_ata.to_account_info(),
+            &ctx.accounts.loan_authority.to_account_info(),
+            &ctx.accounts.vault_program.to_account_info(),
+            &ctx.accounts.trdc_program.to_account_info(),
+            &ctx.accounts.token_program.to_account_info(),
+            &ctx.accounts.instructions_sysvar.to_account_info(),
+            &ctx.accounts.price_feed.to_account_info(),
+            &ctx.accounts.custodian.to_account_info(),
+            amount,
         )?;
 
         emit!(CustodyConfirmed {
@@ -293,114 +326,28 @@ pub mod loan {
 
     pub fn disburse_from_vault(ctx: Context<DisburseFromVault>, amount: u64) -> Result<()> {
         require!(amount > 0, LoanError::ZeroAmount);
-        require!(
-            ctx.accounts.trdc_state.status == Status::ActiveInCustody,
-            trdc::errors::TrdcError::InvalidStateTransition
-        );
 
-        // Item 5 — when the oracle is on, re-validate LTV against the freshest
-        // feed at disbursement time (price could have moved between mint and
-        // disburse). When the oracle is unset, retain the legacy disburse
-        // path. SR-1 / SR-2 / SR-6.
-        if ctx.accounts.loan_config.oracle_admin != Pubkey::default() {
-            // SR-2 (price-feed binding) — re-derive the canonical PriceFeed
-            // PDA from the ref_bytes stamped on the TRDCState at create-time
-            // and require equality with the supplied account. Without this
-            // binding, an attacker could substitute a fresh price feed for a
-            // *different* (more expensive) watch and over-collateralise.
-            //
-            // A zero ref_bytes means the loan was created with the oracle off
-            // — we treat it as a hard failure here because oracle-on at
-            // disburse-time + oracle-off at create-time is a misconfig that
-            // should never happen on a real loan.
-            require!(
-                ctx.accounts.trdc_state.ref_bytes != [0u8; 32],
-                LoanError::PriceFeedNotInit
-            );
-            let (expected_feed_pda, _bump) =
-                PriceFeed::pda(&ctx.accounts.trdc_state.ref_bytes, &crate::ID);
-            require_keys_eq!(
-                ctx.accounts.price_feed.key(),
-                expected_feed_pda,
-                LoanError::InvalidOracle
-            );
-            require_keys_eq!(
-                *ctx.accounts.price_feed.owner,
-                crate::ID,
-                LoanError::PriceFeedNotInit
-            );
-            let feed_data = ctx.accounts.price_feed.try_borrow_data()?;
-            let mut slice: &[u8] = &feed_data;
-            let feed = PriceFeed::try_deserialize(&mut slice)
-                .map_err(|_| error!(LoanError::PriceFeedNotInit))?;
-            require_keys_eq!(
-                feed.published_by,
-                ctx.accounts.loan_config.oracle_admin,
-                LoanError::InvalidOracle
-            );
-            let now = Clock::get()?.unix_timestamp;
-            require!(now >= feed.observed_at, LoanError::FuturePrice);
-            require!(
-                now.saturating_sub(feed.observed_at) <= PriceFeed::MAX_AGE_SECONDS,
-                LoanError::StalePrice
-            );
-            require!(
-                feed.listings >= PriceFeed::MIN_LISTINGS,
-                LoanError::InsufficientListings
-            );
-            // Recompute appraisal from feed (cents -> USDC atoms) and re-check
-            // LTV against `loan_amount`. SR-6.
-            let live_appraisal = (feed.median_usd_cents as u128)
-                .checked_mul(10_000u128)
-                .and_then(|v| u64::try_from(v).ok())
-                .ok_or(LoanError::MathOverflow)?;
-            let lhs = (ctx.accounts.trdc_state.loan_amount as u128)
-                .checked_mul(10_000u128)
-                .ok_or(LoanError::MathOverflow)?;
-            let rhs = (live_appraisal as u128)
-                .checked_mul(MAX_LTV_BPS as u128)
-                .ok_or(LoanError::MathOverflow)?;
-            require!(lhs <= rhs, LoanError::LtvTooHigh);
-        }
-
-        // Derive loan_authority signer seeds.
-        let (expected_authority, bump) =
-            Pubkey::find_program_address(&[LOAN_AUTHORITY_SEED], &crate::ID);
-        require_keys_eq!(
-            ctx.accounts.loan_authority.key(),
-            expected_authority,
-            LoanError::UnauthorizedAdmin
-        );
-
-        let seeds: &[&[u8]] = &[LOAN_AUTHORITY_SEED, &[bump]];
-        let signer_seeds: &[&[&[u8]]] = &[seeds];
-
-        // 1) CPI into vault::disburse, signed by the loan_authority PDA.
-        vault::cpi::disburse(
-            CpiContext::new_with_signer(
-                ctx.accounts.vault_program.to_account_info(),
-                VaultDisburse {
-                    vault: ctx.accounts.vault.to_account_info(),
-                    asset_mint: ctx.accounts.asset_mint.to_account_info(),
-                    vault_ata: ctx.accounts.vault_ata.to_account_info(),
-                    borrower_ata: ctx.accounts.borrower_ata.to_account_info(),
-                    loan_authority: ctx.accounts.loan_authority.to_account_info(),
-                    token_program: ctx.accounts.token_program.to_account_info(),
-                    instructions_sysvar: ctx.accounts.instructions_sysvar.to_account_info(),
-                },
-                signer_seeds,
-            ),
+        // Standalone path — kept for the negative test (calling disburse before
+        // confirm_custody must fail) and the cross-program-gate test
+        // (vault::disburse top-level rejection). On the happy path this is now
+        // unreachable because `confirm_custody` performs the atomic disburse in
+        // the same tx.
+        do_atomic_disburse(
+            &ctx.accounts.trdc_state,
+            &ctx.accounts.loan_config,
+            &ctx.accounts.vault.to_account_info(),
+            &ctx.accounts.asset_mint.to_account_info(),
+            &ctx.accounts.vault_ata.to_account_info(),
+            &ctx.accounts.borrower_ata.to_account_info(),
+            &ctx.accounts.loan_authority.to_account_info(),
+            &ctx.accounts.vault_program.to_account_info(),
+            &ctx.accounts.trdc_program.to_account_info(),
+            &ctx.accounts.token_program.to_account_info(),
+            &ctx.accounts.instructions_sysvar.to_account_info(),
+            &ctx.accounts.price_feed.to_account_info(),
+            &ctx.accounts.borrower.to_account_info(),
             amount,
         )?;
-
-        // 2) CPI into trdc to flip ActiveInCustody -> Active.
-        trdc::cpi::transition_to_active(CpiContext::new(
-            ctx.accounts.trdc_program.to_account_info(),
-            TransitionToActive {
-                trdc_state: ctx.accounts.trdc_state.to_account_info(),
-                authority: ctx.accounts.borrower.to_account_info(),
-            },
-        ))?;
 
         emit!(DisburseRequested {
             trdc_state: ctx.accounts.trdc_state.key(),
@@ -871,6 +818,135 @@ fn record_vault_inflow(ctx: &Context<RepaymentOp>, amount: u64) -> Result<()> {
     )
 }
 
+/// THE invariant of the atomic confirm-and-disburse pattern (ported from
+/// Vaulxfi/program). Called by both `confirm_custody` (atomic, signed by the
+/// custodian) and `disburse_from_vault` (standalone, signed by the borrower —
+/// kept as the negative-test target for the custody gate). Putting the
+/// invariant in a single helper means there is exactly ONE place where
+/// "principal moves out of the vault" is gated:
+///   * `trdc_state.status == ActiveInCustody`
+///   * oracle freshness + LTV (when the RedStone-pattern oracle is armed)
+///   * `loan_authority` PDA derivation matches this program
+/// Both paths terminate in `vault::disburse` + `trdc::transition_to_active`.
+fn do_atomic_disburse<'info>(
+    trdc_state: &Account<'info, TRDCState>,
+    loan_config: &Account<'info, LoanConfig>,
+    vault: &AccountInfo<'info>,
+    asset_mint: &AccountInfo<'info>,
+    vault_ata: &AccountInfo<'info>,
+    borrower_ata: &AccountInfo<'info>,
+    loan_authority: &AccountInfo<'info>,
+    vault_program: &AccountInfo<'info>,
+    trdc_program: &AccountInfo<'info>,
+    token_program: &AccountInfo<'info>,
+    instructions_sysvar: &AccountInfo<'info>,
+    price_feed: &AccountInfo<'info>,
+    transition_authority: &AccountInfo<'info>,
+    amount: u64,
+) -> Result<()> {
+    // THE invariant — checked once, in one place.
+    require!(
+        trdc_state.status == Status::ActiveInCustody,
+        trdc::errors::TrdcError::InvalidStateTransition
+    );
+
+    // Oracle re-check — preserved from the original disburse_from_vault. The
+    // atomic path collapses the create→confirm→disburse window into
+    // create→confirm, but a fresh feed at confirm time still adds value
+    // (price can move between origination and the custodian signing).
+    if loan_config.oracle_admin != Pubkey::default() {
+        require!(
+            trdc_state.ref_bytes != [0u8; 32],
+            LoanError::PriceFeedNotInit
+        );
+        let (expected_feed_pda, _bump) =
+            PriceFeed::pda(&trdc_state.ref_bytes, &crate::ID);
+        require_keys_eq!(
+            price_feed.key(),
+            expected_feed_pda,
+            LoanError::InvalidOracle
+        );
+        require_keys_eq!(
+            *price_feed.owner,
+            crate::ID,
+            LoanError::PriceFeedNotInit
+        );
+        let feed_data = price_feed.try_borrow_data()?;
+        let mut slice: &[u8] = &feed_data;
+        let feed = PriceFeed::try_deserialize(&mut slice)
+            .map_err(|_| error!(LoanError::PriceFeedNotInit))?;
+        require_keys_eq!(
+            feed.published_by,
+            loan_config.oracle_admin,
+            LoanError::InvalidOracle
+        );
+        let now = Clock::get()?.unix_timestamp;
+        require!(now >= feed.observed_at, LoanError::FuturePrice);
+        require!(
+            now.saturating_sub(feed.observed_at) <= PriceFeed::MAX_AGE_SECONDS,
+            LoanError::StalePrice
+        );
+        require!(
+            feed.listings >= PriceFeed::MIN_LISTINGS,
+            LoanError::InsufficientListings
+        );
+        let live_appraisal = (feed.median_usd_cents as u128)
+            .checked_mul(10_000u128)
+            .and_then(|v| u64::try_from(v).ok())
+            .ok_or(LoanError::MathOverflow)?;
+        let lhs = (trdc_state.loan_amount as u128)
+            .checked_mul(10_000u128)
+            .ok_or(LoanError::MathOverflow)?;
+        let rhs = (live_appraisal as u128)
+            .checked_mul(MAX_LTV_BPS as u128)
+            .ok_or(LoanError::MathOverflow)?;
+        require!(lhs <= rhs, LoanError::LtvTooHigh);
+    }
+
+    // Derive loan_authority signer seeds.
+    let (expected_authority, bump) =
+        Pubkey::find_program_address(&[LOAN_AUTHORITY_SEED], &crate::ID);
+    require_keys_eq!(
+        loan_authority.key(),
+        expected_authority,
+        LoanError::UnauthorizedAdmin
+    );
+    let seeds: &[&[u8]] = &[LOAN_AUTHORITY_SEED, &[bump]];
+    let signer_seeds: &[&[&[u8]]] = &[seeds];
+
+    // 1) vault::disburse — moves USDC vault_ata → borrower_ata under the
+    //    loan_authority PDA. vault::disburse runs the two-layer gate
+    //    (PDA + instructions sysvar top-level program check).
+    vault::cpi::disburse(
+        CpiContext::new_with_signer(
+            vault_program.clone(),
+            VaultDisburse {
+                vault: vault.clone(),
+                asset_mint: asset_mint.clone(),
+                vault_ata: vault_ata.clone(),
+                borrower_ata: borrower_ata.clone(),
+                loan_authority: loan_authority.clone(),
+                token_program: token_program.clone(),
+                instructions_sysvar: instructions_sysvar.clone(),
+            },
+            signer_seeds,
+        ),
+        amount,
+    )?;
+
+    // 2) trdc::transition_to_active — ActiveInCustody → Active. trdc owns the
+    //    trdc_state account; this CPI is the only legitimate writer.
+    trdc::cpi::transition_to_active(CpiContext::new(
+        trdc_program.clone(),
+        TransitionToActive {
+            trdc_state: trdc_state.to_account_info(),
+            authority: transition_authority.clone(),
+        },
+    ))?;
+
+    Ok(())
+}
+
 #[event]
 pub struct CcbTrdcCreated {
     pub trdc_state: Pubkey,
@@ -1034,6 +1110,41 @@ pub struct ConfirmCustody<'info> {
     pub loan_config: Account<'info, LoanConfig>,
     pub trdc_program: Program<'info, Trdc>,
     pub custodian: Signer<'info>,
+
+    // ----- Accounts required for the atomic disburse -----
+
+    /// CHECK: asserted by the vault program via its own seeds/bump constraint.
+    #[account(mut)]
+    pub vault: UncheckedAccount<'info>,
+    pub asset_mint: Account<'info, Mint>,
+    /// CHECK: asserted by the vault program (token::mint/token::authority).
+    #[account(mut)]
+    pub vault_ata: UncheckedAccount<'info>,
+    /// SR (atomic-only): borrower_ata.owner pinned to trdc_state.borrower so
+    /// the custodian — who is the only signer in this tx — cannot redirect
+    /// principal to a wallet other than the loan's borrower of record.
+    /// `disburse_from_vault` (standalone) intentionally keeps the looser
+    /// constraint to preserve existing test coverage.
+    #[account(
+        mut,
+        token::mint = asset_mint,
+        token::authority = trdc_state.borrower,
+    )]
+    pub borrower_ata: Account<'info, TokenAccount>,
+    /// CHECK: PDA `[b"loan_authority"]` owned by this program; the vault
+    /// program re-derives and requires this as the signer.
+    #[account(seeds = [LOAN_AUTHORITY_SEED], bump)]
+    pub loan_authority: UncheckedAccount<'info>,
+    pub vault_program: Program<'info, VaultProgram>,
+    pub token_program: Program<'info, Token>,
+    /// CHECK: address-constrained to the instructions sysvar; forwarded to
+    /// vault::disburse so its Layer 2 check can read it.
+    #[account(address = anchor_lang::solana_program::sysvar::instructions::ID)]
+    pub instructions_sysvar: UncheckedAccount<'info>,
+    /// CHECK: validated inline (PDA-owner + deserialize) when
+    /// `loan_config.oracle_admin != Pubkey::default()`. When the oracle is
+    /// unset, callers may pass any account (e.g. SystemProgram).
+    pub price_feed: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
