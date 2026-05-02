@@ -1,6 +1,23 @@
-import { BN, BorshAccountsCoder, type Idl } from "@coral-xyz/anchor";
+import { BorshAccountsCoder, type Idl } from "@coral-xyz/anchor";
 import { PublicKey } from "@solana/web3.js";
 import { auctionIdl, loanIdl, trdcIdl, vaultIdl } from "@vaulx/idls";
+
+/**
+ * Duck-typed BN detection (avoids importing `BN` from `@coral-xyz/anchor`
+ * just for `instanceof`). bn.js instances expose a `words` array and a
+ * `wordSize` static on the constructor that's always 26. Matches the same
+ * predicate `BN.isBN` uses internally so it survives multiple bn.js copies
+ * being hoisted differently across pnpm workspaces — which we hit when the
+ * server-side import was stripped and the runtime had no `BN` symbol.
+ *
+ * Plain `boolean` (not a type predicate) so subsequent `instanceof` checks
+ * in the caller don't narrow `value` to `never`.
+ */
+function isBnLike(value: unknown): boolean {
+  if (value === null || typeof value !== "object") return false;
+  const obj = value as { words?: unknown; constructor?: { wordSize?: unknown } };
+  return Array.isArray(obj.words) && obj.constructor?.wordSize === 26;
+}
 
 interface RegistryEntry {
   name: string;
@@ -86,7 +103,9 @@ export function decodeAs<T = unknown>(
 export function cleanForJson(value: unknown): unknown {
   if (value === null || value === undefined) return value;
   if (typeof value !== "object") return value;
-  if (BN.isBN(value)) return (value as BN).toString(10);
+  if (isBnLike(value)) {
+    return (value as { toString: (radix: number) => string }).toString(10);
+  }
   if (value instanceof PublicKey) return value.toBase58();
   if (Buffer.isBuffer(value)) return value.toString("base64");
   if (value instanceof Uint8Array) {
