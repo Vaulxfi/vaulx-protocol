@@ -1,7 +1,12 @@
 import { Router, type Request, type Response } from "express";
 import { type Connection, PublicKey } from "@solana/web3.js";
 
-import { PROGRAM_IDS, type ProgramName, decodeAs } from "../../chain/decode";
+import {
+  PROGRAM_IDS,
+  type ProgramName,
+  cleanForJson,
+  decodeAs,
+} from "../../chain/decode";
 import {
   deriveLoanConfigPda,
   deriveTrdcStatePda,
@@ -69,7 +74,7 @@ function send(res: Response, r: TypedReadResult): void {
       pda: r.data.pda.toBase58(),
       lamports: r.data.lamports,
       slot: r.data.slot,
-      fields: r.data.fields,
+      fields: cleanForJson(r.data.fields),
     },
   });
 }

@@ -1,5 +1,5 @@
-import { BorshAccountsCoder, type Idl } from "@coral-xyz/anchor";
-import type { PublicKey } from "@solana/web3.js";
+import { BN, BorshAccountsCoder, type Idl } from "@coral-xyz/anchor";
+import { PublicKey } from "@solana/web3.js";
 import { auctionIdl, loanIdl, trdcIdl, vaultIdl } from "@vaulx/idls";
 
 interface RegistryEntry {
@@ -65,6 +65,39 @@ export function decodeAs<T = unknown>(
     throw new Error(`unknown program: ${programName}`);
   }
   return entry.coder.decode<T>(accountType, data);
+}
+
+/**
+ * Recursively normalize an Anchor-decoded payload into JSON-safe values.
+ *
+ * BorshAccountsCoder hands back BN instances for `u64`/`i64`/`u128`/`i128`
+ * and PublicKey instances for pubkey fields. Both serialize poorly through
+ * `JSON.stringify`: BN's default `toJSON()` returns *hex* (e.g. `"4c4b40"`
+ * for 5_000_000), and PublicKey serializes as a 32-byte object. Downstream
+ * (Laravel) divides u64 atom counts by 1_000_000 to render USDC — which
+ * blows up with "non-numeric value" if it sees the hex string.
+ *
+ * Convention here: BN → decimal string (preserves precision past 2^53),
+ * PublicKey → base58 string, Buffer/Uint8Array → base64 string. Plain
+ * objects and arrays recurse; primitives pass through. Apply this once at
+ * the response boundary in the typed/account routes — never inside the
+ * coder layer, so internal callers still get strongly-typed BN/PublicKey.
+ */
+export function cleanForJson(value: unknown): unknown {
+  if (value === null || value === undefined) return value;
+  if (typeof value !== "object") return value;
+  if (BN.isBN(value)) return (value as BN).toString(10);
+  if (value instanceof PublicKey) return value.toBase58();
+  if (Buffer.isBuffer(value)) return value.toString("base64");
+  if (value instanceof Uint8Array) {
+    return Buffer.from(value).toString("base64");
+  }
+  if (Array.isArray(value)) return value.map(cleanForJson);
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    out[k] = cleanForJson(v);
+  }
+  return out;
 }
 
 export interface DecodedAccount {

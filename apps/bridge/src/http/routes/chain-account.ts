@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { type Connection, PublicKey } from "@solana/web3.js";
 
-import { tryDecodeAccount } from "../../chain/decode";
+import { cleanForJson, tryDecodeAccount } from "../../chain/decode";
 
 /**
  * GET /chain/account/:pda — generic on-chain read.
@@ -34,6 +34,8 @@ export function createChainAccountRouter(connection: Connection): Router {
       return;
     }
 
+    const decoded = tryDecodeAccount(acc.owner, acc.data);
+
     res.json({
       ok: true,
       data: {
@@ -43,7 +45,9 @@ export function createChainAccountRouter(connection: Connection): Router {
         executable: acc.executable,
         dataLength: acc.data.length,
         dataBase64: acc.data.toString("base64"),
-        decoded: tryDecodeAccount(acc.owner, acc.data),
+        decoded: decoded
+          ? { ...decoded, fields: cleanForJson(decoded.fields) }
+          : null,
       },
     });
   });
