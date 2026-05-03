@@ -4,6 +4,7 @@ import { createBridgeProvider } from "./chain/provider";
 import { loadConfig } from "./config";
 import { createHmacMiddleware } from "./http/hmac";
 import { createChainAccountRouter } from "./http/routes/chain-account";
+import { createChainLoanWritesRouter } from "./http/routes/chain-loan-writes";
 import { createChainTypedRouter } from "./http/routes/chain-typed";
 import {
   startWebhookListener,
@@ -57,6 +58,7 @@ app.get("/chain/health", (_req: Request, res: Response) => {
 
 app.use(createChainTypedRouter(provider.connection));
 app.use(createChainAccountRouter(provider.connection));
+app.use(createChainLoanWritesRouter());
 
 let listenerHandle: ListenerHandle | null = null;
 if (config.laravelWebhookBaseUrl) {
