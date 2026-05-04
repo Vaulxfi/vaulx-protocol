@@ -9,10 +9,10 @@ describe("parseEvents", () => {
 
   it("returns empty for logs with no Program data lines", () => {
     const logs = [
-      "Program BHdxEKkfsyjERiz5XiUybDLquvoWRtF7r1zDgVCDZJow invoke [1]",
+      "Program BCzcP4soWYSVWAt8gWPZmcNxcCiw8LdU8sT5VS3TPuW8 invoke [1]",
       "Program log: Instruction: ConfirmCustody",
-      "Program BHdxEKkfsyjERiz5XiUybDLquvoWRtF7r1zDgVCDZJow consumed 12345 of 200000 compute units",
-      "Program BHdxEKkfsyjERiz5XiUybDLquvoWRtF7r1zDgVCDZJow success",
+      "Program BCzcP4soWYSVWAt8gWPZmcNxcCiw8LdU8sT5VS3TPuW8 consumed 12345 of 200000 compute units",
+      "Program BCzcP4soWYSVWAt8gWPZmcNxcCiw8LdU8sT5VS3TPuW8 success",
     ];
     expect(parseEvents("loan", logs)).toEqual([]);
   });
@@ -20,9 +20,9 @@ describe("parseEvents", () => {
   it("returns empty when Program data carries bytes that don't match any event discriminator", () => {
     // base64 'hello world' — not a valid Anchor event for any program here
     const logs = [
-      "Program BHdxEKkfsyjERiz5XiUybDLquvoWRtF7r1zDgVCDZJow invoke [1]",
+      "Program BCzcP4soWYSVWAt8gWPZmcNxcCiw8LdU8sT5VS3TPuW8 invoke [1]",
       "Program data: aGVsbG8gd29ybGQ=",
-      "Program BHdxEKkfsyjERiz5XiUybDLquvoWRtF7r1zDgVCDZJow success",
+      "Program BCzcP4soWYSVWAt8gWPZmcNxcCiw8LdU8sT5VS3TPuW8 success",
     ];
     expect(parseEvents("loan", logs)).toEqual([]);
   });
@@ -42,9 +42,9 @@ describe("parseEvents", () => {
     // boundaries for its own programId, so vault-scoped parsing on
     // loan-scoped logs returns zero events.
     const logs = [
-      "Program BHdxEKkfsyjERiz5XiUybDLquvoWRtF7r1zDgVCDZJow invoke [1]",
+      "Program BCzcP4soWYSVWAt8gWPZmcNxcCiw8LdU8sT5VS3TPuW8 invoke [1]",
       "Program log: Instruction: ConfirmCustody",
-      "Program BHdxEKkfsyjERiz5XiUybDLquvoWRtF7r1zDgVCDZJow success",
+      "Program BCzcP4soWYSVWAt8gWPZmcNxcCiw8LdU8sT5VS3TPuW8 success",
     ];
     expect(parseEvents("vault", logs)).toEqual([]);
   });

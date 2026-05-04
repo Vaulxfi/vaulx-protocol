@@ -13,7 +13,7 @@ import { deriveLoanConfigPda } from "./loan";
 
 const LOAN_PROGRAM_ID = new PublicKey(loanFacade.programId);
 const TRDC_PROGRAM_ID = new PublicKey(
-  "FcDPvRaixjAz7LeC64h9xkXPzvHT7dusbNmg83eJfr7R",
+  "26rb68SPyjKmFNwSUmfZA7WRFtsKFheXf5xN8eHeeRWk",
 );
 
 export interface LoanConfigAccount {

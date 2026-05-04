@@ -29,8 +29,8 @@ import path from "node:path";
 
 const RPC = process.env.SOLANA_RPC_URL ?? "https://api.devnet.solana.com";
 
-const TRDC = new PublicKey("FcDPvRaixjAz7LeC64h9xkXPzvHT7dusbNmg83eJfr7R");
-const LOAN = new PublicKey("BHdxEKkfsyjERiz5XiUybDLquvoWRtF7r1zDgVCDZJow");
+const TRDC = new PublicKey("26rb68SPyjKmFNwSUmfZA7WRFtsKFheXf5xN8eHeeRWk");
+const LOAN = new PublicKey("BCzcP4soWYSVWAt8gWPZmcNxcCiw8LdU8sT5VS3TPuW8");
 
 // IDL discriminators (from target/idl/*.json — Anchor 0.30.1 sha256("global:<ix>")[..8]).
 const INIT_TRDC_CONFIG_DISC = Buffer.from([160, 89, 220, 71, 61, 17, 12, 249]);

@@ -14,10 +14,10 @@ import { loan as loanFacade } from "@vaulx/anchor-client";
 
 export const LOAN_PROGRAM_ID = new PublicKey(loanFacade.programId);
 export const TRDC_PROGRAM_ID = new PublicKey(
-  "FcDPvRaixjAz7LeC64h9xkXPzvHT7dusbNmg83eJfr7R",
+  "26rb68SPyjKmFNwSUmfZA7WRFtsKFheXf5xN8eHeeRWk",
 );
 export const VAULT_PROGRAM_ID = new PublicKey(
-  "4PPyUvazjDBvFndGUL2rgKTwZrFbsSP1tk4a2uMhE9MS",
+  "GQU6pGwdUAWdhzNDGUU8toVCqxo22mHpFrJeFRE4hpDL",
 );
 
 /** loan_authority PDA: seeds = [b"loan_authority"]. */

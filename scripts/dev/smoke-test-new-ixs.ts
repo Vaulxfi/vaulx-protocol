@@ -31,9 +31,9 @@ import path from "node:path";
 
 const RPC = process.env.SOLANA_RPC_URL ?? "https://api.devnet.solana.com";
 
-const TRDC = new PublicKey("FcDPvRaixjAz7LeC64h9xkXPzvHT7dusbNmg83eJfr7R");
-const VAULT = new PublicKey("4PPyUvazjDBvFndGUL2rgKTwZrFbsSP1tk4a2uMhE9MS");
-const LOAN = new PublicKey("BHdxEKkfsyjERiz5XiUybDLquvoWRtF7r1zDgVCDZJow");
+const TRDC = new PublicKey("26rb68SPyjKmFNwSUmfZA7WRFtsKFheXf5xN8eHeeRWk");
+const VAULT = new PublicKey("GQU6pGwdUAWdhzNDGUU8toVCqxo22mHpFrJeFRE4hpDL");
+const LOAN = new PublicKey("BCzcP4soWYSVWAt8gWPZmcNxcCiw8LdU8sT5VS3TPuW8");
 
 const SPL_NOOP = new PublicKey("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV");
 const SPL_AC = new PublicKey("cmtDvXumGCrqC1Age74AVPhSRVXJMd8PJS91L8KbNCK");

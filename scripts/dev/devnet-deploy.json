@@ -9,7 +9,7 @@
   "solana_cli_version": "1.18.26",
   "programs": {
     "trdc": {
-      "program_id": "FcDPvRaixjAz7LeC64h9xkXPzvHT7dusbNmg83eJfr7R",
+      "program_id": "26rb68SPyjKmFNwSUmfZA7WRFtsKFheXf5xN8eHeeRWk",
       "programdata_address": "5qHePPdWbYvC4CW3J9Y2JGcNa4EPfFw1gVFzuP7styji",
       "deploy_slot": 458611018,
       "deploy_signature": "5Cn153wa8y9CkdScsvyajJdzW3MPhJ6bnvHP5zpQpGaxwabjzH6AcNxopKBgr8ia7a7rqA6mmYqP1gtU11Zhmaza",
@@ -17,7 +17,7 @@
       "rent_balance_sol": 1.74877656
     },
     "vault": {
-      "program_id": "4PPyUvazjDBvFndGUL2rgKTwZrFbsSP1tk4a2uMhE9MS",
+      "program_id": "GQU6pGwdUAWdhzNDGUU8toVCqxo22mHpFrJeFRE4hpDL",
       "programdata_address": "fN4K3kgtg717Me3a6Qysys2Uc2ptuV3GnZzVStsBMxZ",
       "deploy_slot": 458611063,
       "deploy_signature": "2nJh9HXxuoAFiYkM7FGiBR5T9LRsfkoDmH6F6CWv9emCf3BJ48cmDsz56aCY9YgjFsFJwKyMYZnC2mpzACuhFEyG",
@@ -25,7 +25,7 @@
       "rent_balance_sol": 2.76911256
     },
     "loan": {
-      "program_id": "BHdxEKkfsyjERiz5XiUybDLquvoWRtF7r1zDgVCDZJow",
+      "program_id": "BCzcP4soWYSVWAt8gWPZmcNxcCiw8LdU8sT5VS3TPuW8",
       "programdata_address": "96M7YEXAuoEi7SNs8khoKEkJBrjTSZz56UR9vb6AnMjo",
       "deploy_slot": 458611105,
       "deploy_signature": "GzdBEXM1Ko5DYbQAqGKgcK5WD5bWZpKzXTVKZ8w49HkdNU6xtYcvMyt29QHHUofpPcDSQYYN1D3feqkh4qMgosd",
@@ -33,7 +33,7 @@
       "rent_balance_sol": 3.14573208
     },
     "auction": {
-      "program_id": "8FRBHN14CsA2y21hMeJJ2oxbEXNRXicVKMEDHRGyGefj",
+      "program_id": "Fth5WyopNBi6JatJtTnxb7eHs2GSFhJU7AqskRBZGU8m",
       "programdata_address": "EKnTbgxrECUGFHv5Kw3Nz4TTnFGo58Q4pkhUhJZpaw4V",
       "deploy_slot": 458611145,
       "deploy_signature": "3Pt7d8B8AcC65cZPeptKCL9HvGVubw8tnJ1L8Foa2ycgc5sYgqghAMY7qr9iQt83AWFraeAMEuYVCwDNen4R9Nxy",
