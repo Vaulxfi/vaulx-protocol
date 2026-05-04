@@ -8,24 +8,24 @@ pub mod state;
 use attestation::KycAttestation;
 use state::Vault;
 
-declare_id!("4PPyUvazjDBvFndGUL2rgKTwZrFbsSP1tk4a2uMhE9MS");
+declare_id!("GQU6pGwdUAWdhzNDGUU8toVCqxo22mHpFrJeFRE4hpDL");
 
 /// Hardcoded loan program id — mirrors `loan::declare_id!`. We hardcode rather
 /// than import the `loan` crate to avoid a circular crate dep (loan depends on
 /// vault).
-// base58("BHdxEKkfsyjERiz5XiUybDLquvoWRtF7r1zDgVCDZJow") decoded to bytes.
+// base58("BCzcP4soWYSVWAt8gWPZmcNxcCiw8LdU8sT5VS3TPuW8") decoded to bytes.
 pub const LOAN_PROGRAM_ID: Pubkey = Pubkey::new_from_array([
-    152, 215, 241, 185, 109, 120, 219, 107, 20, 193, 123, 114, 110, 63, 95, 49, 169, 245, 238, 185,
-    46, 68, 146, 201, 83, 132, 96, 201, 29, 0, 0, 38,
+    151, 167, 101, 227, 201, 255, 26, 25, 13, 245, 180, 1, 107, 172, 230, 75, 246, 70, 130, 130,
+    3, 124, 116, 34, 104, 163, 156, 213, 109, 125, 10, 121,
 ]);
 pub const LOAN_AUTHORITY_SEED: &[u8] = b"loan_authority";
 
 /// Hardcoded auction program id — mirrors `auction::declare_id!`. We hardcode
 /// to avoid a circular crate dep (auction depends on vault for inflow).
-// base58("8FRBHN14CsA2y21hMeJJ2oxbEXNRXicVKMEDHRGyGefj") decoded to bytes.
+// base58("Fth5WyopNBi6JatJtTnxb7eHs2GSFhJU7AqskRBZGU8m") decoded to bytes.
 pub const AUCTION_PROGRAM_ID: Pubkey = Pubkey::new_from_array([
-    107, 179, 70, 243, 19, 62, 41, 240, 53, 64, 226, 106, 64, 237, 137, 50, 216, 97, 100, 7, 220,
-    124, 85, 242, 171, 15, 5, 165, 25, 114, 19, 50,
+    221, 65, 141, 239, 68, 27, 109, 198, 15, 172, 232, 250, 42, 167, 1, 15, 244, 235, 89, 51,
+    130, 201, 248, 70, 54, 244, 204, 89, 181, 224, 86, 166,
 ]);
 pub const AUCTION_AUTHORITY_SEED: &[u8] = b"auction_authority";
 

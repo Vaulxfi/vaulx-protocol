@@ -13,7 +13,7 @@ use state::{
     Status, TRDCState, TrdcConfig, TREE_AUTHORITY_SEED, TREE_CAPACITY, TRDC_CONFIG_SEED,
 };
 
-declare_id!("FcDPvRaixjAz7LeC64h9xkXPzvHT7dusbNmg83eJfr7R");
+declare_id!("26rb68SPyjKmFNwSUmfZA7WRFtsKFheXf5xN8eHeeRWk");
 
 #[program]
 pub mod trdc {

@@ -20,7 +20,7 @@ use attestation::KycAttestation;
 use errors::{LoanError, GRACE_PERIOD_SECS, MAX_LTV_BPS};
 use state::PriceFeed;
 
-declare_id!("BHdxEKkfsyjERiz5XiUybDLquvoWRtF7r1zDgVCDZJow");
+declare_id!("BCzcP4soWYSVWAt8gWPZmcNxcCiw8LdU8sT5VS3TPuW8");
 
 pub const LOAN_AUTHORITY_SEED: &[u8] = b"loan_authority";
 

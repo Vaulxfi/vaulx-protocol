@@ -13,15 +13,15 @@ pub mod state;
 use errors::AuctionError;
 use state::{Auction, AuctionStatus};
 
-declare_id!("8FRBHN14CsA2y21hMeJJ2oxbEXNRXicVKMEDHRGyGefj");
+declare_id!("Fth5WyopNBi6JatJtTnxb7eHs2GSFhJU7AqskRBZGU8m");
 
 /// Hardcoded loan program id — mirrors `loan::declare_id!`. Used by
 /// `create_auction` to assert the CPI-only gate (only the loan program's
 /// `[b"loan_authority"]` PDA may create auctions).
-// base58("BHdxEKkfsyjERiz5XiUybDLquvoWRtF7r1zDgVCDZJow") decoded to bytes.
+// base58("BCzcP4soWYSVWAt8gWPZmcNxcCiw8LdU8sT5VS3TPuW8") decoded to bytes.
 pub const LOAN_PROGRAM_ID: Pubkey = Pubkey::new_from_array([
-    152, 215, 241, 185, 109, 120, 219, 107, 20, 193, 123, 114, 110, 63, 95, 49, 169, 245, 238, 185,
-    46, 68, 146, 201, 83, 132, 96, 201, 29, 0, 0, 38,
+    151, 167, 101, 227, 201, 255, 26, 25, 13, 245, 180, 1, 107, 172, 230, 75, 246, 70, 130, 130,
+    3, 124, 116, 34, 104, 163, 156, 213, 109, 125, 10, 121,
 ]);
 pub const LOAN_AUTHORITY_SEED: &[u8] = b"loan_authority";
 pub const AUCTION_AUTHORITY_SEED: &[u8] = b"auction_authority";

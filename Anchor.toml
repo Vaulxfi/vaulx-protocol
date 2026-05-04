@@ -6,16 +6,16 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-trdc    = "FcDPvRaixjAz7LeC64h9xkXPzvHT7dusbNmg83eJfr7R"
-vault   = "4PPyUvazjDBvFndGUL2rgKTwZrFbsSP1tk4a2uMhE9MS"
-loan    = "BHdxEKkfsyjERiz5XiUybDLquvoWRtF7r1zDgVCDZJow"
-auction = "8FRBHN14CsA2y21hMeJJ2oxbEXNRXicVKMEDHRGyGefj"
+trdc    = "26rb68SPyjKmFNwSUmfZA7WRFtsKFheXf5xN8eHeeRWk"
+vault   = "GQU6pGwdUAWdhzNDGUU8toVCqxo22mHpFrJeFRE4hpDL"
+loan    = "BCzcP4soWYSVWAt8gWPZmcNxcCiw8LdU8sT5VS3TPuW8"
+auction = "Fth5WyopNBi6JatJtTnxb7eHs2GSFhJU7AqskRBZGU8m"
 
 [programs.devnet]
-trdc    = "FcDPvRaixjAz7LeC64h9xkXPzvHT7dusbNmg83eJfr7R"
-vault   = "4PPyUvazjDBvFndGUL2rgKTwZrFbsSP1tk4a2uMhE9MS"
-loan    = "BHdxEKkfsyjERiz5XiUybDLquvoWRtF7r1zDgVCDZJow"
-auction = "8FRBHN14CsA2y21hMeJJ2oxbEXNRXicVKMEDHRGyGefj"
+trdc    = "26rb68SPyjKmFNwSUmfZA7WRFtsKFheXf5xN8eHeeRWk"
+vault   = "GQU6pGwdUAWdhzNDGUU8toVCqxo22mHpFrJeFRE4hpDL"
+loan    = "BCzcP4soWYSVWAt8gWPZmcNxcCiw8LdU8sT5VS3TPuW8"
+auction = "Fth5WyopNBi6JatJtTnxb7eHs2GSFhJU7AqskRBZGU8m"
 
 [registry]
 url = "https://api.apr.dev"
