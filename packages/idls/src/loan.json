@@ -1,5 +1,5 @@
 {
-  "address": "BHdxEKkfsyjERiz5XiUybDLquvoWRtF7r1zDgVCDZJow",
+  "address": "BCzcP4soWYSVWAt8gWPZmcNxcCiw8LdU8sT5VS3TPuW8",
   "metadata": {
     "name": "loan",
     "version": "0.1.0",
@@ -145,7 +145,7 @@
         },
         {
           "name": "trdc_program",
-          "address": "FcDPvRaixjAz7LeC64h9xkXPzvHT7dusbNmg83eJfr7R"
+          "address": "26rb68SPyjKmFNwSUmfZA7WRFtsKFheXf5xN8eHeeRWk"
         },
         {
           "name": "custodian",
@@ -204,7 +204,7 @@
         },
         {
           "name": "vault_program",
-          "address": "4PPyUvazjDBvFndGUL2rgKTwZrFbsSP1tk4a2uMhE9MS"
+          "address": "GQU6pGwdUAWdhzNDGUU8toVCqxo22mHpFrJeFRE4hpDL"
         },
         {
           "name": "token_program",
@@ -256,7 +256,7 @@
         },
         {
           "name": "trdc_program",
-          "address": "FcDPvRaixjAz7LeC64h9xkXPzvHT7dusbNmg83eJfr7R"
+          "address": "26rb68SPyjKmFNwSUmfZA7WRFtsKFheXf5xN8eHeeRWk"
         },
         {
           "name": "payer",
@@ -429,11 +429,11 @@
         },
         {
           "name": "trdc_program",
-          "address": "FcDPvRaixjAz7LeC64h9xkXPzvHT7dusbNmg83eJfr7R"
+          "address": "26rb68SPyjKmFNwSUmfZA7WRFtsKFheXf5xN8eHeeRWk"
         },
         {
           "name": "vault_program",
-          "address": "4PPyUvazjDBvFndGUL2rgKTwZrFbsSP1tk4a2uMhE9MS"
+          "address": "GQU6pGwdUAWdhzNDGUU8toVCqxo22mHpFrJeFRE4hpDL"
         },
         {
           "name": "token_program",
@@ -569,11 +569,11 @@
         },
         {
           "name": "trdc_program",
-          "address": "FcDPvRaixjAz7LeC64h9xkXPzvHT7dusbNmg83eJfr7R"
+          "address": "26rb68SPyjKmFNwSUmfZA7WRFtsKFheXf5xN8eHeeRWk"
         },
         {
           "name": "auction_program",
-          "address": "8FRBHN14CsA2y21hMeJJ2oxbEXNRXicVKMEDHRGyGefj"
+          "address": "Fth5WyopNBi6JatJtTnxb7eHs2GSFhJU7AqskRBZGU8m"
         },
         {
           "name": "instructions_sysvar",
@@ -906,11 +906,11 @@
         },
         {
           "name": "trdc_program",
-          "address": "FcDPvRaixjAz7LeC64h9xkXPzvHT7dusbNmg83eJfr7R"
+          "address": "26rb68SPyjKmFNwSUmfZA7WRFtsKFheXf5xN8eHeeRWk"
         },
         {
           "name": "vault_program",
-          "address": "4PPyUvazjDBvFndGUL2rgKTwZrFbsSP1tk4a2uMhE9MS"
+          "address": "GQU6pGwdUAWdhzNDGUU8toVCqxo22mHpFrJeFRE4hpDL"
         },
         {
           "name": "token_program",
@@ -1139,11 +1139,11 @@
         },
         {
           "name": "trdc_program",
-          "address": "FcDPvRaixjAz7LeC64h9xkXPzvHT7dusbNmg83eJfr7R"
+          "address": "26rb68SPyjKmFNwSUmfZA7WRFtsKFheXf5xN8eHeeRWk"
         },
         {
           "name": "vault_program",
-          "address": "4PPyUvazjDBvFndGUL2rgKTwZrFbsSP1tk4a2uMhE9MS"
+          "address": "GQU6pGwdUAWdhzNDGUU8toVCqxo22mHpFrJeFRE4hpDL"
         },
         {
           "name": "token_program",
@@ -1248,11 +1248,11 @@
         },
         {
           "name": "trdc_program",
-          "address": "FcDPvRaixjAz7LeC64h9xkXPzvHT7dusbNmg83eJfr7R"
+          "address": "26rb68SPyjKmFNwSUmfZA7WRFtsKFheXf5xN8eHeeRWk"
         },
         {
           "name": "vault_program",
-          "address": "4PPyUvazjDBvFndGUL2rgKTwZrFbsSP1tk4a2uMhE9MS"
+          "address": "GQU6pGwdUAWdhzNDGUU8toVCqxo22mHpFrJeFRE4hpDL"
         },
         {
           "name": "token_program",
