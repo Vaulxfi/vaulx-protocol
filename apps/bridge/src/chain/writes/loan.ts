@@ -13,13 +13,13 @@ import {
   Transaction,
 } from "@solana/web3.js";
 
-import { PROGRAM_IDS } from "../decode";
+import { PROGRAM_IDS, decodeAs } from "../decode";
 import {
   deriveLoanConfigPda,
   deriveTrdcStatePda,
   deriveVaultPda,
 } from "../pdas";
-import { loadLoanProgram, loadTrdcProgram } from "../program";
+import { loadLoanProgram } from "../program";
 import type { BridgeProvider } from "../provider";
 
 /**
@@ -93,7 +93,6 @@ export async function buildConfirmCustody(
   assetMint: PublicKey,
 ): Promise<LoanWriteResult> {
   const loanProgram = loadLoanProgram(provider);
-  const trdcProgram = loadTrdcProgram(provider);
 
   const trdcStatePda = deriveTrdcStatePda(loanId);
   const trdcAccount = await provider.connection.getAccountInfo(
@@ -103,10 +102,16 @@ export async function buildConfirmCustody(
   if (!trdcAccount) {
     throw new Error(`trdc_state_not_found: ${trdcStatePda.toBase58()}`);
   }
-  const trdcState = trdcProgram.coder.accounts.decode<{
+  // Anchor 0.30 mutates the IDL (clones + camelCases it) inside
+  // `new Program(idl)`, so the program-namespace's coder only knows
+  // `trdcState` (camelCase) — not `TRDCState`. Decode against the
+  // registry's pristine BorshAccountsCoder (built from the original
+  // PascalCase IDL in `chain/decode.ts`) instead, so the account-name
+  // lookup matches.
+  const trdcState = decodeAs<{
     borrower: PublicKey;
     loanAmount: BN;
-  }>("TRDCState", trdcAccount.data);
+  }>("trdc", "TRDCState", trdcAccount.data);
 
   const docHash = crypto
     .createHash("sha256")
