@@ -108,10 +108,25 @@ export async function buildConfirmCustody(
   // registry's pristine BorshAccountsCoder (built from the original
   // PascalCase IDL in `chain/decode.ts`) instead, so the account-name
   // lookup matches.
-  const trdcState = decodeAs<{
-    borrower: PublicKey;
-    loanAmount: BN;
-  }>("trdc", "TRDCState", trdcAccount.data);
+  //
+  // **Field-name caveat**: the registry coder uses the IDL's field
+  // names *as-written*, which is snake_case (`loan_amount`, not
+  // `loanAmount`). Anchor's `program.account.X.fetch` would camelCase
+  // them post-decode, but we decode raw via the BorshAccountsCoder so
+  // the snake_case stays. Read `loan_amount` literally — typing it
+  // here as a string-keyed accessor stops TS from yelling.
+  const trdcStateRaw = decodeAs<Record<string, unknown>>(
+    "trdc",
+    "TRDCState",
+    trdcAccount.data,
+  );
+  const borrower = trdcStateRaw.borrower as PublicKey;
+  const loanAmount = trdcStateRaw["loan_amount"] as BN;
+  if (!borrower || !loanAmount) {
+    throw new Error(
+      `trdc_state_decode_incomplete: borrower=${!!borrower} loan_amount=${!!loanAmount}`,
+    );
+  }
 
   const docHash = crypto
     .createHash("sha256")
@@ -129,13 +144,13 @@ export async function buildConfirmCustody(
   const vaultAta = getAssociatedTokenAddressSync(assetMint, vaultPda, true);
   const borrowerAta = getAssociatedTokenAddressSync(
     assetMint,
-    trdcState.borrower,
+    borrower,
   );
 
   const ataIx = createAssociatedTokenAccountIdempotentInstruction(
     provider.operator.publicKey,
     borrowerAta,
-    trdcState.borrower,
+    borrower,
     assetMint,
   );
 
@@ -159,7 +174,7 @@ export async function buildConfirmCustody(
   // ix reverts with a parseable code that the router surfaces back as
   // `{ok:false, error:"InvalidOracle"}`.
   const disburseIx = await loanProgram.methods
-    .disburseFromVault(trdcState.loanAmount)
+    .disburseFromVault(loanAmount)
     .accounts({
       trdcState: trdcStatePda,
       loanConfig: loanConfigPda,
@@ -168,7 +183,7 @@ export async function buildConfirmCustody(
       vaultAta,
       borrowerAta,
       loanAuthority: loanAuthorityPda,
-      borrower: trdcState.borrower,
+      borrower: borrower,
       trdcProgram: new PublicKey(PROGRAM_IDS.trdc),
       vaultProgram: new PublicKey(PROGRAM_IDS.vault),
       tokenProgram: TOKEN_PROGRAM_ID,
@@ -198,7 +213,7 @@ export async function buildConfirmCustody(
       vaultAta: vaultAta.toBase58(),
       borrowerAta: borrowerAta.toBase58(),
       loanAuthority: loanAuthorityPda.toBase58(),
-      borrower: trdcState.borrower.toBase58(),
+      borrower: borrower.toBase58(),
       assetMint: assetMint.toBase58(),
     },
     unsignedTx: null,
