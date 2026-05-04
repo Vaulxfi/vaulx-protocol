@@ -1,5 +1,5 @@
 {
-  "address": "8FRBHN14CsA2y21hMeJJ2oxbEXNRXicVKMEDHRGyGefj",
+  "address": "Fth5WyopNBi6JatJtTnxb7eHs2GSFhJU7AqskRBZGU8m",
   "metadata": {
     "name": "auction",
     "version": "0.1.0",
@@ -111,11 +111,11 @@
         },
         {
           "name": "trdc_program",
-          "address": "FcDPvRaixjAz7LeC64h9xkXPzvHT7dusbNmg83eJfr7R"
+          "address": "26rb68SPyjKmFNwSUmfZA7WRFtsKFheXf5xN8eHeeRWk"
         },
         {
           "name": "vault_program",
-          "address": "4PPyUvazjDBvFndGUL2rgKTwZrFbsSP1tk4a2uMhE9MS"
+          "address": "GQU6pGwdUAWdhzNDGUU8toVCqxo22mHpFrJeFRE4hpDL"
         },
         {
           "name": "token_program",
