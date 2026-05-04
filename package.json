@@ -20,7 +20,8 @@
     "smoke:new-ixs": "pnpm exec tsx scripts/dev/smoke-test-new-ixs.ts",
     "e2e:moment-1": "pnpm exec tsx scripts/dev/moment-1-e2e.ts",
     "e2e:moments-2-3-4": "pnpm exec tsx scripts/dev/moments-2-3-4-e2e.ts",
-    "e2e:moments-5-9": "pnpm exec tsx scripts/dev/moments-5-9-e2e.ts"
+    "e2e:moments-5-9": "pnpm exec tsx scripts/dev/moments-5-9-e2e.ts",
+    "seed:demo-loan": "pnpm exec tsx scripts/dev/seed-demo-loan.ts"
   },
   "devDependencies": {
     "@coral-xyz/anchor": "^0.30.1",
