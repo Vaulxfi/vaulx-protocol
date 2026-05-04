@@ -1,4 +1,5 @@
 import express, { type Request, type Response } from "express";
+import { PublicKey } from "@solana/web3.js";
 
 import { createBridgeProvider } from "./chain/provider";
 import { loadConfig } from "./config";
@@ -58,7 +59,9 @@ app.get("/chain/health", (_req: Request, res: Response) => {
 
 app.use(createChainTypedRouter(provider.connection));
 app.use(createChainAccountRouter(provider.connection));
-app.use(createChainLoanWritesRouter());
+app.use(
+  createChainLoanWritesRouter(provider, new PublicKey(config.demoAssetMint)),
+);
 
 let listenerHandle: ListenerHandle | null = null;
 if (config.laravelWebhookBaseUrl) {

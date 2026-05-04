@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { PublicKey } from "@solana/web3.js";
 
+import type { BridgeProvider } from "../../chain/provider";
 import {
   buildConfirmCustody,
   buildPayInstallment,
@@ -12,15 +13,22 @@ import {
 /**
  * Loan-lifecycle write endpoints — the protocol-side counterparts to the
  * typed reads in `chain-typed.ts`. Routes match the Laravel-side
- * `SolanaBridge.php` methods 1:1 (confirm-custody, pay-installment, renew,
- * repay), so the entire write surface ships behind one PR and Laravel
- * doesn't need to change as the bridge graduates from placeholder
- * responses to real on-chain ix.
+ * `SolanaBridge.php` methods 1:1 (confirm-custody, pay-installment,
+ * renew, repay).
+ *
+ * `/chain/loan/confirm-custody` is real — the bridge bundles
+ * `confirm_custody` + `disburse_from_vault` into a single transaction and
+ * returns the signature. The other three are still placeholder until the
+ * wallet-signed flow can sign as the borrower (Area A item 2).
  *
  * Body validation is hand-rolled — the bridge has no zod, and the rules
  * are simple enough (one or two fields per route, all primitive). We
  * reject early with HTTP 400 + a stable error code so Laravel surfaces
  * meaningful messages instead of falling into the generic catch.
+ *
+ * `RouterDeps` lets unit tests substitute a mock confirmCustody builder
+ * without standing up a Solana validator. The default wires straight
+ * through to the real on-chain implementation in `writes/loan.ts`.
  */
 
 interface ParsedLoanIdOk {
@@ -63,9 +71,6 @@ function parsePositiveBigInt(
 ):
   | { ok: true; value: bigint }
   | ParsedLoanIdErr {
-  // Accept either a JSON number or a numeric string. Atom amounts can
-  // exceed 2^53 (u64), so callers that care should send a string —
-  // numbers are accepted for ergonomic Laravel calls but we re-validate.
   if (typeof raw === "number") {
     if (!Number.isFinite(raw) || raw <= 0 || !Number.isSafeInteger(raw)) {
       return { ok: false, status: 400, error: fieldErrCode };
@@ -86,19 +91,96 @@ function sendError(res: Response, status: number, error: string): void {
   res.status(status).json({ ok: false, error });
 }
 
-export function createChainLoanWritesRouter(): Router {
+/**
+ * Translate the unstructured rejections we get out of Anchor / Solana
+ * (timeout, simulation revert, RPC errors, etc.) into a stable wire
+ * shape `{ok:false, error, details}` Laravel can pattern-match against.
+ *
+ * `details` is a best-effort string — useful in logs but not contract.
+ * The `error` code is the bit callers should switch on; we use Anchor's
+ * `error.error.errorCode.code` when available (e.g. "InvalidOracle"),
+ * fall back to a top-level `error.message`-derived slug otherwise.
+ */
+function normalizeOnchainError(err: unknown): { error: string; details: string } {
+  // Anchor wraps program errors in an AnchorError that exposes an
+  // `error.errorCode.code` string straight from the IDL.
+  const e = err as {
+    error?: { errorCode?: { code?: string } };
+    message?: string;
+    name?: string;
+  };
+  const anchorCode = e?.error?.errorCode?.code;
+  if (typeof anchorCode === "string" && anchorCode.length > 0) {
+    return { error: anchorCode, details: e.message ?? "" };
+  }
+  const msg = e?.message ?? String(err);
+  // Common cases worth their own stable slugs so Laravel can surface
+  // demo-specific guidance.
+  if (msg.includes("trdc_state_not_found")) {
+    return { error: "trdc_state_not_found", details: msg };
+  }
+  if (/insufficient.+funds|TokenInsufficientFunds/i.test(msg)) {
+    return { error: "insufficient_vault_balance", details: msg };
+  }
+  if (/UnauthorizedCustodian/i.test(msg)) {
+    return { error: "unauthorized_custodian", details: msg };
+  }
+  if (/blockhash|expired/i.test(msg)) {
+    return { error: "tx_expired", details: msg };
+  }
+  return { error: "onchain_error", details: msg };
+}
+
+export interface LoanWritesRouterDeps {
+  /**
+   * Override to stub the real on-chain confirm-custody call in tests.
+   * Defaults to the real implementation; production never overrides.
+   */
+  confirmCustody?: typeof buildConfirmCustody;
+}
+
+export function createChainLoanWritesRouter(
+  provider: BridgeProvider,
+  defaultAssetMint: PublicKey,
+  deps: LoanWritesRouterDeps = {},
+): Router {
   const router = Router();
+  const confirmCustodyImpl = deps.confirmCustody ?? buildConfirmCustody;
 
   router.post(
     "/chain/loan/confirm-custody",
-    (req: Request, res: Response): void => {
-      const body = (req.body ?? {}) as { loanId?: unknown };
+    async (req: Request, res: Response): Promise<void> => {
+      const body = (req.body ?? {}) as {
+        loanId?: unknown;
+        assetMint?: unknown;
+      };
       const parsed = parseLoanId(body.loanId);
       if (!parsed.ok) {
         sendError(res, parsed.status, parsed.error);
         return;
       }
-      sendResult(res, buildConfirmCustody(parsed.loanId));
+      // Optional override; Laravel doesn't pass this today, so 99% of the
+      // time we fall through to `defaultAssetMint` (config.demoAssetMint).
+      let assetMint = defaultAssetMint;
+      if (typeof body.assetMint === "string" && body.assetMint.length > 0) {
+        try {
+          assetMint = new PublicKey(body.assetMint);
+        } catch {
+          sendError(res, 400, "invalid_asset_mint");
+          return;
+        }
+      }
+
+      try {
+        const result = await confirmCustodyImpl(provider, parsed.loanId, assetMint);
+        sendResult(res, result);
+      } catch (err) {
+        const { error, details } = normalizeOnchainError(err);
+        // 422 reads as "request was well-formed but the on-chain ix
+        // refused" — distinguishes from 400 (caller's fault) and 500
+        // (bridge's fault).
+        res.status(422).json({ ok: false, error, details });
+      }
     },
   );
 

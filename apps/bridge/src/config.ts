@@ -36,6 +36,15 @@ export interface BridgeConfig {
    * read-only deploys). Validated as a parseable URL at boot.
    */
   laravelWebhookBaseUrl: string | null;
+  /**
+   * Default asset mint the bridge assumes for loan-lifecycle writes when
+   * the caller doesn't pass one explicitly. Hackathon demo runs against a
+   * single USDC vault (devnet `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU`)
+   * so we can keep the Laravel-side method signature minimal — Laravel
+   * passes only `loanId`, the bridge fills in the mint. Validated as a
+   * parseable PublicKey at boot.
+   */
+  demoAssetMint: string;
 }
 
 const DEFAULT_OPERATOR_KEYPAIR_PATH = path.join(
@@ -83,5 +92,8 @@ export function loadConfig(): BridgeConfig {
       "LARAVEL_WEBHOOK_BASE_URL",
       process.env.LARAVEL_WEBHOOK_BASE_URL,
     ),
+    demoAssetMint:
+      process.env.BRIDGE_DEMO_ASSET_MINT ??
+      "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
   };
 }
