@@ -1,45 +1,33 @@
 /**
- * Seed a single demo loan on Devnet that the bridge's `confirm_custody`
- * flow can later consume.
+ * Seed a single demo loan on devnet that the bridge's
+ * `confirm_custody+disburse` flow can later consume.
  *
- * Two-step happy-path:
+ * One-step happy-path (oracle is OFF on Edson's deployed loan_config,
+ * so no PriceFeed is required and no admin keypair is needed):
  *
- *   1. `loan::publish_price(ref_bytes, $8.00, listings=5, observed_at=now)`
- *      — admin-signs (loan_config.admin == oracle_admin == 2HYjytRc4o…,
- *      i.e. George's keypair). Creates or refreshes the PriceFeed PDA.
- *      Required because `loan_config.oracle_admin != Pubkey::default` on
- *      the deployed cluster, so `create_ccb_trdc` reads `effective_appraisal`
- *      from this feed instead of the synthetic `appraisal_value` arg.
+ *   loan::create_ccb_trdc(loan_id, appraisal=8 USDC, loan_amount=4 USDC,
+ *                         due_ts=now+30d, rate_bps=2400, ref=zeros)
  *
- *   2. `loan::create_ccb_trdc(loan_id, _, 4_000_000, due_ts, 2400, ref)`
- *      — borrower-signs (`payer = borrower` so `trdc_state.borrower` is
- *      our operator wallet, which lets the bridge later sign the disburse
- *      branch of `confirm_custody+disburse` as that same key).
+ *   payer = borrower so trdc_state.borrower captures the operator wallet,
+ *   which lets the bridge later sign disburse_from_vault as that key.
  *
  * Inputs (env vars):
- *   ADMIN_KEYPAIR_PATH    required — keypair that originally bootstrapped
- *                         loan_config (admin = oracle_admin = custodian).
- *                         No default; the script aborts early if unset.
- *   BORROWER_KEYPAIR_PATH default ~/.config/solana/id.json. Whoever this
- *                         keypair represents becomes `trdc_state.borrower`
- *                         and must match the bridge's operator (so the
- *                         bridge can sign disburse).
- *   SOLANA_RPC_URL        default https://api.devnet.solana.com.
+ *   BORROWER_KEYPAIR_PATH  default ~/.config/solana/id.json (Edson). The
+ *                          bridge's operator must equal this borrower for
+ *                          the post-confirm disburse step to land.
+ *   SOLANA_RPC_URL         default https://api.devnet.solana.com.
  *
  * Outputs:
- *   Prints the on-chain `loan_id` (this is the value the Laravel side
- *   stores in `loans.solana_loan_id` so /admin can hand it to the bridge).
+ *   Prints the on-chain `loan_id`. Persist in Laravel as
+ *   `loans.solana_loan_id` so /admin's Approve Custody hands it to the
+ *   bridge.
  *
- * Re-runnable:
- *   PriceFeed publish uses `init_if_needed`, so each run refreshes the
- *   feed (necessary anyway because PriceFeed::MAX_AGE_SECONDS = 600s).
- *   `create_ccb_trdc` mints a fresh loan_id every run — re-running gives
- *   you a new demo loan, never overwriting the previous one.
+ * Re-runnable: `create_ccb_trdc` mints a fresh loan_id every run. Each
+ * call costs the borrower a tiny rent for the new TRDCState PDA.
  */
 
 import "dotenv/config";
 
-import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -61,15 +49,11 @@ import {
 import loanIdlJson from "../../packages/idls/src/loan.json";
 import trdcIdlJson from "../../packages/idls/src/trdc.json";
 
-// ---------------------------------------------------------------------------
-// Demo parameters — change here, not on the call sites.
-// ---------------------------------------------------------------------------
+// Demo parameters — change here, not at the call sites.
 const RPC_URL =
   process.env.SOLANA_RPC_URL ?? "https://api.devnet.solana.com";
-const ASSET_HINT_LABEL = "vaulx-demo-watch-1"; // arbitrary; same hint = same feed
-const APPRAISAL_USD_CENTS = 800; // $8.00 → effective_appraisal = 8_000_000 atoms
-const APPRAISAL_LISTINGS = 5; // > PriceFeed::MIN_LISTINGS (3)
-const LOAN_AMOUNT_ATOMS = 4_000_000; // 4 USDC; well under vault TVL (5 USDC)
+const APPRAISAL_ATOMS = 8_000_000; // 8 USDC — synthetic, oracle OFF
+const LOAN_AMOUNT_ATOMS = 4_000_000; // 4 USDC; fits the 5 USDC vault TVL
 const RATE_BPS = 2400; // 24% APR
 const TERM_DAYS = 30;
 
@@ -85,122 +69,48 @@ function expandHome(p: string): string {
 }
 
 function loadKeypair(p: string): Keypair {
-  const expanded = expandHome(p);
-  const raw = fs.readFileSync(expanded, "utf8");
-  const bytes = JSON.parse(raw) as unknown;
-  if (
-    !Array.isArray(bytes) ||
-    bytes.length !== 64 ||
-    !bytes.every((b): b is number => typeof b === "number")
-  ) {
-    throw new Error(
-      `keypair at ${expanded} is not a 64-byte JSON array (Solana CLI format)`,
-    );
-  }
-  return Keypair.fromSecretKey(new Uint8Array(bytes));
+  const raw = fs.readFileSync(expandHome(p), "utf8");
+  return Keypair.fromSecretKey(new Uint8Array(JSON.parse(raw)));
 }
 
 async function main(): Promise<void> {
-  const adminKeypairPath = process.env.ADMIN_KEYPAIR_PATH;
-  if (!adminKeypairPath) {
-    console.error(
-      "ADMIN_KEYPAIR_PATH is not set.\n" +
-        "Point it at the keypair that originally bootstrapped loan_config\n" +
-        "(admin = oracle_admin = custodian = 2HYjytRc4oKY2ndmJfAq2XdGhPqYB7VdDPLzA18QEiAH).\n" +
-        "Without that keypair the script can't publish a PriceFeed nor sign confirm_custody.",
-    );
-    process.exit(1);
-  }
   const borrowerKeypairPath =
     process.env.BORROWER_KEYPAIR_PATH ??
     path.join(os.homedir(), ".config", "solana", "id.json");
-
-  const admin = loadKeypair(adminKeypairPath);
   const borrower = loadKeypair(borrowerKeypairPath);
-  console.log(`admin/oracle_admin: ${admin.publicKey.toBase58()}`);
-  console.log(`borrower:           ${borrower.publicKey.toBase58()}`);
-  console.log(`rpc:                ${RPC_URL}`);
+  console.log(`borrower: ${borrower.publicKey.toBase58()}`);
+  console.log(`rpc:      ${RPC_URL}`);
 
   const connection = new Connection(RPC_URL, "confirmed");
-
-  // Two providers — one per signing role. Anchor's Program holds a single
-  // wallet, so we instantiate twice rather than juggle additional signers
-  // on every ix builder call.
-  const adminProvider = new AnchorProvider(connection, new Wallet(admin), {
+  const provider = new AnchorProvider(connection, new Wallet(borrower), {
     commitment: "confirmed",
   });
-  const borrowerProvider = new AnchorProvider(
-    connection,
-    new Wallet(borrower),
-    { commitment: "confirmed" },
-  );
-  const loanProgramAsAdmin = new Program(loanIdlJson as Idl, adminProvider);
-  const loanProgramAsBorrower = new Program(
-    loanIdlJson as Idl,
-    borrowerProvider,
-  );
+  const loanProgram = new Program(loanIdlJson as Idl, provider);
 
-  // Deterministic ref_bytes: every run for this label points to the same
-  // feed PDA, so reruns refresh the existing PriceFeed instead of leaking
-  // stranded ones. Production loans would use sha256 of the actual watch
-  // identifier (serial number, COA hash, etc.).
-  const refBytes = Buffer.from(
-    crypto.createHash("sha256").update(ASSET_HINT_LABEL).digest(),
-  );
-  const [priceFeedPda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("price_feed"), refBytes],
-    LOAN_PROGRAM_ID,
-  );
   const [loanConfigPda] = PublicKey.findProgramAddressSync(
     [Buffer.from("loan_config")],
     LOAN_PROGRAM_ID,
   );
 
-  // -------------------------------------------------------------------
-  // [1/2] publish_price — admin signs.
-  // -------------------------------------------------------------------
-  const observedAt = Math.floor(Date.now() / 1000);
-  console.log(
-    `\n[1/2] publish_price ref=${refBytes.toString("hex").slice(0, 16)}… ` +
-      `cents=${APPRAISAL_USD_CENTS} listings=${APPRAISAL_LISTINGS}`,
-  );
-  const sig1: string = await (loanProgramAsAdmin.methods as any)
-    .publishPrice(
-      Array.from(refBytes),
-      new BN(APPRAISAL_USD_CENTS),
-      APPRAISAL_LISTINGS,
-      new BN(observedAt),
-    )
-    .accounts({
-      priceFeed: priceFeedPda,
-      loanConfig: loanConfigPda,
-      oracleAdmin: admin.publicKey,
-      systemProgram: SystemProgram.programId,
-    })
-    .rpc();
-  console.log(`[1/2] tx: ${sig1}`);
-  await connection.confirmTransaction(sig1, "confirmed");
+  // Oracle OFF: ref_bytes is unused on the create path (effective_appraisal
+  // takes the synthetic `appraisal_value` arg). Pass zeros — it's persisted
+  // on TRDCState but never re-derived to a PriceFeed PDA at disburse time
+  // because loan_config.oracle_admin == Pubkey::default.
+  const refBytes = Buffer.alloc(32);
 
-  // -------------------------------------------------------------------
-  // [2/2] create_ccb_trdc — borrower signs.
-  //
-  // appraisal_value is required > 0 by the program's first guard, but
-  // when oracle is on the value is replaced by `feed.median_usd_cents *
-  // 10_000`. We pass `LOAN_AMOUNT_ATOMS * 2` (matches what the feed
-  // resolves to: $8 * 10_000 = 8_000_000 atoms) for clarity.
-  // -------------------------------------------------------------------
   const loanId = Keypair.generate().publicKey;
+  const observedAt = Math.floor(Date.now() / 1000);
   const dueTs = observedAt + TERM_DAYS * 86_400;
   const [trdcStatePda] = PublicKey.findProgramAddressSync(
     [Buffer.from("trdc_state"), loanId.toBuffer()],
     TRDC_PROGRAM_ID,
   );
 
-  console.log(`\n[2/2] create_ccb_trdc loan_id=${loanId.toBase58()}`);
-  const sig2: string = await (loanProgramAsBorrower.methods as any)
+  console.log(`\ncreate_ccb_trdc loan_id=${loanId.toBase58()}`);
+  const sig: string = await (loanProgram.methods as any)
     .createCcbTrdc(
       loanId,
-      new BN(LOAN_AMOUNT_ATOMS * 2), // appraisal_value (ignored by oracle path; must be > 0)
+      new BN(APPRAISAL_ATOMS),
       new BN(LOAN_AMOUNT_ATOMS),
       new BN(dueTs),
       new BN(RATE_BPS),
@@ -212,22 +122,21 @@ async function main(): Promise<void> {
       payer: borrower.publicKey,
       systemProgram: SystemProgram.programId,
       loanConfig: loanConfigPda,
-      kycAttestation: SystemProgram.programId, // KYC gate disabled (loan_config.kyc_required = false)
-      priceFeed: priceFeedPda,
+      kycAttestation: SystemProgram.programId, // kyc gate OFF
+      priceFeed: SystemProgram.programId, // oracle OFF
     })
     .rpc();
-  console.log(`[2/2] tx: ${sig2}`);
-  await connection.confirmTransaction(sig2, "confirmed");
+  console.log(`tx: ${sig}`);
+  await connection.confirmTransaction(sig, "confirmed");
 
-  // -------------------------------------------------------------------
-  // Print the values Laravel needs to record.
-  // -------------------------------------------------------------------
   console.log("\n✓ Demo loan minted on devnet.\n");
   console.log("--- Laravel integration values ---");
   console.log(`  solana_loan_id: ${loanId.toBase58()}`);
-  console.log(`  trdc_state PDA: ${trdcStatePda.toBase58()}`);
+  console.log(`  trdc_state:     ${trdcStatePda.toBase58()}`);
   console.log(`  borrower:       ${borrower.publicKey.toBase58()}`);
-  console.log(`  loan_amount:    ${LOAN_AMOUNT_ATOMS} atoms (= 4 USDC)`);
+  console.log(
+    `  loan_amount:    ${LOAN_AMOUNT_ATOMS} atoms (= 4 USDC)`,
+  );
   console.log(`  due_ts:         ${new Date(dueTs * 1000).toISOString()}`);
   console.log("\n--- Next steps ---");
   console.log(
@@ -238,7 +147,7 @@ async function main(): Promise<void> {
     "  2. In /admin, click Approve Custody on that loan — the bridge will",
   );
   console.log(
-    "     run confirm_custody + disburse_from_vault as a single atomic tx.",
+    "     run confirm_custody + disburse_from_vault as a single tx.",
   );
 }
 
