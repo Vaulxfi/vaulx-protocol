@@ -166,8 +166,17 @@ export async function buildConfirmCustody(
     borrower,
     assetMint,
   );
-  console.log("[bridge debug] ataIx ok");
 
+  // confirm_custody (atomic) — the merge-spec ix that flips
+  // PendingCustody → ActiveInCustody, runs vault::disburse, and
+  // transitions to Active in ONE on-chain ix. Custodian is the only
+  // signer; the program's accounts struct pins `borrower_ata.authority`
+  // to `trdc_state.borrower` so the custodian can't redirect principal.
+  //
+  // `price_feed` is consulted only when `loan_config.oracle_admin !=
+  // Pubkey::default()`. The redeployed devnet stack ships oracle OFF
+  // (set in bootstrap-edson-devnet.ts), so SystemProgram suffices.
+  // Oracle-on demos would inject the real PriceFeed PDA here.
   const confirmIx = await loanProgram.methods
     .confirmCustody(Array.from(docHash))
     .accounts({
@@ -175,70 +184,24 @@ export async function buildConfirmCustody(
       loanConfig: loanConfigPda,
       trdcProgram: new PublicKey(PROGRAM_IDS.trdc),
       custodian: provider.operator.publicKey,
+      vault: vaultPda,
+      assetMint,
+      vaultAta,
+      borrowerAta,
+      loanAuthority: loanAuthorityPda,
+      vaultProgram: new PublicKey(PROGRAM_IDS.vault),
+      tokenProgram: TOKEN_PROGRAM_ID,
+      instructionsSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
+      priceFeed: SystemProgram.programId,
     })
     .instruction();
-  console.log("[bridge debug] confirmIx ok");
 
-  // `price_feed` is required only when `loan_config.oracle_admin !=
-  // Pubkey::default()`. When the oracle is off, any account is accepted;
-  // SystemProgram is the convention. When on, the bootstrap script that
-  // mints the loan publishes a feed and the route layer would inject the
-  // real feed account here. Demo loans created with `bootstrap-real-usdc-
-  // vault.ts` keep oracle off, so SystemProgram is sufficient and we keep
-  // the contract simple — if a caller hits an oracle-on loan the on-chain
-  // ix reverts with a parseable code that the router surfaces back as
-  // `{ok:false, error:"InvalidOracle"}`.
-  const disburseAccts = {
-    trdcState: trdcStatePda,
-    loanConfig: loanConfigPda,
-    vault: vaultPda,
-    assetMint,
-    vaultAta,
-    borrowerAta,
-    loanAuthority: loanAuthorityPda,
-    borrower: borrower,
-    trdcProgram: new PublicKey(PROGRAM_IDS.trdc),
-    vaultProgram: new PublicKey(PROGRAM_IDS.vault),
-    tokenProgram: TOKEN_PROGRAM_ID,
-    instructionsSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
-    priceFeed: SystemProgram.programId,
-  };
-  console.log(
-    "[bridge debug] disburse dict keys:",
-    Object.keys(disburseAccts),
-  );
-  let disburseIx;
-  try {
-    disburseIx = await loanProgram.methods
-      .disburseFromVault(loanAmount)
-      .accounts(disburseAccts)
-      .instruction();
-    console.log("[bridge debug] disburseIx ok");
-  } catch (e) {
-    console.log(
-      "[bridge debug] disburseIx FAILED:",
-      e instanceof Error ? e.message : String(e),
-    );
-    console.log(
-      "[bridge debug] dict at failure:",
-      Object.fromEntries(
-        Object.entries(disburseAccts).map(([k, v]) => [
-          k,
-          (v as PublicKey).toBase58
-            ? (v as PublicKey).toBase58()
-            : String(v),
-        ]),
-      ),
-    );
-    throw e;
-  }
+  const tx = new Transaction().add(ataIx, confirmIx);
 
-  const tx = new Transaction().add(ataIx, confirmIx, disburseIx);
-
-  // The operator wallet on the AnchorProvider signs as feePayer. In the
-  // demo setup the operator is also `loan_config.custodian` (so confirmIx
-  // succeeds) and `trdc_state.borrower` (so disburseIx succeeds), so a
-  // single signature covers every `Signer<'info>` the program demands.
+  // The operator wallet on the AnchorProvider signs as the custodian.
+  // No other signer is required: borrower_ata.authority is pinned at
+  // the accounts-struct level so the borrower's signature is moot for
+  // the disburse step folded inside confirm_custody.
   const signature = await provider.anchor.sendAndConfirm(tx, [], {
     commitment: "confirmed",
   });
