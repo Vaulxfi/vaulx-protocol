@@ -32,7 +32,6 @@ test = "pnpm exec ts-mocha -p ./tsconfig.anchor.json -t 1000000 tests/**/*.ts"
 # 1.18.26 macOS bug ("extra entry found: ._genesis.bin"), so we ship local
 # program binaries via [[test.genesis]] instead of [[test.validator.clone]].
 # Refresh via:
-#   solana program dump -u mainnet-beta gatem74V238djXdzWnJf94Wo1DcnuGkfijbf3AuBhfs tests/sbf-programs/civic-gateway.so
 #   solana program dump -u devnet       BGUMAp9Gq7iTEuizy4pqaxsTyUCBK68MDfK752saRPUY tests/sbf-programs/mpl-bubblegum.so
 #   solana program dump -u devnet       cmtDvXumGCrqC1Age74AVPhSRVXJMd8PJS91L8KbNCK tests/sbf-programs/spl-account-compression.so
 #   solana program dump -u devnet       noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV tests/sbf-programs/spl-noop.so
@@ -41,10 +40,6 @@ test = "pnpm exec ts-mocha -p ./tsconfig.anchor.json -t 1000000 tests/**/*.ts"
 # generated genesis tarball.
 [test]
 startup_wait = 20000
-
-[[test.genesis]]
-address = "gatem74V238djXdzWnJf94Wo1DcnuGkfijbf3AuBhfs"
-program = "tests/sbf-programs/civic-gateway.so"
 
 # Task 4.2 — Metaplex Bubblegum cNFT mint program.
 [[test.genesis]]
