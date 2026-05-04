@@ -173,23 +173,37 @@ export async function buildConfirmCustody(
   // the contract simple — if a caller hits an oracle-on loan the on-chain
   // ix reverts with a parseable code that the router surfaces back as
   // `{ok:false, error:"InvalidOracle"}`.
+  const disburseAccts = {
+    trdcState: trdcStatePda,
+    loanConfig: loanConfigPda,
+    vault: vaultPda,
+    assetMint,
+    vaultAta,
+    borrowerAta,
+    loanAuthority: loanAuthorityPda,
+    borrower: borrower,
+    trdcProgram: new PublicKey(PROGRAM_IDS.trdc),
+    vaultProgram: new PublicKey(PROGRAM_IDS.vault),
+    tokenProgram: TOKEN_PROGRAM_ID,
+    instructionsSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
+    priceFeed: SystemProgram.programId,
+  };
+  console.error(
+    "[bridge debug] disburse accounts dict:",
+    Object.fromEntries(
+      Object.entries(disburseAccts).map(([k, v]) => [
+        k,
+        (v as PublicKey).toBase58 ? (v as PublicKey).toBase58() : String(v),
+      ]),
+    ),
+  );
+  console.error(
+    "[bridge debug] loanAmount=" + loanAmount.toString() + " borrower=" +
+      borrower.toBase58(),
+  );
   const disburseIx = await loanProgram.methods
     .disburseFromVault(loanAmount)
-    .accounts({
-      trdcState: trdcStatePda,
-      loanConfig: loanConfigPda,
-      vault: vaultPda,
-      assetMint,
-      vaultAta,
-      borrowerAta,
-      loanAuthority: loanAuthorityPda,
-      borrower: borrower,
-      trdcProgram: new PublicKey(PROGRAM_IDS.trdc),
-      vaultProgram: new PublicKey(PROGRAM_IDS.vault),
-      tokenProgram: TOKEN_PROGRAM_ID,
-      instructionsSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
-      priceFeed: SystemProgram.programId,
-    })
+    .accounts(disburseAccts)
     .instruction();
 
   const tx = new Transaction().add(ataIx, confirmIx, disburseIx);
