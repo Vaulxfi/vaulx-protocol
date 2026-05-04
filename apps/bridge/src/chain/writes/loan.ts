@@ -147,12 +147,26 @@ export async function buildConfirmCustody(
     borrower,
   );
 
+  console.log("[bridge debug] derived:", {
+    loanId: loanId.toBase58(),
+    trdcStatePda: trdcStatePda.toBase58(),
+    loanConfigPda: loanConfigPda.toBase58(),
+    vaultPda: vaultPda.toBase58(),
+    loanAuthorityPda: loanAuthorityPda.toBase58(),
+    vaultAta: vaultAta.toBase58(),
+    borrowerAta: borrowerAta.toBase58(),
+    borrower: borrower.toBase58(),
+    assetMint: assetMint.toBase58(),
+    loanAmount: loanAmount.toString(),
+  });
+
   const ataIx = createAssociatedTokenAccountIdempotentInstruction(
     provider.operator.publicKey,
     borrowerAta,
     borrower,
     assetMint,
   );
+  console.log("[bridge debug] ataIx ok");
 
   const confirmIx = await loanProgram.methods
     .confirmCustody(Array.from(docHash))
@@ -163,6 +177,7 @@ export async function buildConfirmCustody(
       custodian: provider.operator.publicKey,
     })
     .instruction();
+  console.log("[bridge debug] confirmIx ok");
 
   // `price_feed` is required only when `loan_config.oracle_admin !=
   // Pubkey::default()`. When the oracle is off, any account is accepted;
@@ -188,23 +203,35 @@ export async function buildConfirmCustody(
     instructionsSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
     priceFeed: SystemProgram.programId,
   };
-  console.error(
-    "[bridge debug] disburse accounts dict:",
-    Object.fromEntries(
-      Object.entries(disburseAccts).map(([k, v]) => [
-        k,
-        (v as PublicKey).toBase58 ? (v as PublicKey).toBase58() : String(v),
-      ]),
-    ),
+  console.log(
+    "[bridge debug] disburse dict keys:",
+    Object.keys(disburseAccts),
   );
-  console.error(
-    "[bridge debug] loanAmount=" + loanAmount.toString() + " borrower=" +
-      borrower.toBase58(),
-  );
-  const disburseIx = await loanProgram.methods
-    .disburseFromVault(loanAmount)
-    .accounts(disburseAccts)
-    .instruction();
+  let disburseIx;
+  try {
+    disburseIx = await loanProgram.methods
+      .disburseFromVault(loanAmount)
+      .accounts(disburseAccts)
+      .instruction();
+    console.log("[bridge debug] disburseIx ok");
+  } catch (e) {
+    console.log(
+      "[bridge debug] disburseIx FAILED:",
+      e instanceof Error ? e.message : String(e),
+    );
+    console.log(
+      "[bridge debug] dict at failure:",
+      Object.fromEntries(
+        Object.entries(disburseAccts).map(([k, v]) => [
+          k,
+          (v as PublicKey).toBase58
+            ? (v as PublicKey).toBase58()
+            : String(v),
+        ]),
+      ),
+    );
+    throw e;
+  }
 
   const tx = new Transaction().add(ataIx, confirmIx, disburseIx);
 
