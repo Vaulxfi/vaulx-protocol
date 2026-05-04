@@ -147,25 +147,29 @@ export async function buildConfirmCustody(
     borrower,
   );
 
-  console.log("[bridge debug] derived:", {
-    loanId: loanId.toBase58(),
-    trdcStatePda: trdcStatePda.toBase58(),
-    loanConfigPda: loanConfigPda.toBase58(),
-    vaultPda: vaultPda.toBase58(),
-    loanAuthorityPda: loanAuthorityPda.toBase58(),
-    vaultAta: vaultAta.toBase58(),
-    borrowerAta: borrowerAta.toBase58(),
-    borrower: borrower.toBase58(),
-    assetMint: assetMint.toBase58(),
-    loanAmount: loanAmount.toString(),
-  });
-
-  const ataIx = createAssociatedTokenAccountIdempotentInstruction(
-    provider.operator.publicKey,
-    borrowerAta,
-    borrower,
-    assetMint,
-  );
+  // The borrower ATA must exist BEFORE confirm_custody runs, but we
+  // can't bundle `createAssociatedTokenAccountIdempotent` in the same
+  // tx — vault::disburse's Layer 2 check enforces that the top-level
+  // ix (index 0) belongs to the loan program, and the ATA create
+  // belongs to the SPL Associated Token Program. Send it as a
+  // standalone tx first, idempotently — the on-chain helper is a
+  // no-op if the ATA already exists.
+  const borrowerAtaExists =
+    (await provider.connection.getAccountInfo(borrowerAta, "confirmed")) !==
+    null;
+  if (!borrowerAtaExists) {
+    const ataTx = new Transaction().add(
+      createAssociatedTokenAccountIdempotentInstruction(
+        provider.operator.publicKey,
+        borrowerAta,
+        borrower,
+        assetMint,
+      ),
+    );
+    await provider.anchor.sendAndConfirm(ataTx, [], {
+      commitment: "confirmed",
+    });
+  }
 
   // confirm_custody (atomic) — the merge-spec ix that flips
   // PendingCustody → ActiveInCustody, runs vault::disburse, and
@@ -196,7 +200,7 @@ export async function buildConfirmCustody(
     })
     .instruction();
 
-  const tx = new Transaction().add(ataIx, confirmIx);
+  const tx = new Transaction().add(confirmIx);
 
   // The operator wallet on the AnchorProvider signs as the custodian.
   // No other signer is required: borrower_ata.authority is pinned at
