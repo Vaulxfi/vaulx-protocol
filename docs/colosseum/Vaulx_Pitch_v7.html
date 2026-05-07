@@ -1,0 +1,1535 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Vaulx — Colosseum Pitch v7</title>
+<!-- Standalone navigation: arrow keys, space, click L/R halves. No external deps. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0A0A0B;
+    --ink-2:#1A1A1D;
+    --ink-3:#3A3A40;
+    --paper:#FAFAF7;
+    --paper-2:#EFEDE5;
+    --paper-3:#E4E1D6;
+    --mute:#6B6B70;
+    --mute-d:#9A9A9F;
+    --accent:#0E7C7B;        /* teal */
+    --accent-2:#2BA09E;      /* lighter teal */
+    --accent-on:#FAFAF7;
+    --gold:#C18C45;
+    --gold-d:#7A5A2D;
+    --warn:#B8412C;          /* used SPARINGLY for predatory rates */
+    --green:#0F8A4F;
+    --rule:#1A1A1D;
+    --rule-d:rgba(250,250,247,0.18);
+  }
+  html, body { margin:0; padding:0; background:#000; }
+  deck-stage { background:#000; }
+  section{
+    font-family:'Inter Tight', system-ui, sans-serif;
+    color:var(--ink);
+    background:var(--paper);
+    overflow:hidden;
+  }
+  section.dark{ background:var(--ink); color:var(--paper); }
+  section.accent{ background:var(--accent); color:var(--accent-on); }
+
+  .mono{ font-family:'JetBrains Mono', monospace; }
+  .upper{ text-transform:uppercase; letter-spacing:0.14em; }
+
+  .frame{
+    position:absolute; inset:0;
+    padding:64px 96px;
+    display:flex; flex-direction:column;
+    box-sizing:border-box;
+  }
+  .corner-tl, .corner-tr, .corner-bl, .corner-br{
+    position:absolute; width:18px; height:18px; border:1.5px solid currentColor; opacity:.32; pointer-events:none;
+  }
+  .corner-tl{ top:48px; left:48px; border-right:none; border-bottom:none;}
+  .corner-tr{ top:48px; right:48px; border-left:none; border-bottom:none;}
+  .corner-bl{ bottom:48px; left:48px; border-right:none; border-top:none;}
+  .corner-br{ bottom:48px; right:48px; border-left:none; border-top:none;}
+
+  .strip{
+    display:flex; justify-content:space-between; align-items:baseline;
+    font-size:22px; letter-spacing:0.18em; text-transform:uppercase;
+    font-family:'JetBrains Mono', monospace; color:var(--mute);
+    margin-bottom:30px;
+  }
+  section.dark .strip{ color:var(--mute-d);}
+  section.accent .strip{ color:rgba(250,250,247,.78);}
+  .strip .dot{ display:inline-block; width:10px; height:10px; background:var(--accent); border-radius:50%; transform:translateY(-2px); margin-right:10px;}
+  section.accent .strip .dot{ background:var(--paper);}
+
+  h2.title{
+    font-size:60px; line-height:1.02; letter-spacing:-0.025em; font-weight:700;
+    margin:0 0 18px; text-wrap:balance;
+  }
+  h3.sub{
+    font-size:26px; line-height:1.3; letter-spacing:-0.005em; font-weight:500;
+    margin:0; color:var(--ink-2);
+  }
+  section.dark h3.sub{ color:#D8D8DC;}
+  p.body{ font-size:24px; line-height:1.4; margin:0; color:var(--ink-2);}
+  section.dark p.body{ color:#D8D8DC;}
+  p.small{ font-size:20px; line-height:1.45; margin:0; color:var(--mute); font-family:'JetBrains Mono', monospace;}
+  section.dark p.small{ color:var(--mute-d);}
+
+  /* ===========================
+     SLIDE 1 — ASYMMETRY
+     =========================== */
+  .asym{
+    flex:1; display:grid; grid-template-columns: 1fr 0px 1fr; gap:0; min-height:0;
+    border:1.5px solid var(--rule-d);
+    background:var(--ink);
+  }
+  .asym .gap-line{
+    background:var(--accent); position:relative; width:48px; align-self:stretch;
+  }
+  .asym .gap-line span{
+    position:absolute; left:50%; top:50%;
+    transform:translate(-50%,-50%) rotate(-90deg);
+    transform-origin:center;
+    font-family:'JetBrains Mono', monospace; font-size:24px; letter-spacing:0.4em; text-transform:uppercase;
+    color:var(--paper); white-space:nowrap;
+    background:var(--accent); padding:14px 28px;
+  }
+  .asym .col{
+    padding:44px 52px;
+    display:flex; flex-direction:column; gap:24px;
+    color:var(--paper);
+  }
+  .asym .col .h{
+    font-family:'JetBrains Mono', monospace; font-size:18px; letter-spacing:0.22em; text-transform:uppercase;
+    color:var(--mute-d); margin-bottom:6px;
+  }
+  .asym .col .h b{
+    display:block; font-family:'Inter Tight', sans-serif; font-size:38px; line-height:1.05; letter-spacing:-0.02em;
+    color:var(--paper); font-weight:700; text-transform:none; margin-top:8px;
+  }
+  .asym .col.right .h b{ color:var(--accent-2); }
+
+  .marcelo{
+    display:flex; gap:22px; align-items:center;
+    padding:18px 22px; border:1.5px solid var(--ink-3);
+  }
+  .marcelo .photo{
+    width:140px; height:170px; flex:none; border-radius:6px;
+    background:#000; border:1.5px solid var(--ink-3);
+    overflow:hidden;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'JetBrains Mono', monospace; font-size:14px; color:var(--mute-d); letter-spacing:0.18em; text-transform:uppercase;
+  }
+  .marcelo .meta{ display:flex; flex-direction:column; gap:4px;}
+  .marcelo .meta .n{ font-size:26px; font-weight:600; letter-spacing:-0.015em;}
+  .marcelo .meta .s{ font-family:'JetBrains Mono', monospace; font-size:18px; color:var(--mute-d); letter-spacing:0.05em;}
+  .marcelo .meta .a{ font-family:'JetBrains Mono', monospace; font-size:18px; color:var(--accent-2); letter-spacing:0.05em; margin-top:6px;}
+
+  .ratetbl{ width:100%; border-collapse:collapse; margin-top:auto;}
+  .ratetbl th, .ratetbl td{ text-align:left; padding:14px 12px; border-top:1px solid var(--ink-3); font-size:20px; color:var(--paper);}
+  .ratetbl th{ font-family:'JetBrains Mono', monospace; font-size:16px; letter-spacing:0.18em; text-transform:uppercase; color:var(--mute-d); font-weight:500; padding-top:0; border-top:none;}
+  .ratetbl td:not(:first-child){ font-family:'JetBrains Mono', monospace; text-align:right;}
+  .ratetbl td.apr{ font-weight:700; font-size:26px; color:var(--warn);}
+  .ratetbl td.ltv{ color:var(--mute-d);}
+
+  .yield-box{
+    margin-top:auto; padding:32px;
+    background:rgba(43,160,158,0.10);
+    border:1.5px solid var(--accent);
+  }
+  .yield-box .lbl{ font-family:'JetBrains Mono', monospace; font-size:18px; letter-spacing:0.18em; text-transform:uppercase; color:var(--accent-2); margin-bottom:12px;}
+  .yield-box .v{ font-size:78px; font-weight:700; letter-spacing:-0.03em; color:var(--paper); line-height:0.95;}
+  .yield-box .v small{ font-family:'JetBrains Mono', monospace; font-size:18px; font-weight:500; color:var(--mute-d); letter-spacing:0.1em; display:block; margin-top:10px; text-transform:uppercase;}
+
+  /* ===========================
+     SLIDE 2 — ARCHITECTURE
+     =========================== */
+  .arch{
+    flex:1; display:flex; flex-direction:column; gap:0;
+    border:1.5px solid var(--rule);
+    min-height:0;
+  }
+  .arch .layer{
+    display:grid; grid-template-columns: 200px 1fr; gap:0;
+    border-bottom:1.5px solid var(--rule);
+  }
+  .arch .layer:last-child{ border-bottom:none;}
+  .arch .layer.solana-rule{
+    border-bottom:1.5px solid var(--accent);
+    background:var(--accent);
+    color:var(--paper);
+  }
+  .arch .layer.solana-rule .label{ background:var(--accent); color:var(--paper); border-right-color:rgba(250,250,247,0.3);}
+  .arch .layer.solana-rule .programs-row{
+    display:flex; flex-direction:column; gap:6px;
+    padding:14px 24px; border-bottom:1px solid rgba(250,250,247,0.2);
+  }
+  .arch .layer.solana-rule .programs-row .pn{
+    font-family:'JetBrains Mono', monospace; font-size:14px; letter-spacing:0.22em; text-transform:uppercase; color:rgba(250,250,247,0.7);
+  }
+  .arch .layer.solana-rule .programs-row .pl{
+    display:flex; gap:14px; flex-wrap:wrap;
+  }
+  .arch .layer.solana-rule .programs-row .pl span{
+    font-family:'JetBrains Mono', monospace; font-size:18px; letter-spacing:0.06em;
+    padding:4px 12px; border:1.2px solid rgba(250,250,247,0.5);
+    color:var(--paper); font-weight:500;
+  }
+  .arch .layer.solana-rule .solana-gates{
+    display:grid;
+    grid-template-columns: 1fr 28px 1fr 28px 1fr 28px 1fr 28px 1fr;
+    align-items:center; gap:0;
+    padding:14px 24px;
+  }
+  .arch .layer.solana-rule .sg{
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+    padding:6px 4px;
+  }
+  .arch .layer.solana-rule .sg .gn{
+    font-family:'JetBrains Mono', monospace; font-size:14px; letter-spacing:0.18em;
+    color:rgba(250,250,247,0.78);
+  }
+  .arch .layer.solana-rule .sg .gl{
+    font-family:'Inter Tight', sans-serif; font-size:20px; font-weight:700; letter-spacing:-0.01em;
+    color:var(--paper); text-align:center; line-height:1.05;
+  }
+  .arch .layer.solana-rule .sg-arr{
+    text-align:center; color:rgba(250,250,247,0.6);
+    font-family:'JetBrains Mono', monospace; font-size:18px;
+  }
+  .arch .layer .label{
+    padding:20px 28px;
+    border-right:1.5px solid var(--rule);
+    background:var(--paper-2);
+    display:flex; flex-direction:column; gap:4px; justify-content:center;
+  }
+  .arch .layer .label .l1{ font-family:'JetBrains Mono', monospace; font-size:14px; letter-spacing:0.2em; text-transform:uppercase; color:var(--mute);}
+  .arch .layer .label .l2{ font-family:'Inter Tight', sans-serif; font-size:24px; font-weight:700; letter-spacing:-0.015em; color:var(--ink);}
+  .arch .layer .blocks{
+    display:grid; grid-template-columns: repeat(4, 1fr); gap:0;
+  }
+  .arch .layer .blk{
+    padding:16px 20px; border-right:1.5px solid var(--rule);
+    display:flex; flex-direction:column; gap:6px;
+    position:relative;
+  }
+  .arch .layer .blk:last-child{ border-right:none;}
+  .arch .layer .blk .step-row{ display:flex; align-items:center; justify-content:space-between; gap:10px;}
+  .arch .layer .blk .step{ font-family:'JetBrains Mono', monospace; font-size:14px; letter-spacing:0.2em; text-transform:uppercase; color:var(--accent); font-weight:600;}
+  .arch .layer .blk h5{ margin:0; font-size:20px; line-height:1.1; letter-spacing:-0.015em; font-weight:700;}
+  .arch .layer .blk p{ margin:0; font-size:15px; color:var(--mute); line-height:1.35; font-family:'JetBrains Mono', monospace; letter-spacing:0.02em;}
+  .arch .layer .blk .tag{
+    font-family:'JetBrains Mono', monospace; font-size:11px; letter-spacing:0.18em;
+    text-transform:uppercase; padding:3px 8px;
+    line-height:1.1; white-space:nowrap; font-weight:600;
+  }
+  .arch .layer .blk .tag.global{ color:var(--accent); border:1.2px solid var(--accent);}
+  .arch .layer .blk .tag.local{ color:var(--mute); border:1.2px dashed var(--mute);}
+  .arch .layer .blk.local{
+    background:repeating-linear-gradient(135deg, transparent 0 7px, rgba(0,0,0,0.025) 7px 8px);
+  }
+  .arch .layer .blk.local::after{
+    content:""; position:absolute; inset:6px;
+    border:1.5px dashed var(--mute); pointer-events:none;
+  }
+
+  .invariant-bar{
+    margin-top:20px; padding:18px 28px;
+    background:var(--ink); color:var(--paper);
+    display:grid; grid-template-columns: auto 1fr auto; gap:24px; align-items:center;
+  }
+  .invariant-bar .ic{
+    font-family:'JetBrains Mono', monospace; font-size:14px; letter-spacing:0.2em; text-transform:uppercase;
+    padding:8px 14px; border:1.2px solid var(--accent-2); color:var(--accent-2); white-space:nowrap; font-weight:600;
+  }
+  .invariant-bar .txt{
+    font-size:22px; font-weight:600; letter-spacing:-0.005em; line-height:1.3;
+  }
+  .invariant-bar .txt em{ color:var(--accent-2); font-style:italic;}
+  .invariant-bar .vs{
+    font-family:'JetBrains Mono', monospace; font-size:14px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--mute-d); white-space:nowrap;
+  }
+  .invariant-bar .vs b{ color:var(--paper); font-weight:600;}
+
+  /* ===========================
+     SLIDE 3 — UNIT ECONOMICS
+     =========================== */
+  .econ-grid{ flex:1; display:grid; grid-template-columns: 1fr 1fr 1fr; gap:32px; min-height:0;}
+  .econ-grid .panel{ display:flex; flex-direction:column; gap:0;}
+  .econ-grid .panel-h{
+    display:flex; justify-content:space-between; align-items:baseline; margin-bottom:14px;
+    font-family:'JetBrains Mono', monospace; font-size:14px; letter-spacing:0.18em; text-transform:uppercase; color:var(--mute);
+  }
+  .econ-grid .panel-h b{ color:var(--ink); font-family:'Inter Tight'; font-size:22px; letter-spacing:-0.01em; font-weight:700; text-transform:none;}
+  .tbl{ width:100%; border-collapse:collapse;}
+  .tbl th, .tbl td{ text-align:left; padding:11px 10px; border-top:1px solid var(--rule); font-size:18px;}
+  .tbl th{ font-family:'JetBrains Mono', monospace; font-size:13px; letter-spacing:0.18em; text-transform:uppercase; color:var(--mute); font-weight:500; padding-top:0; border-top:none; padding-bottom:11px; border-bottom:1.5px solid var(--rule);}
+  .tbl td:last-child{ font-family:'JetBrains Mono', monospace; text-align:right; font-weight:500;}
+  .tbl tr.tot td{
+    border-top:2px solid var(--rule); padding-top:14px; font-weight:700; font-size:20px;
+  }
+  .tbl tr.tot td:last-child{ color:var(--accent);}
+  .panel-note{
+    margin-top:16px; padding:14px 18px;
+    background:var(--paper-2); border:1px solid var(--rule);
+    font-family:'JetBrains Mono', monospace; font-size:14px; line-height:1.4; color:var(--mute);
+  }
+  .panel-note b{ color:var(--ink); font-family:'Inter Tight'; font-weight:600;}
+
+  .summary-strip{
+    display:grid; grid-template-columns: repeat(4, 1fr); gap:0;
+    border:1.5px solid var(--accent);
+    background:var(--accent); color:var(--paper);
+    margin-top:20px;
+  }
+  .summary-strip .s{
+    padding:18px 24px;
+    border-right:1.5px solid rgba(250,250,247,0.25);
+    display:flex; flex-direction:column; gap:4px;
+  }
+  .summary-strip .s:last-child{ border-right:none;}
+  .summary-strip .s .lbl{ font-family:'JetBrains Mono', monospace; font-size:13px; letter-spacing:0.18em; text-transform:uppercase; opacity:.85;}
+  .summary-strip .s .v{ font-size:30px; font-weight:700; letter-spacing:-0.02em; line-height:1;}
+  .summary-strip .s .v small{ display:block; font-family:'JetBrains Mono', monospace; font-size:13px; opacity:.7; margin-top:4px; font-weight:500; letter-spacing:0.05em;}
+
+  /* ===========================
+     SLIDE 4 — RISK + AUCTION
+     =========================== */
+  .risk-grid{ flex:1; display:grid; grid-template-columns: 1.05fr 1fr; gap:40px; min-height:0;}
+  .risk-grid .panel{ display:flex; flex-direction:column; gap:0;}
+  .risk-grid .panel-h{
+    display:flex; justify-content:space-between; align-items:baseline; margin-bottom:14px;
+    font-family:'JetBrains Mono', monospace; font-size:14px; letter-spacing:0.18em; text-transform:uppercase; color:var(--mute);
+  }
+  .risk-grid .panel-h b{ color:var(--ink); font-family:'Inter Tight'; font-size:22px; letter-spacing:-0.01em; font-weight:700; text-transform:none;}
+  .ltv-tbl th, .ltv-tbl td{ font-size:17px; padding:14px 10px;}
+  .ltv-tbl .bar{
+    display:flex; align-items:center; gap:12px; justify-content:flex-end;
+  }
+  .ltv-tbl .barwrap{
+    width:120px; height:12px; background:var(--paper-2); border:1px solid var(--rule); position:relative;
+  }
+  .ltv-tbl .barwrap i{ position:absolute; top:0; left:0; bottom:0; background:var(--accent);}
+  .ltv-tbl .barwrap.thr i{ background:var(--ink);}
+
+  .auction{
+    display:flex; flex-direction:column; gap:0;
+    border:1.5px solid var(--rule);
+  }
+  .auction .tier{
+    display:grid; grid-template-columns: 90px 1fr 1fr; gap:0;
+    border-bottom:1px solid var(--rule);
+  }
+  .auction .tier:last-child{ border-bottom:none;}
+  .auction .tier .t{
+    padding:14px 12px; background:var(--ink); color:var(--paper);
+    font-family:'JetBrains Mono', monospace; font-size:14px; letter-spacing:0.16em; text-transform:uppercase;
+    display:flex; align-items:center; justify-content:center; font-weight:600;
+  }
+  .auction .tier:first-child .t{ background:var(--warn);}
+  .auction .tier .who{ padding:14px 18px; font-size:17px; font-weight:600; display:flex; align-items:center;}
+  .auction .tier .det{ padding:14px 18px; font-family:'JetBrains Mono', monospace; font-size:14px; color:var(--mute); display:flex; align-items:center; line-height:1.3;}
+
+  .waterfall{
+    margin-top:18px; padding:18px 22px;
+    border:1.5px solid var(--rule); background:var(--paper-2);
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    font-family:'JetBrains Mono', monospace; font-size:14px; letter-spacing:0.05em;
+  }
+  .waterfall .step{ padding:8px 14px; background:var(--paper); border:1.5px solid var(--rule); font-weight:500;}
+  .waterfall .step.first{ border-color:var(--mute); color:var(--mute);}
+  .waterfall .step.pol{ border-color:var(--accent); color:var(--accent); background:rgba(14,124,123,0.08);}
+  .waterfall .step.lp{ border-color:var(--ink); color:var(--ink);}
+  .waterfall .arr{ color:var(--mute); font-size:18px;}
+
+  /* ===========================
+     SLIDE 5 — WHY SOLANA & WHY NOW
+     =========================== */
+  .why-grid{ flex:1; display:flex; flex-direction:column; gap:24px; min-height:0;}
+  .why-row-lbl{
+    font-family:'JetBrains Mono', monospace; font-size:13px; letter-spacing:0.2em; text-transform:uppercase;
+    color:var(--mute-d); margin-bottom:8px;
+  }
+  .three-prims{
+    display:grid; grid-template-columns: repeat(3, 1fr); gap:0;
+    border:1.5px solid var(--rule-d);
+  }
+  .three-prims .card{
+    padding:32px 28px;
+    border-right:1.5px solid var(--rule-d);
+    display:flex; flex-direction:column; gap:14px;
+    color:var(--paper);
+  }
+  .three-prims .card:last-child{ border-right:none;}
+  .three-prims .card .nm{ font-family:'Inter Tight'; font-size:32px; font-weight:700; letter-spacing:-0.025em; color:var(--accent-2); line-height:1;}
+  .three-prims .card .num{
+    font-family:'JetBrains Mono', monospace; font-size:38px; font-weight:600; letter-spacing:-0.02em;
+    color:var(--paper); line-height:1;
+  }
+  .three-prims .card .num small{ display:block; font-size:14px; color:var(--mute-d); font-weight:500; letter-spacing:0.1em; text-transform:uppercase; margin-top:8px;}
+  .three-prims .card .lns{ font-size:17px; line-height:1.4; color:#D8D8DC; margin-top:auto;}
+
+  .four-now{
+    display:grid; grid-template-columns: repeat(4, 1fr); gap:0;
+    border:1.5px solid var(--gold);
+    background:rgba(193,140,69,0.06);
+  }
+  .four-now .card{
+    padding:24px 22px;
+    border-right:1.5px solid rgba(193,140,69,0.5);
+    display:flex; flex-direction:column; gap:10px;
+    position:relative;
+  }
+  .four-now .card:last-child{ border-right:none;}
+  .four-now .card.fresh::before{
+    content:"NEW"; position:absolute; top:-1px; right:-1px;
+    background:var(--gold); color:var(--paper);
+    font-family:'JetBrains Mono', monospace; font-size:11px; letter-spacing:0.18em;
+    padding:5px 10px; font-weight:600;
+  }
+  .four-now .card .knm{
+    font-family:'JetBrains Mono', monospace; font-size:13px; letter-spacing:0.18em; text-transform:uppercase;
+    color:var(--gold); font-weight:600;
+  }
+  .four-now .card .knum{
+    font-family:'Inter Tight'; font-size:30px; font-weight:700; letter-spacing:-0.025em;
+    color:var(--paper); line-height:1.05;
+  }
+  .four-now .card .kdesc{
+    font-size:14px; line-height:1.4; color:#D8D8DC; font-family:'JetBrains Mono', monospace; letter-spacing:0.02em;
+  }
+
+  .atomic-bar{
+    padding:22px 28px;
+    background:var(--accent); color:var(--paper);
+    display:grid; grid-template-columns: auto 1fr; gap:24px; align-items:center;
+  }
+  .atomic-bar .icon{ font-family:'JetBrains Mono', monospace; font-size:13px; letter-spacing:0.2em; text-transform:uppercase; padding:8px 14px; border:1.5px solid var(--paper); white-space:nowrap; font-weight:600;}
+  .atomic-bar .txt{ font-size:21px; font-weight:600; letter-spacing:-0.005em; line-height:1.3;}
+
+  /* ===========================
+     SLIDE 6 — MARKET
+     =========================== */
+  .mkt6{
+    flex:1; display:grid; grid-template-columns: 0.95fr 1.1fr; gap:32px;
+    min-height:0;
+  }
+  .mkt6-funnel{ display:flex; flex-direction:column; gap:12px; min-height:0;}
+  .funnel-lbl{
+    font-family:'JetBrains Mono', monospace; font-size:13px;
+    letter-spacing:0.16em; text-transform:uppercase; color:var(--mute);
+  }
+  .funnel{
+    flex:1; display:flex; flex-direction:column; gap:14px;
+    min-height:0; justify-content:center;
+  }
+  .band{ display:grid; grid-template-columns: 1fr auto; gap:20px; align-items:center;}
+  .band-bar{
+    height:64px; background:var(--accent);
+    border-right:6px solid var(--ink);
+    position:relative;
+  }
+  .band-bar::after{
+    content:""; position:absolute; right:-6px; top:50%;
+    width:14px; height:14px; background:var(--ink);
+    transform:translate(50%,-50%) rotate(45deg);
+  }
+  .band--tam .band-bar{ width:100%;}
+  .band--sam .band-bar{ width:62%; background:var(--gold);}
+  .band--som .band-bar{ width:18%; background:var(--gold-d);}
+  .band-meta{ display:flex; flex-direction:column; gap:2px; min-width:240px; text-align:right;}
+  .band-meta .num{
+    font-family:'Inter Tight'; font-size:54px; font-weight:800;
+    line-height:0.95; letter-spacing:-0.04em; color:var(--ink);
+  }
+  .band-meta .lbl{
+    font-family:'JetBrains Mono', monospace; font-size:13px;
+    letter-spacing:0.12em; text-transform:uppercase; color:var(--accent);
+  }
+  .band-meta .desc{ font-size:14px; color:var(--mute); line-height:1.3; font-family:'JetBrains Mono', monospace;}
+  .funnel-src{
+    margin:0; font-family:'JetBrains Mono', monospace; font-size:13px;
+    color:var(--mute); letter-spacing:0.04em; line-height:1.4;
+  }
+
+  .mkt6-map{ display:flex; flex-direction:column; gap:12px; min-height:0;}
+  .map-title{
+    font-family:'JetBrains Mono', monospace; font-size:13px;
+    letter-spacing:0.16em; text-transform:uppercase; color:var(--mute);
+  }
+  .map-stage{
+    flex:1; min-height:0;
+    border:1.5px solid var(--rule); background:var(--paper-2);
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden; position:relative;
+  }
+  .map-stage svg{ width:100%; height:100%; display:block;}
+  .map-callouts{
+    display:grid; grid-template-columns: repeat(3, 1fr); gap:0;
+    border-top:1.5px solid var(--accent); border-bottom:1.5px solid var(--accent);
+  }
+  .map-callouts .cb{
+    padding:10px 16px; border-right:1px solid rgba(14,124,123,0.4);
+    display:flex; flex-direction:column; gap:2px;
+  }
+  .map-callouts .cb:last-child{ border-right:none;}
+  .map-callouts .cb .ck{
+    font-family:'JetBrains Mono', monospace; font-size:12px;
+    letter-spacing:0.18em; text-transform:uppercase; color:var(--accent);
+  }
+  .map-callouts .cb .cv{ font-size:16px; font-weight:600; line-height:1.2; color:var(--ink);}
+
+  .partners-strip2{ display:flex; flex-direction:column; gap:8px; margin-top:14px;}
+  .partners-strip2 .ps-lbl{
+    font-family:'JetBrains Mono', monospace; font-size:13px;
+    letter-spacing:0.18em; text-transform:uppercase; color:var(--mute);
+  }
+  .partners-strip2 .ps-row{
+    display:grid; grid-template-columns: repeat(10, 1fr); gap:0;
+    border-top:1.5px solid var(--rule); border-bottom:1.5px solid var(--rule);
+  }
+  .partners-strip2 .ps-p{
+    padding:10px 8px; border-right:1px solid var(--rule);
+    display:flex; flex-direction:column; gap:0; align-items:center; justify-content:center;
+    text-align:center;
+  }
+  .partners-strip2 .ps-p:last-child{ border-right:none;}
+  .partners-strip2 .ps-p .nm{
+    font-family:'Inter Tight'; font-size:14px; font-weight:700;
+    letter-spacing:-0.01em; color:var(--ink); line-height:1.1;
+  }
+  .partners-strip2 .ps-p .rl{
+    font-family:'JetBrains Mono', monospace; font-size:11px;
+    color:var(--mute); letter-spacing:0.04em; margin-top:2px;
+  }
+
+  .pull{
+    margin-top:14px;
+    padding:16px 26px; background:var(--ink); color:var(--paper);
+    font-size:22px; font-weight:600; letter-spacing:-0.01em;
+    display:flex; align-items:center; gap:14px;
+  }
+  .pull::before{
+    content:""; flex:0 0 auto;
+    width:12px; height:12px; background:var(--accent); border-radius:50%;
+  }
+  .pull em{ font-style:italic; color:var(--accent-2);}
+
+  /* ===========================
+     SLIDE 7 — TEAM
+     =========================== */
+  .team{ display:grid; grid-template-columns: repeat(5, 1fr); gap:18px; flex:1; min-height:0; align-content:start;}
+  .team .person{ display:flex; flex-direction:column; gap:10px;}
+  .team .person .av{
+    aspect-ratio: 4/5; background:var(--paper-2);
+    background-image:repeating-linear-gradient(135deg, transparent 0 14px, rgba(10,10,11,0.06) 14px 15px);
+    border:1.5px solid var(--rule);
+    display:flex; align-items:flex-end; padding:12px;
+    font-family:'JetBrains Mono', monospace; font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:var(--mute);
+  }
+  .team .person .nm{ margin:0; font-size:22px; letter-spacing:-0.015em; font-weight:700; line-height:1.05;}
+  .team .person .rl{ font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--accent); letter-spacing:0.1em; text-transform:uppercase; font-weight:600;}
+  .team .person .why{ font-size:13px; color:var(--ink-2); line-height:1.4;}
+  .team .person .why b{ font-weight:700; color:var(--ink);}
+  .team .person .badge{
+    display:inline-block;
+    font-family:'JetBrains Mono', monospace; font-size:10px;
+    letter-spacing:0.14em; text-transform:uppercase;
+    padding:3px 8px; background:var(--ink); color:var(--paper);
+    align-self:flex-start; margin-top:2px;
+  }
+
+  .moat{
+    margin-top:18px; padding:20px 28px;
+    background:var(--ink); color:var(--paper);
+    border-left:6px solid var(--accent);
+    display:flex; justify-content:space-between; align-items:center; gap:24px;
+  }
+  .moat .left{ font-size:22px; font-weight:600; letter-spacing:-0.01em; line-height:1.3;}
+  .moat .left em{ font-style:italic; color:var(--accent-2);}
+  .moat .right{
+    font-family:'JetBrains Mono', monospace; font-size:13px; letter-spacing:0.12em; text-transform:uppercase;
+    color:var(--mute-d); text-align:right; line-height:1.4; white-space:nowrap;
+  }
+  .moat .right b{ color:var(--accent-2); font-weight:600;}
+
+  /* ===========================
+     SLIDE 8 — DISTRIBUTION
+     =========================== */
+  .dist-grid{ flex:1; display:grid; grid-template-columns: repeat(3, 1fr); gap:24px; min-height:0;}
+  .dist-card{
+    border:1.5px solid var(--rule);
+    display:flex; flex-direction:column;
+  }
+  .dist-card .ch-head{
+    background:var(--ink); color:var(--paper);
+    padding:18px 22px;
+    display:flex; flex-direction:column; gap:4px;
+  }
+  .dist-card .ch-head .cn{
+    font-family:'JetBrains Mono', monospace; font-size:13px; letter-spacing:0.18em;
+    text-transform:uppercase; color:var(--accent-2); font-weight:600;
+  }
+  .dist-card .ch-head .ct{
+    font-family:'Inter Tight'; font-size:28px; font-weight:700; letter-spacing:-0.02em; line-height:1.05;
+  }
+  .dist-card .ch-body{
+    flex:1; padding:22px 24px;
+    display:flex; flex-direction:column; gap:18px;
+  }
+  .dist-card .ch-body .item{
+    display:flex; flex-direction:column; gap:4px;
+    padding-bottom:14px;
+    border-bottom:1px solid var(--rule);
+  }
+  .dist-card .ch-body .item:last-child{ border-bottom:none; padding-bottom:0;}
+  .dist-card .ch-body .item .iname{
+    font-size:18px; font-weight:700; letter-spacing:-0.01em; color:var(--ink);
+  }
+  .dist-card .ch-body .item .imeta{
+    font-family:'JetBrains Mono', monospace; font-size:13px; color:var(--mute); letter-spacing:0.03em; line-height:1.4;
+  }
+  .dist-card .ch-foot{
+    padding:14px 22px;
+    background:rgba(14,124,123,0.08);
+    border-top:1.5px solid var(--accent);
+    font-family:'JetBrains Mono', monospace; font-size:13px;
+    letter-spacing:0.05em; color:var(--accent); line-height:1.4;
+  }
+  .dist-card .ch-foot b{ font-family:'Inter Tight'; font-weight:700; color:var(--accent);}
+
+  .cac-bar{
+    margin-top:18px; padding:18px 28px;
+    background:var(--accent); color:var(--paper);
+    display:flex; justify-content:space-between; align-items:center; gap:24px;
+  }
+  .cac-bar .lhs{ font-size:22px; font-weight:700; letter-spacing:-0.01em;}
+  .cac-bar .lhs em{ font-style:italic; color:#FFE3B6;}
+  .cac-bar .rhs{
+    font-family:'JetBrains Mono', monospace; font-size:13px; letter-spacing:0.16em; text-transform:uppercase;
+    opacity:.9; text-align:right; line-height:1.4;
+  }
+
+  /* ===========================
+     SLIDE 9 — TRACTION + ASK + CLOSE
+     =========================== */
+  .close9{
+    position:absolute; inset:0;
+    padding:64px 96px;
+    display:flex; flex-direction:column; gap:0;
+  }
+  .close9 .strip{ color:var(--mute-d); margin-bottom:30px;}
+
+  .close9 .hero{
+    display:grid; grid-template-columns: 1.1fr 1fr; gap:48px; align-items:end;
+    padding-bottom:32px; border-bottom:1.5px solid var(--rule-d);
+  }
+  .close9 .hero .word{
+    font-size:200px; line-height:0.9; letter-spacing:-0.06em; font-weight:800;
+    margin:0; color:var(--paper);
+  }
+  .close9 .hero .word i{ font-style:italic; color:var(--accent-2);}
+  .close9 .hero .tag{
+    font-size:26px; line-height:1.3; letter-spacing:-0.01em; font-weight:500;
+    color:#D8D8DC; max-width:560px; margin:0 0 14px;
+  }
+  .close9 .hero .tag b{ color:var(--paper); font-weight:600;}
+
+  .close9 .panels{
+    flex:1; display:grid; grid-template-columns: 1fr 1.15fr 1.1fr; gap:0;
+    border-bottom:1.5px solid var(--rule-d); margin-top:0;
+  }
+  .close9 .panel{
+    padding:28px 32px;
+    border-right:1.5px solid var(--rule-d);
+    display:flex; flex-direction:column; gap:14px;
+  }
+  .close9 .panel:last-child{ border-right:none;}
+  .close9 .panel .pn{
+    font-family:'JetBrains Mono', monospace; font-size:14px; letter-spacing:0.2em; text-transform:uppercase;
+    color:var(--accent-2); font-weight:600;
+  }
+  .close9 .panel .pt{
+    font-family:'Inter Tight', sans-serif; font-size:32px; font-weight:700;
+    letter-spacing:-0.02em; color:var(--paper); line-height:1.05;
+  }
+  .close9 .panel ul{
+    list-style:none; margin:8px 0 0; padding:0;
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .close9 .panel li{
+    font-size:18px; line-height:1.35; color:#D8D8DC;
+    padding-left:18px; position:relative;
+  }
+  .close9 .panel li::before{
+    content:"▸"; position:absolute; left:0; color:var(--accent-2); font-family:'JetBrains Mono', monospace;
+  }
+  .close9 .panel li b{ color:var(--paper); font-weight:600;}
+
+  .close9 .ask-panel{
+    background:linear-gradient(135deg, rgba(14,124,123,0.18), rgba(14,124,123,0.04));
+    border-left:3px solid var(--accent-2);
+  }
+  .close9 .ask-panel .pt{
+    color:var(--accent-2);
+  }
+  .close9 .ask-panel .big{
+    font-family:'Inter Tight', sans-serif; font-size:74px; font-weight:800;
+    letter-spacing:-0.04em; color:var(--paper); line-height:1; margin-top:4px;
+  }
+  .close9 .ask-panel .big small{
+    display:block; font-family:'JetBrains Mono', monospace; font-size:13px; font-weight:500;
+    letter-spacing:0.16em; text-transform:uppercase; color:var(--mute-d); margin-top:8px;
+  }
+
+  .close9 .footer-row{
+    margin-top:24px; display:flex; justify-content:space-between; align-items:center; gap:32px;
+    padding-top:18px;
+  }
+  .close9 .footer-row .links{
+    display:flex; gap:32px; font-family:'JetBrains Mono', monospace;
+    font-size:14px; letter-spacing:0.18em; text-transform:uppercase; color:var(--mute-d);
+  }
+  .close9 .footer-row .links span b{ color:var(--paper); font-weight:500;}
+  .close9 .footer-row .cta{
+    padding:14px 28px; background:var(--accent); color:var(--paper);
+    font-family:'Inter Tight', sans-serif; font-size:18px; font-weight:600; letter-spacing:-0.01em;
+  }
+  .close9 .footer-row .cta i{ font-style:italic; color:#FFE3B6;}
+
+  /* ===========================
+     STAGE NAVIGATION (standalone)
+     =========================== */
+  deck-stage{
+    display:block; position:relative;
+    width:1920px; height:1080px;
+    transform-origin:top left;
+  }
+  deck-stage > section{
+    position:absolute; inset:0;
+    width:1920px; height:1080px;
+    display:none;
+  }
+  deck-stage > section.active{ display:block;}
+  .nav-hud{
+    position:fixed; bottom:18px; left:50%; transform:translateX(-50%);
+    z-index:9999;
+    display:flex; gap:14px; align-items:center;
+    background:rgba(10,10,11,0.85); color:var(--paper);
+    padding:10px 18px; border:1px solid rgba(250,250,247,0.2);
+    font-family:'JetBrains Mono', monospace; font-size:13px;
+    letter-spacing:0.12em; text-transform:uppercase;
+    user-select:none; backdrop-filter:blur(6px);
+  }
+  .nav-hud button{
+    background:transparent; color:var(--paper); border:1px solid rgba(250,250,247,0.3);
+    padding:6px 12px; font-family:inherit; font-size:13px; cursor:pointer; letter-spacing:0.1em;
+  }
+  .nav-hud button:hover{ background:rgba(14,124,123,0.4);}
+  .nav-hud .ix{ color:var(--accent-2); font-weight:600;}
+
+</style>
+</head>
+<body>
+
+<deck-stage width="1920" height="1080">
+
+  <!-- ===========================================================
+       1 — ASYMMETRY
+       =========================================================== -->
+  <section data-label="01 Asymmetry" class="dark">
+    <div class="frame">
+      <div class="strip"><div><span class="dot"></span>01 / THE ASYMMETRY</div><div>VAULX · COLOSSEUM 2026</div></div>
+      <h2 class="title" style="max-width:1700px;">Asset-rich, credit-trapped — meets capital with nowhere to go.</h2>
+      <div class="asym">
+        <div class="col left">
+          <div class="h">Demand side<b>Asset-rich, credit-trapped</b></div>
+          <div class="marcelo">
+            <div class="photo">[ Submariner ]</div>
+            <div class="meta">
+              <div class="n">Marcelo · São Paulo</div>
+              <div class="s">Rolex Submariner · Ref. 116610LN</div>
+              <div class="a">R$80,000 / ~$14,000 · idle</div>
+            </div>
+          </div>
+          <table class="ratetbl">
+            <thead><tr><th>Tier · BR product</th><th>LTV</th><th>APR</th></tr></thead>
+            <tbody>
+              <tr><td>Credit card <em style="color:var(--mute-d); font-style:italic;">rotativo</em> · penalty</td><td class="ltv">—</td><td class="apr">~450%</td></tr>
+              <tr><td>General consumer loan · standard</td><td class="ltv">—</td><td class="apr">~61%</td></tr>
+              <tr><td>Caixa <em style="color:var(--mute-d); font-style:italic;">penhor</em> · cheapest formal</td><td class="ltv">20%</td><td class="apr">~30%</td></tr>
+            </tbody>
+          </table>
+          <p style="margin:8px 0 0; font-family:'JetBrains Mono', monospace; font-size:13px; color:var(--mute-d); letter-spacing:0.04em; line-height:1.4;">
+            Caixa is the only Brazilian institution legally authorized for <em style="font-style:italic;">penhor</em>.<br/>
+            <em style="font-style:italic;">Rotativo</em> applies to balances carried past the 30-day grace period — the rate that hits the ~50M Brazilians who revolve CC debt.<br/>
+            Sources: Banco Central do Brasil · Trading Economics.
+          </p>
+        </div>
+        <div class="gap-line"><span>No rail</span></div>
+        <div class="col right">
+          <div class="h">Supply side<b>Capital seeking yield</b></div>
+          <p style="margin:0; font-size:21px; line-height:1.4; color:#D8D8DC;">Onchain USDC capital is the cheapest, most patient credit in the world — sitting idle at single-digit APR, with no trustable rail to physical-luxury collateral.</p>
+          <div class="yield-box">
+            <div class="lbl">USDC onchain · idle</div>
+            <div class="v">6–10% APR<small>Insured RWA collateral · rare</small></div>
+          </div>
+          <p style="margin:0; font-family:'JetBrains Mono', monospace; font-size:16px; color:var(--mute-d); letter-spacing:0.06em; line-height:1.5;">→ The gap is not interest rates.<br/>→ It is the absence of a rail.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===========================================================
+       2 — PROTOCOL ARCHITECTURE
+       =========================================================== -->
+  <section data-label="02 Architecture">
+    <div class="frame">
+      <div class="strip"><div><span class="dot"></span>02 / PROTOCOL ARCHITECTURE</div><div>4 PROGRAMS · GLOBAL CORE · LOCAL MODULES</div></div>
+      <h2 class="title">Modular. Atomic. Composable.</h2>
+      <h3 class="sub" style="margin-bottom:18px; max-width:1700px;">Solid blocks ship once. Dashed blocks swap per market. Four Anchor programs in the middle never move.</h3>
+      <div class="arch" style="flex:1;">
+
+        <!-- Off-chain layer -->
+        <div class="layer">
+          <div class="label"><div class="l1">Layer 01</div><div class="l2">Off-chain</div></div>
+          <div class="blocks">
+            <div class="blk"><div class="step-row"><div class="step">A</div><span class="tag global">Global</span></div><h5>Borrower wallet</h5><p>Crossmint · 1-tap social onboarding · embedded Solana wallet</p></div>
+            <div class="blk"><div class="step-row"><div class="step">B</div><span class="tag global">Global</span></div><h5>KYC stack</h5><p>Sumsub w/ native SAS (May 2025) → on-chain KycAttestation PDA</p></div>
+            <div class="blk local"><div class="step-row"><div class="step">C</div><span class="tag local">Local</span></div><h5>Licensed custodian</h5><p>Sekuro · Brinks-class network · Loomis-class network</p></div>
+            <div class="blk"><div class="step-row"><div class="step">D</div><span class="tag global">Global</span></div><h5>Lloyd's master policy</h5><p>Theft + damage to trustee · institutional bulk rate</p></div>
+          </div>
+        </div>
+
+        <!-- Anchor programs band -->
+        <div class="layer solana-rule">
+          <div class="label"><div class="l1" style="color:rgba(250,250,247,0.78);">Anchor</div><div class="l2" style="color:var(--paper);">Solana · Devnet</div></div>
+          <div>
+            <div class="programs-row">
+              <div class="pn">4 programs · CPI between</div>
+              <div class="pl">
+                <span>vault</span><span>loan</span><span>trdc</span><span>auction</span>
+              </div>
+            </div>
+            <div class="solana-gates">
+              <div class="sg"><span class="gn">G1</span><span class="gl">Appraisal</span></div>
+              <div class="sg-arr">→</div>
+              <div class="sg"><span class="gn">G2</span><span class="gl">Custody</span></div>
+              <div class="sg-arr">→</div>
+              <div class="sg"><span class="gn">G3</span><span class="gl">cNFT mint</span></div>
+              <div class="sg-arr">→</div>
+              <div class="sg"><span class="gn">G4</span><span class="gl">Borrow</span></div>
+              <div class="sg-arr">→</div>
+              <div class="sg"><span class="gn">G5</span><span class="gl">Repay / Default</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- On-chain layer -->
+        <div class="layer">
+          <div class="label"><div class="l1">Layer 02</div><div class="l2">On-chain</div></div>
+          <div class="blocks">
+            <div class="blk"><div class="step-row"><div class="step">E</div><span class="tag global">Global</span></div><h5>cNFT + Oracle</h5><p>Bubblegum cNFT · SAS · Pyth + RedStone (multi-oracle)</p></div>
+            <div class="blk"><div class="step-row"><div class="step">F</div><span class="tag global">Global</span></div><h5>Curated lending rails</h5><p>Kamino V2 + Loopscale USDC · composable curator infra</p></div>
+            <div class="blk"><div class="step-row"><div class="step">G</div><span class="tag global">Global</span></div><h5>Vaulx UI + indexer</h5><p>Next.js · indexer · bridge · /admin/demo cockpit</p></div>
+            <div class="blk"><div class="step-row"><div class="step">H</div><span class="tag global">Global</span></div><h5>Offshore wrapper</h5><p>BVI structure · noteholder of record</p></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Atomic invariant footer -->
+      <div class="invariant-bar">
+        <div class="ic">Atomic invariant</div>
+        <div class="txt">No USDC disburses until the licensed custodian's keypair signs custody-confirmation — <em>atomically, in the same transaction.</em></div>
+        <div class="vs">vs <b>Aave · Maple · Centrifuge</b><br/>none have shipped this on-chain</div>
+      </div>
+      <p class="small" style="margin-top:12px;">▸ 7 of 8 modules ship globally. Only custody swaps per market — 60–90 days per new country. ▸ Vaulx orchestrates licensed counterparties; we don't take custody, we don't hold capital, and we post a 5% protocol-owned first-loss buffer on every loan.</p>
+
+      <span class="corner-tl"></span><span class="corner-tr"></span><span class="corner-bl"></span><span class="corner-br"></span>
+    </div>
+  </section>
+
+  <!-- ===========================================================
+       3 — UNIT ECONOMICS
+       =========================================================== -->
+  <section data-label="03 Unit Economics">
+    <div class="frame">
+      <div class="strip"><div><span class="dot"></span>03 / UNIT ECONOMICS</div><div>ONE LOAN · BROKEN DOWN</div></div>
+      <h2 class="title">Vaulx beats every formal credit option in Brazil.</h2>
+      <h3 class="sub" style="margin-bottom:22px;">At <b style="color:var(--accent);">24% APR with 50% LTV</b>, Vaulx is cheaper than the cheapest formal credit — and lends 2.5× more capital per asset.</h3>
+
+      <!-- Comparison table — 4 options on a $14k Rolex -->
+      <div style="border:1.5px solid var(--rule); margin-bottom:24px;">
+        <div style="display:grid; grid-template-columns: 2.2fr 1fr 1.4fr 1.5fr 1.5fr; background:var(--ink); color:var(--paper);">
+          <div style="padding:12px 18px; font-family:'JetBrains Mono', monospace; font-size:13px; letter-spacing:0.16em; text-transform:uppercase; border-right:1px solid rgba(250,250,247,0.15);">Option</div>
+          <div style="padding:12px 18px; font-family:'JetBrains Mono', monospace; font-size:13px; letter-spacing:0.16em; text-transform:uppercase; border-right:1px solid rgba(250,250,247,0.15); text-align:right;">APR</div>
+          <div style="padding:12px 18px; font-family:'JetBrains Mono', monospace; font-size:13px; letter-spacing:0.16em; text-transform:uppercase; border-right:1px solid rgba(250,250,247,0.15);">LTV</div>
+          <div style="padding:12px 18px; font-family:'JetBrains Mono', monospace; font-size:13px; letter-spacing:0.16em; text-transform:uppercase; border-right:1px solid rgba(250,250,247,0.15); text-align:right;">$ on $14k Rolex</div>
+          <div style="padding:12px 18px; font-family:'JetBrains Mono', monospace; font-size:13px; letter-spacing:0.16em; text-transform:uppercase; text-align:right;">12-mo cost</div>
+        </div>
+        <div style="display:grid; grid-template-columns: 2.2fr 1fr 1.4fr 1.5fr 1.5fr; border-bottom:1px solid var(--rule); background:rgba(184,65,44,0.04);">
+          <div style="padding:14px 18px; font-size:18px; border-right:1px solid var(--rule);">Credit card <em style="color:var(--mute); font-style:italic;">rotativo</em> <span style="color:var(--warn); font-family:'JetBrains Mono', monospace; font-size:13px;">(penalty)</span></div>
+          <div style="padding:14px 18px; font-family:'JetBrains Mono', monospace; font-size:24px; font-weight:700; color:var(--warn); text-align:right; border-right:1px solid var(--rule);">~450%</div>
+          <div style="padding:14px 18px; font-size:16px; color:var(--mute); border-right:1px solid var(--rule);">— unsecured</div>
+          <div style="padding:14px 18px; font-size:16px; color:var(--mute); text-align:right; border-right:1px solid var(--rule); font-family:'JetBrains Mono', monospace;">n/a</div>
+          <div style="padding:14px 18px; font-size:16px; color:var(--warn); text-align:right; font-weight:600;">massive</div>
+        </div>
+        <div style="display:grid; grid-template-columns: 2.2fr 1fr 1.4fr 1.5fr 1.5fr; border-bottom:1px solid var(--rule);">
+          <div style="padding:14px 18px; font-size:18px; border-right:1px solid var(--rule);">General consumer loan <span style="color:var(--mute); font-family:'JetBrains Mono', monospace; font-size:13px;">(standard)</span></div>
+          <div style="padding:14px 18px; font-family:'JetBrains Mono', monospace; font-size:22px; font-weight:700; text-align:right; border-right:1px solid var(--rule);">~61%</div>
+          <div style="padding:14px 18px; font-size:16px; color:var(--mute); border-right:1px solid var(--rule);">— unsecured</div>
+          <div style="padding:14px 18px; font-size:16px; color:var(--mute); text-align:right; border-right:1px solid var(--rule); font-family:'JetBrains Mono', monospace;">n/a</div>
+          <div style="padding:14px 18px; font-family:'JetBrains Mono', monospace; font-size:16px; text-align:right;">~$3,050 on $5k</div>
+        </div>
+        <div style="display:grid; grid-template-columns: 2.2fr 1fr 1.4fr 1.5fr 1.5fr; border-bottom:1px solid var(--rule);">
+          <div style="padding:14px 18px; font-size:18px; border-right:1px solid var(--rule);">Caixa <em style="color:var(--mute); font-style:italic;">penhor</em> <span style="color:var(--mute); font-family:'JetBrains Mono', monospace; font-size:13px;">(cheapest formal)</span></div>
+          <div style="padding:14px 18px; font-family:'JetBrains Mono', monospace; font-size:22px; font-weight:700; text-align:right; border-right:1px solid var(--rule);">~30%</div>
+          <div style="padding:14px 18px; font-size:16px; border-right:1px solid var(--rule);">20% <span style="color:var(--mute); font-size:13px; font-family:'JetBrains Mono', monospace;">scrap-metal</span></div>
+          <div style="padding:14px 18px; font-family:'JetBrains Mono', monospace; font-size:18px; text-align:right; border-right:1px solid var(--rule);">~$2,800</div>
+          <div style="padding:14px 18px; font-family:'JetBrains Mono', monospace; font-size:16px; text-align:right;">~$840</div>
+        </div>
+        <div style="display:grid; grid-template-columns: 2.2fr 1fr 1.4fr 1.5fr 1.5fr; background:var(--accent); color:var(--paper);">
+          <div style="padding:18px; font-size:22px; font-weight:700; letter-spacing:-0.015em; border-right:1px solid rgba(250,250,247,0.25);">Vaulx <span style="font-family:'JetBrains Mono', monospace; font-size:13px; opacity:.85; font-weight:400;">(2% / month)</span></div>
+          <div style="padding:18px; font-family:'JetBrains Mono', monospace; font-size:28px; font-weight:800; text-align:right; border-right:1px solid rgba(250,250,247,0.25);">24%</div>
+          <div style="padding:18px; font-size:18px; font-weight:700; border-right:1px solid rgba(250,250,247,0.25);">50% <span style="font-family:'JetBrains Mono', monospace; font-size:13px; font-weight:400; opacity:.85;">full asset value</span></div>
+          <div style="padding:18px; font-family:'JetBrains Mono', monospace; font-size:22px; font-weight:800; text-align:right; border-right:1px solid rgba(250,250,247,0.25);">$7,000</div>
+          <div style="padding:18px; font-family:'JetBrains Mono', monospace; font-size:18px; font-weight:700; text-align:right;">~$1,680</div>
+        </div>
+      </div>
+
+      <!-- Two-row layout: 3-bucket cost panel + bottom strip -->
+      <div style="display:grid; grid-template-columns: 1.4fr 1fr; gap:24px;">
+
+        <!-- 3-bucket cost-of-credit panel -->
+        <div class="panel" style="display:flex; flex-direction:column;">
+          <div class="panel-h"><div>Cost of credit · 24% all-in</div><b>3 buckets</b></div>
+          <table class="tbl">
+            <thead><tr><th>Bucket</th><th>APR</th></tr></thead>
+            <tbody>
+              <tr><td><b>Cost of capital</b> — LP yield (USDC supplier)</td><td>8%</td></tr>
+              <tr><td><b>Cost of operations</b> — origination · custody · insurance · servicing · curator</td><td>12%</td></tr>
+              <tr><td><b>Cost of risk</b> — protocol first-loss buffer + risk margin</td><td>4%</td></tr>
+              <tr class="tot"><td>Borrower all-in <span style="color:var(--mute); font-family:'JetBrains Mono', monospace; font-size:13px; font-weight:500;">(2% / month)</span></td><td>24%</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Headline benefits -->
+        <div style="display:flex; flex-direction:column; gap:14px;">
+          <div style="padding:18px 22px; background:var(--paper-2); border:1.5px solid var(--accent); border-left-width:4px;">
+            <div style="font-family:'JetBrains Mono', monospace; font-size:13px; letter-spacing:0.16em; text-transform:uppercase; color:var(--accent); margin-bottom:6px;">▸ vs Caixa <em style="font-style:italic;">penhor</em></div>
+            <div style="font-size:20px; font-weight:700; line-height:1.25; letter-spacing:-0.015em;">Cheaper rate. <span style="color:var(--accent);">2.5× more capital per asset.</span></div>
+            <div style="font-family:'JetBrains Mono', monospace; font-size:13px; color:var(--mute); margin-top:6px;">24% vs 30% APR · 50% vs 20% LTV at full vs scrap-metal value</div>
+          </div>
+          <div style="padding:18px 22px; background:var(--paper-2); border:1.5px solid var(--rule); border-left-width:4px;">
+            <div style="font-family:'JetBrains Mono', monospace; font-size:13px; letter-spacing:0.16em; text-transform:uppercase; color:var(--mute); margin-bottom:6px;">▸ Why 3 months</div>
+            <div style="font-size:18px; font-weight:600; line-height:1.3; letter-spacing:-0.01em;">Short-term, immediate-need credit.</div>
+            <div style="font-family:'JetBrains Mono', monospace; font-size:13px; color:var(--mute); margin-top:6px; line-height:1.4;">Quick disbursement · repay or roll over · asset returned at exit · 4× renewable</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Summary strip -->
+      <div class="summary-strip" style="margin-top:24px;">
+        <div class="s"><div class="lbl">Borrower all-in</div><div class="v">24% APR<small>2% / month</small></div></div>
+        <div class="s"><div class="lbl">Vaulx revenue / asset</div><div class="v">~$300–600<small>per year · 6–12% of borrowed</small></div></div>
+        <div class="s"><div class="lbl">LP net (post EL)</div><div class="v">~5% APR<small>collateralized · insured</small></div></div>
+        <div class="s"><div class="lbl">vs <em style="font-style:italic;">rotativo</em> penalty rate</div><div class="v">19× cheaper<small>24% vs 450%</small></div></div>
+      </div>
+
+      <span class="corner-tl"></span><span class="corner-tr"></span><span class="corner-bl"></span><span class="corner-br"></span>
+    </div>
+  </section>
+
+  <!-- ===========================================================
+       4 — RISK + LIQUIDATION
+       =========================================================== -->
+  <section data-label="04 Risk &amp; Liquidation">
+    <div class="frame">
+      <div class="strip"><div><span class="dot"></span>04 / RISK · LIQUIDATION</div><div>TIERED · DUTCH · BACKSTOPPED</div></div>
+      <h2 class="title">Risk is tiered. Default is choreographed.</h2>
+      <div class="risk-grid">
+
+        <!-- LTV table -->
+        <div class="panel">
+          <div class="panel-h"><div>Origination tiers</div><b>LTV by asset class</b></div>
+          <table class="tbl ltv-tbl">
+            <thead><tr><th>Asset class</th><th style="text-align:right;">Origination LTV</th><th style="text-align:right;">Liquidation</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>Steel sport watches</td>
+                <td><div class="bar"><div class="barwrap"><i style="width:50%"></i></div><span style="width:42px; display:inline-block;">50%</span></div></td>
+                <td><div class="bar"><div class="barwrap thr"><i style="width:70%"></i></div><span style="width:42px; display:inline-block;">70%</span></div></td>
+              </tr>
+              <tr>
+                <td>Gold / precious watches</td>
+                <td><div class="bar"><div class="barwrap"><i style="width:40%"></i></div><span style="width:42px; display:inline-block;">40%</span></div></td>
+                <td><div class="bar"><div class="barwrap thr"><i style="width:60%"></i></div><span style="width:42px; display:inline-block;">60%</span></div></td>
+              </tr>
+              <tr>
+                <td>Handbags (Hermès, Chanel)</td>
+                <td><div class="bar"><div class="barwrap"><i style="width:35%"></i></div><span style="width:42px; display:inline-block;">35%</span></div></td>
+                <td><div class="bar"><div class="barwrap thr"><i style="width:55%"></i></div><span style="width:42px; display:inline-block;">55%</span></div></td>
+              </tr>
+              <tr>
+                <td>Art / one-offs <span style="color:var(--mute); font-size:14px;">· Phase 2</span></td>
+                <td><div class="bar"><div class="barwrap"><i style="width:25%"></i></div><span style="width:42px; display:inline-block;">25%</span></div></td>
+                <td><div class="bar"><div class="barwrap thr"><i style="width:45%"></i></div><span style="width:42px; display:inline-block;">45%</span></div></td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="small" style="margin-top:18px; line-height:1.5;">→ Insurance covers theft &amp; damage to trustee — <b style="color:var(--ink); font-family:'Inter Tight'; font-weight:600;">never default risk</b>.<br/>→ On default: 24h margin call (USDC or Pix top-up).</p>
+        </div>
+
+        <!-- Auction timeline -->
+        <div class="panel">
+          <div class="panel-h"><div>14-day Dutch auction</div><b>Four tiers · escalating</b></div>
+          <div class="auction">
+            <div class="tier"><div class="t">T+0</div><div class="who">Margin call</div><div class="det">24h to top up via USDC or Pix</div></div>
+            <div class="tier"><div class="t">T+1</div><div class="who">Tier 1 · Pool LPs</div><div class="det">Last-appraisal floor · defaulted-pool first</div></div>
+            <div class="tier"><div class="t">T+3</div><div class="who">Tier 2 · Resellers</div><div class="det">Authorized reseller network · governance holders</div></div>
+            <div class="tier"><div class="t">T+7</div><div class="who">Tier 3 · Open auction</div><div class="det">Open onchain · Dutch decay</div></div>
+            <div class="tier"><div class="t">T+14</div><div class="who">Tier 4 · Backstop</div><div class="det">Offline auction house · 70% reserve</div></div>
+          </div>
+          <div class="waterfall">
+            <span style="color:var(--mute); white-space:nowrap; font-weight:600;">Loss waterfall</span>
+            <span class="step first">Borrower equity</span>
+            <span class="arr">→</span>
+            <span class="step pol">POL first-loss</span>
+            <span class="arr">→</span>
+            <span class="step lp">LP principal</span>
+          </div>
+        </div>
+
+      </div>
+      <span class="corner-tl"></span><span class="corner-tr"></span><span class="corner-bl"></span><span class="corner-br"></span>
+    </div>
+  </section>
+
+  <!-- ===========================================================
+       5 — WHY SOLANA & WHY NOW
+       =========================================================== -->
+  <section data-label="05 Why Solana &amp; Why Now" class="dark">
+    <div class="frame">
+      <div class="strip"><div><span class="dot"></span>05 / WHY SOLANA · WHY NOW</div><div>PRIMITIVES × INSTITUTIONAL ADOPTION</div></div>
+      <h2 class="title">Three primitives. Four signals. One window.</h2>
+      <h3 class="sub" style="margin-bottom:14px; color:#D8D8DC; font-size:22px;">None of this stack existed 18 months ago. The institutional money is moving onchain — on Solana — this quarter.</h3>
+
+      <div class="why-grid">
+
+        <!-- WHY SOLANA — three primitives -->
+        <div>
+          <div class="why-row-lbl">▸ Why Solana · primitives</div>
+          <div class="three-prims">
+            <div class="card">
+              <div class="nm">cNFT</div>
+              <div class="num">$0.0005<small>per mint · Bubblegum</small></div>
+              <div class="lns">A fraction of a cent. That's what makes a <em style="font-style:normal; color:var(--accent-2);">global</em> luxury asset class economically viable.</div>
+            </div>
+            <div class="card">
+              <div class="nm">SAS</div>
+              <div class="num">1×<small>verified · read everywhere</small></div>
+              <div class="lns">Solana Attestations Service. Reusable on-chain KYC. Issued once, read by any protocol in the stack.</div>
+            </div>
+            <div class="card">
+              <div class="nm">Composability</div>
+              <div class="num">CPI<small>Anchor → Kamino + Loopscale</small></div>
+              <div class="lns">We originate real-world collateral. Kamino and Loopscale run mature lending markets. Modular by default.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- WHY NOW — institutional adoption -->
+        <div>
+          <div class="why-row-lbl" style="color:var(--gold);">▸ Why now · institutional adoption on Solana</div>
+          <div class="four-now">
+            <div class="card">
+              <div class="knm">RWA TVL on Solana</div>
+              <div class="knum">$1.82B</div>
+              <div class="kdesc">March 2026 · +90% MoM growth · 3rd-largest RWA chain after Ethereum and BNB</div>
+            </div>
+            <div class="card fresh">
+              <div class="knm">Western Union</div>
+              <div class="knum">USDPT live</div>
+              <div class="kdesc">Launched May 2026 on Solana via Anchorage Digital Bank · "Stable by Western Union" in 40+ countries</div>
+            </div>
+            <div class="card">
+              <div class="knm">Payments giants</div>
+              <div class="knum">Visa · Stripe · PayPal · Fiserv</div>
+              <div class="kdesc">Production stablecoin workflows live on Solana · USDC settlement for US banks</div>
+            </div>
+            <div class="card">
+              <div class="knm">Tokenized funds</div>
+              <div class="knum">BUIDL · FOBXX</div>
+              <div class="kdesc">BlackRock $2.3B AUM · Franklin Templeton $594M money fund · both live on Solana</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="atomic-bar">
+        <div class="icon">Atomic tx</div>
+        <div class="txt">Sumsub's native Solana Attestations Service integration (May 2025) gave us reusable KYC. Atomic transactions enforce every gate in a single signature. The institutional rails moved onto Solana. We move physical luxury onto them.</div>
+      </div>
+
+      <span class="corner-tl"></span><span class="corner-tr"></span><span class="corner-bl"></span><span class="corner-br"></span>
+    </div>
+  </section>
+
+  <!-- ===========================================================
+       6 — MARKET
+       =========================================================== -->
+  <section data-label="06 Market">
+    <div class="frame">
+      <div class="strip"><div><span class="dot"></span>06 / MARKET · ADDRESSABLE</div><div>HIGH-COST-CREDIT MARKETS · GLOBAL ROLLOUT</div></div>
+      <h2 class="title" style="font-size:48px; margin-bottom:14px;">Where credit is expensive, luxury collateral is everywhere.</h2>
+      <div class="mkt6">
+
+        <!-- Funnel -->
+        <div class="mkt6-funnel">
+          <div class="funnel-lbl">▸ Bottom-up sizing · 5-year horizon</div>
+          <div class="funnel">
+            <div class="band band--tam">
+              <div class="band-bar"></div>
+              <div class="band-meta">
+                <div class="num">$90B</div>
+                <div class="lbl">Watches in private hands</div>
+                <div class="desc">BR · MX · TR · IN · SEA · ZA · NG</div>
+              </div>
+            </div>
+            <div class="band band--sam">
+              <div class="band-bar"></div>
+              <div class="band-meta">
+                <div class="num">$20B</div>
+                <div class="lbl">Realistically addressable</div>
+                <div class="desc">Owner willingness × asset eligibility</div>
+              </div>
+            </div>
+            <div class="band band--som">
+              <div class="band-bar"></div>
+              <div class="band-meta">
+                <div class="num">$1–3B</div>
+                <div class="lbl">Year-5 origination target</div>
+                <div class="desc">1–5% capture · Vaulx originated</div>
+              </div>
+            </div>
+          </div>
+          <p class="funnel-src">Source: Bain Luxury Goods Worldwide 2024 · Morgan Stanley Watches estimates · Vaulx analysis.</p>
+        </div>
+
+        <!-- World map (inline SVG) -->
+        <div class="mkt6-map">
+          <div class="map-title">▸ Global markets · one protocol stack</div>
+          <div class="map-stage">
+            <svg viewBox="0 0 800 420" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+              <!-- Continental silhouettes (simplified, hairline strokes) -->
+              <g fill="none" stroke="#1A1A1D" stroke-width="1.3" opacity="0.55" stroke-linejoin="round" stroke-linecap="round">
+                <!-- North America -->
+                <path d="M 80,90 L 130,75 L 180,80 L 230,95 L 250,130 L 240,170 L 210,200 L 180,210 L 160,200 L 140,180 L 120,160 L 100,130 L 80,90 Z"/>
+                <!-- South America (Brazil prominent) -->
+                <path d="M 220,210 L 250,205 L 280,225 L 295,275 L 290,320 L 270,355 L 250,365 L 230,355 L 215,325 L 210,275 L 220,210 Z"/>
+                <!-- Europe -->
+                <path d="M 380,100 L 420,90 L 450,100 L 460,125 L 445,150 L 415,160 L 390,150 L 380,125 L 380,100 Z"/>
+                <!-- Africa -->
+                <path d="M 410,170 L 450,165 L 475,195 L 480,250 L 460,300 L 435,320 L 410,310 L 395,280 L 395,225 L 410,170 Z"/>
+                <!-- Middle East / Turkey -->
+                <path d="M 462,135 L 500,135 L 510,160 L 495,170 L 470,165 L 462,135 Z"/>
+                <!-- India -->
+                <path d="M 550,165 L 580,160 L 600,180 L 605,215 L 585,240 L 565,235 L 555,210 L 550,180 L 550,165 Z"/>
+                <!-- SE Asia -->
+                <path d="M 615,210 L 645,215 L 665,240 L 660,275 L 640,290 L 620,275 L 615,250 L 615,210 Z"/>
+                <!-- Australia -->
+                <path d="M 660,300 L 705,295 L 725,315 L 720,345 L 685,355 L 660,335 L 660,300 Z"/>
+                <!-- Asia (Russia/China simple) -->
+                <path d="M 510,75 L 590,70 L 670,80 L 720,100 L 710,140 L 670,150 L 620,145 L 580,135 L 540,125 L 510,75 Z"/>
+              </g>
+
+              <!-- Pin: Brazil (large) -->
+              <g transform="translate(255,290)">
+                <circle r="14" fill="#0E7C7B" opacity="0.25"/>
+                <circle r="9" fill="#0E7C7B"/>
+                <text x="0" y="-22" text-anchor="middle" font-family="Inter Tight, sans-serif" font-size="13" font-weight="700" fill="#0A0A0B">BRAZIL</text>
+                <text x="0" y="-8" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" fill="#0E7C7B">CC ~400%</text>
+              </g>
+
+              <!-- Pin: Mexico (medium) -->
+              <g transform="translate(170,180)">
+                <circle r="11" fill="#0E7C7B" opacity="0.25"/>
+                <circle r="7" fill="#0E7C7B"/>
+                <text x="0" y="-18" text-anchor="middle" font-family="Inter Tight, sans-serif" font-size="12" font-weight="700" fill="#0A0A0B">MEXICO</text>
+                <text x="0" y="-6" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#0E7C7B">~80%</text>
+              </g>
+
+              <!-- Pin: Turkey (medium) -->
+              <g transform="translate(478,150)">
+                <circle r="11" fill="#0E7C7B" opacity="0.25"/>
+                <circle r="7" fill="#0E7C7B"/>
+                <text x="0" y="-18" text-anchor="middle" font-family="Inter Tight, sans-serif" font-size="12" font-weight="700" fill="#0A0A0B">TURKEY</text>
+                <text x="0" y="-6" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#0E7C7B">~70%</text>
+              </g>
+
+              <!-- Pin: India (medium) -->
+              <g transform="translate(575,200)">
+                <circle r="11" fill="#0E7C7B" opacity="0.25"/>
+                <circle r="7" fill="#0E7C7B"/>
+                <text x="0" y="-18" text-anchor="middle" font-family="Inter Tight, sans-serif" font-size="12" font-weight="700" fill="#0A0A0B">INDIA</text>
+                <text x="0" y="-6" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#0E7C7B">~40%</text>
+              </g>
+
+              <!-- Pin: SE Asia (small cluster) -->
+              <g transform="translate(640,255)">
+                <circle r="9" fill="#0E7C7B" opacity="0.25"/>
+                <circle r="6" fill="#0E7C7B"/>
+                <text x="0" y="-15" text-anchor="middle" font-family="Inter Tight, sans-serif" font-size="11" font-weight="700" fill="#0A0A0B">SE ASIA</text>
+                <text x="0" y="-4" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#0E7C7B">30–45%</text>
+              </g>
+
+              <!-- Pin: USA (small, boutique) -->
+              <g transform="translate(155,135)">
+                <circle r="8" fill="#C18C45" opacity="0.25"/>
+                <circle r="5" fill="#C18C45"/>
+                <text x="0" y="-13" text-anchor="middle" font-family="Inter Tight, sans-serif" font-size="11" font-weight="700" fill="#0A0A0B">USA</text>
+                <text x="0" y="-3" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#C18C45">credit-invisible HNW</text>
+              </g>
+
+              <!-- Connecting filaments to one Solana node (visual: same stack everywhere) -->
+              <g stroke="#0E7C7B" stroke-width="0.6" opacity="0.35" stroke-dasharray="2 3">
+                <line x1="255" y1="290" x2="400" y2="200"/>
+                <line x1="170" y1="180" x2="400" y2="200"/>
+                <line x1="478" y1="150" x2="400" y2="200"/>
+                <line x1="575" y1="200" x2="400" y2="200"/>
+                <line x1="640" y1="255" x2="400" y2="200"/>
+                <line x1="155" y1="135" x2="400" y2="200"/>
+              </g>
+
+              <!-- Center node: Solana -->
+              <g transform="translate(400,200)">
+                <circle r="22" fill="#FAFAF7" stroke="#0E7C7B" stroke-width="1.5"/>
+                <text y="-2" text-anchor="middle" font-family="Inter Tight, sans-serif" font-size="11" font-weight="700" fill="#0E7C7B">SOLANA</text>
+                <text y="11" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" fill="#6B6B70">one stack</text>
+              </g>
+            </svg>
+          </div>
+          <div class="map-callouts">
+            <div class="cb"><span class="ck">Pain</span><span class="cv">Credit card APR 60–400%</span></div>
+            <div class="cb"><span class="ck">Rail</span><span class="cv">Solana · USDC · atomic settlement</span></div>
+            <div class="cb"><span class="ck">Launch</span><span class="cv">90 days to first loan in-market</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Partners strip — 10 cells -->
+      <div class="partners-strip2">
+        <div class="ps-lbl">Partners · signed or in active discussion</div>
+        <div class="ps-row">
+          <div class="ps-p"><div class="nm">Sekuro</div><div class="rl">Custody</div></div>
+          <div class="ps-p"><div class="nm">Brinks-class</div><div class="rl">Custody net.</div></div>
+          <div class="ps-p"><div class="nm">Lloyd's</div><div class="rl">Insurance</div></div>
+          <div class="ps-p"><div class="nm">Vaultik</div><div class="rl">Appraisal</div></div>
+          <div class="ps-p"><div class="nm">Sumsub</div><div class="rl">KYC + SAS</div></div>
+          <div class="ps-p"><div class="nm">Kamino V2</div><div class="rl">Lending</div></div>
+          <div class="ps-p"><div class="nm">Loopscale</div><div class="rl">Lending</div></div>
+          <div class="ps-p"><div class="nm">Mercado Bitcoin</div><div class="rl">Anchor lender</div></div>
+          <div class="ps-p"><div class="nm">Transfero</div><div class="rl">Anchor lender</div></div>
+          <div class="ps-p"><div class="nm">BVI Trust Co.</div><div class="rl">Legal SPV</div></div>
+        </div>
+      </div>
+
+      <div class="pull">Caixa values your Patek Philippe as <em>scrap metal</em>. We value it as a Patek Philippe.</div>
+      <span class="corner-tl"></span><span class="corner-tr"></span><span class="corner-bl"></span><span class="corner-br"></span>
+    </div>
+  </section>
+
+  <!-- ===========================================================
+       7 — TEAM
+       =========================================================== -->
+  <section data-label="07 Team">
+    <div class="frame">
+      <div class="strip"><div><span class="dot"></span>07 / TEAM</div><div>BANKING · SECURITY · BD · SOLANA · DEFI</div></div>
+      <h2 class="title">Five founders. Five non-overlapping axes.</h2>
+      <h3 class="sub" style="margin-bottom:18px;">No competitor can assemble this team.</h3>
+
+      <div class="team">
+
+        <div class="person">
+          <div class="av">Portrait · George</div>
+          <div class="nm">George Dimitrov</div>
+          <div class="rl">CEO / CTO</div>
+          <div class="why">Global banking & financial operations · institutional & regulatory affairs. <b>Owns:</b> Vaulx is corporate-grade across business, governance, legal, compliance, tech. Drives institutional partnerships on-chain and off-chain.</div>
+          <span class="badge">15+ yrs · Banking</span>
+        </div>
+
+        <div class="person">
+          <div class="av">Portrait · Marcelo</div>
+          <div class="nm">Marcelo</div>
+          <div class="rl">COO</div>
+          <div class="why">Brings the <b>Gitel</b> network into Vaulx: corporate & institutional reach in Brazil, deep custody and security tech expertise. <b>Owns:</b> Vaulx is operationally solid for protocol, participants, and partners.</div>
+          <span class="badge">38 yrs · Gitel.com.br</span>
+        </div>
+
+        <div class="person">
+          <div class="av">Portrait · Rodrigo</div>
+          <div class="nm">Rodrigo</div>
+          <div class="rl">Head Partnerships & BD</div>
+          <div class="why">Proven networking and BD across Brazil and LATAM. <b>Owns:</b> Mercado Bitcoin and other BR partnerships (with Marcelo) — local compliance, fast adoption, growth.</div>
+          <span class="badge">BR + LATAM · BD</span>
+        </div>
+
+        <div class="person">
+          <div class="av">Portrait · Edson</div>
+          <div class="nm">Edson</div>
+          <div class="rl">Senior Solana Eng.</div>
+          <div class="why">Owns all on-chain and protocol-level engineering. Shipped 4 Anchor programs across Phase 1–3: vault · loan · trdc · auction.</div>
+          <span class="badge">Anchor · Bubblegum · Pyth</span>
+        </div>
+
+        <div class="person">
+          <div class="av">Portrait · Felipe</div>
+          <div class="nm">Felipe</div>
+          <div class="rl">DeFi & Community Advisor</div>
+          <div class="why">Brings the <b>4p.finance</b> position into Vaulx: existing crypto-native luxury watch flow in São Paulo, deep DeFi network across US and Brazil. Advises on community + DeFi partnerships.</div>
+          <span class="badge">CEO · 4p.finance</span>
+        </div>
+
+      </div>
+
+      <div class="moat">
+        <div class="left"><b>Gitel</b> — <em>38 years</em> operating Brazilian physical-security infrastructure. 60 corporate bank clients. That network is the custodian moat.</div>
+        <div class="right">▸ Active commercial conversations with<br/><b>appraisers · custodians · curators</b></div>
+      </div>
+
+      <span class="corner-tl"></span><span class="corner-tr"></span><span class="corner-bl"></span><span class="corner-br"></span>
+    </div>
+  </section>
+
+  <!-- ===========================================================
+       8 — DISTRIBUTION
+       =========================================================== -->
+  <section data-label="08 Distribution">
+    <div class="frame">
+      <div class="strip"><div><span class="dot"></span>08 / DISTRIBUTION</div><div>BUILT-IN · NEAR-ZERO CAC AT LAUNCH</div></div>
+      <h2 class="title">Distribution is built-in.</h2>
+      <h3 class="sub" style="margin-bottom:18px;">The team's existing networks + reusable Solana identity = near-zero customer-acquisition cost in the early phase.</h3>
+
+      <div class="dist-grid">
+
+        <!-- Channel 1 — Direct -->
+        <div class="dist-card">
+          <div class="ch-head">
+            <div class="cn">Channel 01 · borrower-side</div>
+            <div class="ct">Direct · BR + LATAM</div>
+          </div>
+          <div class="ch-body">
+            <div class="item">
+              <div class="iname">Gitel network</div>
+              <div class="imeta">Marcelo's 38-yr BR security business · 60 corporate bank clients · direct line to HNW borrowers via partner banks</div>
+            </div>
+            <div class="item">
+              <div class="iname">4p.finance pipeline</div>
+              <div class="imeta">Felipe processes São Paulo's luxury-watch flow on crypto rails today · onboarded crypto-luxury buyer base ready</div>
+            </div>
+            <div class="item">
+              <div class="iname">Rodrigo's BD network</div>
+              <div class="imeta">Brazil + LATAM bank, custodian, and partner relationships · second-degree connection to every key counterparty</div>
+            </div>
+          </div>
+          <div class="ch-foot">▸ <b>Founders bring the customer base.</b> No paid acquisition needed at launch.</div>
+        </div>
+
+        <!-- Channel 2 — Reusable identity -->
+        <div class="dist-card">
+          <div class="ch-head">
+            <div class="cn">Channel 02 · onboarding</div>
+            <div class="ct">Reusable identity</div>
+          </div>
+          <div class="ch-body">
+            <div class="item">
+              <div class="iname">Sumsub ID Connect</div>
+              <div class="imeta">200+ partner protocols on the network · users who KYC'd anywhere can borrow on Vaulx with zero re-friction</div>
+            </div>
+            <div class="item">
+              <div class="iname">Native SAS attestations</div>
+              <div class="imeta">Sumsub's native Solana Attestations Service integration (May 2025) · KYC once on Solana, borrow anywhere</div>
+            </div>
+            <div class="item">
+              <div class="iname">Crossmint social login</div>
+              <div class="imeta">1-tap onboarding via Google / Apple / email · embedded Solana wallet provisioned automatically · no seed phrase friction</div>
+            </div>
+          </div>
+          <div class="ch-foot">▸ <b>The borrower already passed KYC somewhere on Solana.</b> We just read the attestation.</div>
+        </div>
+
+        <!-- Channel 3 — Institutional + LP-side -->
+        <div class="dist-card">
+          <div class="ch-head">
+            <div class="cn">Channel 03 · lender-side</div>
+            <div class="ct">Institutional &amp; LP</div>
+          </div>
+          <div class="ch-body">
+            <div class="item">
+              <div class="iname">Mercado Bitcoin · Transfero</div>
+              <div class="imeta">Brazilian institutional anchor lenders · MB has ~4M users · regulated CVM exchanges with deep BR distribution</div>
+            </div>
+            <div class="item">
+              <div class="iname">Kamino V2 + Loopscale curators</div>
+              <div class="imeta">Curated lending vaults reach the existing Solana yield audience · composable USDC pools at scale</div>
+            </div>
+            <div class="item">
+              <div class="iname">LP-side flywheel</div>
+              <div class="imeta">Curated vaults attract pre-qualified institutional liquidity · TVL feeds borrower capacity feeds yield feeds TVL</div>
+            </div>
+          </div>
+          <div class="ch-foot">▸ <b>LPs already exist on Solana.</b> We give them yield backed by physical luxury.</div>
+        </div>
+
+      </div>
+
+      <div class="cac-bar">
+        <div class="lhs">CAC ≈ $0 at launch. Growth is <em>partner-network multiplication</em>, not paid acquisition.</div>
+        <div class="rhs">▸ The most expensive part of any lending<br/>protocol is the borrower funnel. Ours is built.</div>
+      </div>
+
+      <span class="corner-tl"></span><span class="corner-tr"></span><span class="corner-bl"></span><span class="corner-br"></span>
+    </div>
+  </section>
+
+  <!-- ===========================================================
+       9 — TRACTION + ASK + CLOSE
+       =========================================================== -->
+  <section data-label="09 Traction · Ask · Close" class="dark">
+    <div class="close9">
+      <div class="strip"><div><span class="dot"></span>09 / TRACTION · ASK · CLOSE</div><div>VAULX · COLOSSEUM 2026</div></div>
+
+      <!-- Hero word + tagline -->
+      <div class="hero">
+        <h1 class="word">Vaul<i>x</i></h1>
+        <p class="tag">The rail between physical luxury and onchain capital. <b>Built on Solana.</b> Live on Devnet today.</p>
+      </div>
+
+      <!-- 3-column panels: Traction · Ask · Use of Funds -->
+      <div class="panels">
+
+        <div class="panel">
+          <div class="pn">▸ Traction · live today</div>
+          <div class="pt">Built. Tested. Live.</div>
+          <ul>
+            <li><b>4 Anchor programs</b> on Devnet — vault · loan · trdc · auction</li>
+            <li><b>45+ anchor tests</b> · all green · CI gating</li>
+            <li><b>vaulx.vercel.app</b> — frontend live · demo cockpit at /admin/demo</li>
+            <li>Indexer + bridge running · Supabase event log</li>
+          </ul>
+        </div>
+
+        <div class="panel ask-panel">
+          <div class="pn">▸ Our ask</div>
+          <div class="pt">Colosseum prize</div>
+          <div class="big">$250K<small>Solana RWA track · pre-seed</small></div>
+          <ul style="margin-top:6px;">
+            <li>To get to <b>mainnet</b> with audited contracts</li>
+            <li>To close the <b>first custodian + appraiser + curator</b></li>
+            <li>Bridge to <b>seed round</b> with traction + revenue</li>
+          </ul>
+        </div>
+
+        <div class="panel">
+          <div class="pn">▸ Use of funds · 6 months</div>
+          <div class="pt">Audit → mainnet → seed.</div>
+          <ul>
+            <li><b>Audit</b> · 4 Anchor programs · external review + bug bounty</li>
+            <li><b>First partnerships closed</b> · custodian (Sekuro / Brinks-class) + curator (Kamino V2 / Loopscale)</li>
+            <li><b>20–50 mainnet loans</b> · first revenue · LP cohort onboarded</li>
+            <li><b>Seed raise</b> · $1.5–3M to scale BR + first LATAM market</li>
+          </ul>
+        </div>
+
+      </div>
+
+      <!-- Footer: links + CTA -->
+      <div class="footer-row">
+        <div class="links">
+          <span><b>github.com/Vaulxfi</b></span>
+          <span><b>vaulx.vercel.app</b></span>
+          <span><b>Devnet live · Mainnet Q3 2026 · 100 loans by Q4</b></span>
+        </div>
+        <div class="cta">Come build with <i>us.</i></div>
+      </div>
+
+    </div>
+  </section>
+
+</deck-stage>
+
+<!-- HUD -->
+<div class="nav-hud" id="navHud">
+  <button data-act="prev">◀ Prev</button>
+  <span class="ix" id="navIx">01</span> / <span id="navTot">09</span>
+  <button data-act="next">Next ▶</button>
+</div>
+
+<script>
+  (function(){
+    const stage = document.querySelector('deck-stage');
+    if (!stage) return;
+    const slides = Array.from(stage.querySelectorAll(':scope > section'));
+    let i = 0;
+
+    function show(n){
+      i = Math.max(0, Math.min(slides.length - 1, n));
+      slides.forEach((s, idx) => s.classList.toggle('active', idx === i));
+      const ix = document.getElementById('navIx');
+      if (ix) ix.textContent = String(i + 1).padStart(2, '0');
+    }
+
+    function fit(){
+      const W = window.innerWidth;
+      const H = window.innerHeight;
+      const s = Math.min(W / 1920, H / 1080);
+      stage.style.transform = 'scale(' + s + ')';
+      const offX = Math.max(0, (W - 1920 * s) / 2);
+      const offY = Math.max(0, (H - 1080 * s) / 2);
+      stage.style.position = 'absolute';
+      stage.style.top = offY + 'px';
+      stage.style.left = offX + 'px';
+    }
+
+    document.getElementById('navTot').textContent = String(slides.length).padStart(2, '0');
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown' || e.key === 'l') { show(i + 1); e.preventDefault(); }
+      else if (e.key === 'ArrowLeft' || e.key === 'PageUp' || e.key === 'h') { show(i - 1); e.preventDefault(); }
+      else if (e.key === 'Home') { show(0); }
+      else if (e.key === 'End') { show(slides.length - 1); }
+      else if (/^\d$/.test(e.key)) { const n = parseInt(e.key, 10); if (n >= 1 && n <= slides.length) show(n - 1); }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('.nav-hud')) return;
+      if (e.target.tagName === 'A') return;
+      const x = e.clientX;
+      if (x > window.innerWidth / 2) show(i + 1);
+      else show(i - 1);
+    });
+
+    document.querySelector('.nav-hud').addEventListener('click', (e) => {
+      const act = e.target.getAttribute('data-act');
+      if (act === 'next') show(i + 1);
+      else if (act === 'prev') show(i - 1);
+    });
+
+    window.addEventListener('resize', fit);
+    show(0);
+    fit();
+  })();
+</script>
+
+</body>
+</html>
