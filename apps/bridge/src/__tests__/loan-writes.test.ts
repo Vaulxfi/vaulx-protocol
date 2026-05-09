@@ -45,18 +45,27 @@ interface AppOptions {
     loanId: PublicKey,
     assetMint: PublicKey,
   ) => Promise<LoanWriteResult>;
+  createCcbTrdc?: (
+    provider: BridgeProvider,
+    args: {
+      appraisalAtoms: bigint;
+      loanAmountAtoms: bigint;
+      termDays: number;
+      rateBps: number;
+    },
+  ) => Promise<LoanWriteResult>;
 }
 
 function makeApp(opts: AppOptions = {}): express.Express {
   const app = express();
   app.use(express.json());
-  app.use(
-    createChainLoanWritesRouter(
-      stubProvider,
-      new PublicKey(ASSET_MINT),
-      opts.confirmCustody ? { confirmCustody: opts.confirmCustody } : {},
-    ),
-  );
+  const deps: {
+    confirmCustody?: AppOptions["confirmCustody"];
+    createCcbTrdc?: AppOptions["createCcbTrdc"];
+  } = {};
+  if (opts.confirmCustody) deps.confirmCustody = opts.confirmCustody;
+  if (opts.createCcbTrdc) deps.createCcbTrdc = opts.createCcbTrdc;
+  app.use(createChainLoanWritesRouter(stubProvider, new PublicKey(ASSET_MINT), deps));
   return app;
 }
 
@@ -326,5 +335,110 @@ describe("placeholder response shape", () => {
       .send({ loanId: LOAN_ID });
     expect(r.body.unsignedTx).toBeNull();
     expect(r.body.executed).toBe(false);
+  });
+});
+
+describe("POST /chain/loan/create-ccb-trdc", () => {
+  it("invokes the createCcbTrdc builder and forwards parsed args", async () => {
+    const fakeResult: LoanWriteResult = {
+      ok: true,
+      txSignature: "CREATE_TX_SIG",
+      loanId: LOAN_ID,
+      accounts: { loanConfig: "Lcfg", trdcState: "Trdc" },
+      unsignedTx: null,
+      executed: true,
+    };
+    const spy = vi.fn<
+      [
+        BridgeProvider,
+        {
+          appraisalAtoms: bigint;
+          loanAmountAtoms: bigint;
+          termDays: number;
+          rateBps: number;
+        },
+      ],
+      Promise<LoanWriteResult>
+    >(async () => fakeResult);
+
+    const r = await request(makeApp({ createCcbTrdc: spy }))
+      .post("/chain/loan/create-ccb-trdc")
+      .send({
+        appraisalAtoms: "8000000",
+        loanAmountAtoms: "4000000",
+        termDays: 30,
+        rateBps: 2400,
+      });
+
+    expect(r.status).toBe(200);
+    expect(r.body).toEqual(fakeResult);
+    expect(spy).toHaveBeenCalledTimes(1);
+    const [, args] = spy.mock.calls[0];
+    expect(args.appraisalAtoms).toBe(8_000_000n);
+    expect(args.loanAmountAtoms).toBe(4_000_000n);
+    expect(args.termDays).toBe(30);
+    expect(args.rateBps).toBe(2400);
+  });
+
+  it("rejects missing appraisalAtoms", async () => {
+    const r = await request(makeApp())
+      .post("/chain/loan/create-ccb-trdc")
+      .send({ loanAmountAtoms: 4_000_000, termDays: 30, rateBps: 2400 });
+    expect(r.status).toBe(400);
+    expect(r.body.error).toBe("invalid_appraisal_atoms");
+  });
+
+  it("rejects missing loanAmountAtoms", async () => {
+    const r = await request(makeApp())
+      .post("/chain/loan/create-ccb-trdc")
+      .send({ appraisalAtoms: 8_000_000, termDays: 30, rateBps: 2400 });
+    expect(r.status).toBe(400);
+    expect(r.body.error).toBe("invalid_loan_amount_atoms");
+  });
+
+  it("rejects non-positive termDays", async () => {
+    const r = await request(makeApp())
+      .post("/chain/loan/create-ccb-trdc")
+      .send({
+        appraisalAtoms: 8_000_000,
+        loanAmountAtoms: 4_000_000,
+        termDays: 0,
+        rateBps: 2400,
+      });
+    expect(r.status).toBe(400);
+    expect(r.body.error).toBe("invalid_term_days");
+  });
+
+  it("rejects non-positive rateBps", async () => {
+    const r = await request(makeApp())
+      .post("/chain/loan/create-ccb-trdc")
+      .send({
+        appraisalAtoms: 8_000_000,
+        loanAmountAtoms: 4_000_000,
+        termDays: 30,
+        rateBps: 0,
+      });
+    expect(r.status).toBe(400);
+    expect(r.body.error).toBe("invalid_rate_bps");
+  });
+
+  it("normalizes a thrown LtvTooHigh into 422 with the IDL code", async () => {
+    const spy = vi.fn(async () => {
+      const err = new Error("AnchorError ...") as Error & {
+        error?: { errorCode?: { code?: string } };
+      };
+      err.error = { errorCode: { code: "LtvTooHigh" } };
+      throw err;
+    });
+    const r = await request(makeApp({ createCcbTrdc: spy }))
+      .post("/chain/loan/create-ccb-trdc")
+      .send({
+        appraisalAtoms: 1_000_000,
+        loanAmountAtoms: 4_000_000,
+        termDays: 30,
+        rateBps: 2400,
+      });
+    expect(r.status).toBe(422);
+    expect(r.body.error).toBe("LtvTooHigh");
   });
 });

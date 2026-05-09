@@ -4,6 +4,7 @@ import { PublicKey } from "@solana/web3.js";
 import type { BridgeProvider } from "../../chain/provider";
 import {
   buildConfirmCustody,
+  buildCreateCcbTrdc,
   buildPayInstallment,
   buildRenew,
   buildRepay,
@@ -133,10 +134,11 @@ function normalizeOnchainError(err: unknown): { error: string; details: string }
 
 export interface LoanWritesRouterDeps {
   /**
-   * Override to stub the real on-chain confirm-custody call in tests.
-   * Defaults to the real implementation; production never overrides.
+   * Overrides for the real on-chain builders, used by unit tests so we
+   * don't have to stand up a Solana validator. Production never overrides.
    */
   confirmCustody?: typeof buildConfirmCustody;
+  createCcbTrdc?: typeof buildCreateCcbTrdc;
 }
 
 export function createChainLoanWritesRouter(
@@ -146,6 +148,7 @@ export function createChainLoanWritesRouter(
 ): Router {
   const router = Router();
   const confirmCustodyImpl = deps.confirmCustody ?? buildConfirmCustody;
+  const createCcbTrdcImpl = deps.createCcbTrdc ?? buildCreateCcbTrdc;
 
   router.post(
     "/chain/loan/confirm-custody",
@@ -179,6 +182,61 @@ export function createChainLoanWritesRouter(
         // 422 reads as "request was well-formed but the on-chain ix
         // refused" — distinguishes from 400 (caller's fault) and 500
         // (bridge's fault).
+        res.status(422).json({ ok: false, error, details });
+      }
+    },
+  );
+
+  router.post(
+    "/chain/loan/create-ccb-trdc",
+    async (req: Request, res: Response): Promise<void> => {
+      const body = (req.body ?? {}) as {
+        appraisalAtoms?: unknown;
+        loanAmountAtoms?: unknown;
+        termDays?: unknown;
+        rateBps?: unknown;
+      };
+
+      const appraisal = parsePositiveBigInt(
+        body.appraisalAtoms,
+        "invalid_appraisal_atoms",
+      );
+      if (!appraisal.ok) {
+        sendError(res, appraisal.status, appraisal.error);
+        return;
+      }
+      const loanAmount = parsePositiveBigInt(
+        body.loanAmountAtoms,
+        "invalid_loan_amount_atoms",
+      );
+      if (!loanAmount.ok) {
+        sendError(res, loanAmount.status, loanAmount.error);
+        return;
+      }
+      const termDays = parsePositiveInt(body.termDays, "invalid_term_days");
+      if (!termDays.ok) {
+        sendError(res, termDays.status, termDays.error);
+        return;
+      }
+      // rate_bps can be ≥ 0 in principle (zero-interest loans aren't
+      // physically illegal), but the program rejects 0 elsewhere; keep
+      // strictly positive here so we don't silently land a malformed loan.
+      const rateBps = parsePositiveInt(body.rateBps, "invalid_rate_bps");
+      if (!rateBps.ok) {
+        sendError(res, rateBps.status, rateBps.error);
+        return;
+      }
+
+      try {
+        const result = await createCcbTrdcImpl(provider, {
+          appraisalAtoms: appraisal.value,
+          loanAmountAtoms: loanAmount.value,
+          termDays: termDays.value,
+          rateBps: rateBps.value,
+        });
+        sendResult(res, result);
+      } catch (err) {
+        const { error, details } = normalizeOnchainError(err);
         res.status(422).json({ ok: false, error, details });
       }
     },

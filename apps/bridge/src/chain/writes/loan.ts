@@ -7,6 +7,7 @@ import {
   getAssociatedTokenAddressSync,
 } from "@solana/spl-token";
 import {
+  Keypair,
   PublicKey,
   SystemProgram,
   SYSVAR_INSTRUCTIONS_PUBKEY,
@@ -223,6 +224,94 @@ export async function buildConfirmCustody(
       loanAuthority: loanAuthorityPda.toBase58(),
       borrower: borrower.toBase58(),
       assetMint: assetMint.toBase58(),
+    },
+    unsignedTx: null,
+    executed: true,
+  };
+}
+
+/**
+ * Real implementation: mint a fresh `TRDCState` PDA via
+ * `loan::create_ccb_trdc`. The Laravel side calls this when a borrower
+ * requests a new loan in the UI — without a real on-chain trdc_state,
+ * the subsequent `confirm_custody` would fail with `trdc_state_not_found`.
+ *
+ * Operator signs as `payer` (= borrower in the demo single-keypair model;
+ * `trdc_state.borrower` is captured from the `payer` arg per
+ * `initialize_trdc_state` in the trdc program). When the wallet-signed
+ * flow lands the real borrower will sign instead, but the ix shape stays
+ * the same.
+ *
+ * Oracle is OFF on Edson's deployed `loan_config` (set in
+ * bootstrap-edson-devnet.ts), so:
+ *   - `appraisal_value` is consumed directly (no PriceFeed re-derive)
+ *   - `_asset_hint` is stored as-zeros on the TRDCState (zero-byte ref)
+ *   - `kyc_attestation` and `price_feed` accounts default to SystemProgram
+ *
+ * `loanIdAtoms` is the loan amount in USDC atoms (6dp), matching what
+ * `disburse_from_vault` will eventually move out of the vault.
+ *
+ * Returns the freshly-minted `loanId` (random pubkey) so Laravel can
+ * persist it as `loans.solana_loan_id` and pass it back to the bridge
+ * during the eventual `confirm_custody` call.
+ */
+export async function buildCreateCcbTrdc(
+  provider: BridgeProvider,
+  args: {
+    appraisalAtoms: bigint;
+    loanAmountAtoms: bigint;
+    termDays: number;
+    rateBps: number;
+  },
+): Promise<LoanWriteResult> {
+  const loanProgram = loadLoanProgram(provider);
+
+  const loanIdKp = Keypair.generate();
+  const loanId = loanIdKp.publicKey;
+  const trdcStatePda = deriveTrdcStatePda(loanId);
+  const loanConfigPda = deriveLoanConfigPda();
+
+  const dueTs = Math.floor(Date.now() / 1000) + args.termDays * 86_400;
+  const refBytes = Buffer.alloc(32); // oracle OFF → ref_bytes unused
+
+  const signature: string = await (loanProgram.methods as unknown as {
+    createCcbTrdc: (...as: unknown[]) => {
+      accounts: (a: Record<string, PublicKey>) => {
+        rpc: () => Promise<string>;
+      };
+    };
+  })
+    .createCcbTrdc(
+      loanId,
+      new BN(args.appraisalAtoms.toString()),
+      new BN(args.loanAmountAtoms.toString()),
+      new BN(dueTs),
+      new BN(args.rateBps),
+      Array.from(refBytes),
+    )
+    .accounts({
+      trdcState: trdcStatePda,
+      trdcProgram: new PublicKey(PROGRAM_IDS.trdc),
+      payer: provider.operator.publicKey,
+      systemProgram: SystemProgram.programId,
+      loanConfig: loanConfigPda,
+      kycAttestation: SystemProgram.programId, // KYC OFF
+      priceFeed: SystemProgram.programId, // oracle OFF
+    })
+    .rpc();
+
+  return {
+    ok: true,
+    txSignature: signature,
+    loanId: loanId.toBase58(),
+    accounts: {
+      loanConfig: loanConfigPda.toBase58(),
+      trdcState: trdcStatePda.toBase58(),
+      borrower: provider.operator.publicKey.toBase58(),
+      _dueTs: String(dueTs),
+      _appraisalAtoms: args.appraisalAtoms.toString(),
+      _loanAmountAtoms: args.loanAmountAtoms.toString(),
+      _rateBps: String(args.rateBps),
     },
     unsignedTx: null,
     executed: true,
