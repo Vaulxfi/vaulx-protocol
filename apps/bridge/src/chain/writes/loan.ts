@@ -1,12 +1,18 @@
 import crypto from "node:crypto";
 
-// `@coral-xyz/anchor` (0.30.1) doesn't surface BN as a named ESM export in
-// our bridge's "type": "module" runtime — the named import succeeds in TS
-// type-checking (it's in the .d.ts) but blows up at runtime under tsx with
-// "does not provide an export named 'BN'". Wildcard-import the module and
-// destructure BN at the value level — same class, no runtime ESM stumble.
-import * as anchor from "@coral-xyz/anchor";
-const { BN } = anchor;
+// `@coral-xyz/anchor` (0.30.1) is published as CommonJS, and our bridge
+// runs as ESM ("type": "module") under tsx. Two earlier attempts failed
+// at runtime here:
+//   - `import { BN } from "@coral-xyz/anchor"` → SyntaxError, "does not
+//     provide an export named 'BN'" (named ESM export missing).
+//   - `import * as anchor; const { BN } = anchor` → "BN is not a
+//     constructor" (the namespace object's BN slot points to the
+//     wrapper getter, not the class).
+// The reliable pattern for CJS-from-ESM in Node is a default import on
+// the package: Node hands you the entire `module.exports` object, and
+// destructuring at the value level retrieves the actual class.
+import anchorPkg from "@coral-xyz/anchor";
+const { BN } = anchorPkg;
 import {
   TOKEN_PROGRAM_ID,
   createAssociatedTokenAccountIdempotentInstruction,
