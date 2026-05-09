@@ -22,7 +22,8 @@
     "e2e:moments-2-3-4": "pnpm exec tsx scripts/dev/moments-2-3-4-e2e.ts",
     "e2e:moments-5-9": "pnpm exec tsx scripts/dev/moments-5-9-e2e.ts",
     "seed:demo-loan": "pnpm exec tsx scripts/dev/seed-demo-loan.ts",
-    "vault:topup": "pnpm exec tsx scripts/dev/topup-vault.ts"
+    "vault:topup": "pnpm exec tsx scripts/dev/topup-vault.ts",
+    "init:fresh-usdc": "pnpm exec tsx scripts/dev/init-fresh-usdc.ts"
   },
   "devDependencies": {
     "@coral-xyz/anchor": "^0.30.1",

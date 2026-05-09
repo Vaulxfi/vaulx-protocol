@@ -71,8 +71,27 @@ import vaultIdlJson from "../../packages/idls/src/vault.json";
 
 const RPC_URL =
   process.env.SOLANA_RPC_URL ?? "https://api.devnet.solana.com";
-const ASSET_MINT_STR =
-  process.env.ASSET_MINT ?? "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU";
+
+// Asset-mint resolution order (most-explicit wins):
+//   1. ASSET_MINT env var (one-shot override)
+//   2. scripts/dev/edson-usdc.json from `init-fresh-usdc.ts` (Edson is
+//      mint authority; this is the demo-pivoted mint)
+//   3. The legacy demo mint baked in below (Edson was NOT mint authority
+//      for this one — kept as the historical fallback so the script
+//      still runs in environments where edson-usdc.json wasn't created)
+function resolveAssetMint(): string {
+  if (process.env.ASSET_MINT) return process.env.ASSET_MINT;
+  try {
+    const cfg = JSON.parse(
+      fs.readFileSync(path.join(__dirname, "edson-usdc.json"), "utf8"),
+    ) as { mint?: string };
+    if (cfg.mint) return cfg.mint;
+  } catch {
+    /* no edson-usdc.json — fall through to legacy default */
+  }
+  return "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU";
+}
+const ASSET_MINT_STR = resolveAssetMint();
 const DEPOSIT_AMOUNT_ATOMS = 5_000_000; // 5 USDC
 
 const PAYER_KEYPAIR_PATH =
