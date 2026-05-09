@@ -1,6 +1,12 @@
 import crypto from "node:crypto";
 
-import { BN } from "@coral-xyz/anchor";
+// `@coral-xyz/anchor` (0.30.1) doesn't surface BN as a named ESM export in
+// our bridge's "type": "module" runtime — the named import succeeds in TS
+// type-checking (it's in the .d.ts) but blows up at runtime under tsx with
+// "does not provide an export named 'BN'". Wildcard-import the module and
+// destructure BN at the value level — same class, no runtime ESM stumble.
+import * as anchor from "@coral-xyz/anchor";
+const { BN } = anchor;
 import {
   TOKEN_PROGRAM_ID,
   createAssociatedTokenAccountIdempotentInstruction,
@@ -122,7 +128,7 @@ export async function buildConfirmCustody(
     trdcAccount.data,
   );
   const borrower = trdcStateRaw.borrower as PublicKey;
-  const loanAmount = trdcStateRaw["loan_amount"] as BN;
+  const loanAmount = trdcStateRaw["loan_amount"] as InstanceType<typeof BN>;
   if (!borrower || !loanAmount) {
     throw new Error(
       `trdc_state_decode_incomplete: borrower=${!!borrower} loan_amount=${!!loanAmount}`,
