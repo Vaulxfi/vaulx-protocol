@@ -4,16 +4,16 @@
     "loan": "BCzcP4soWYSVWAt8gWPZmcNxcCiw8LdU8sT5VS3TPuW8"
   },
   "payer": "Ff5CL6V1WgxamomUbdSBaqVgxHh2wsUMXK9LbcWfcSNs",
-  "assetMint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+  "assetMint": "3eXFpUHRtg7UdJviTtz9LP87LfGk2aYsPDfkjDFai672",
   "vaultConfig": "DefaUvBLJK9qBwyGnUfMaGD5DoJBoRtfwaWvsNNYoUYx",
-  "vault": "4XuaE3enTEjrX5oHGyKmUzK8gJqbcjRKYRHedoDukYuQ",
-  "vaultAta": "8M93862ga8KpMhUhzi1eRom9g3iKiczy4FFVrrscKaZG",
+  "vault": "5hxQnuEtWbqprveTB83b8qdES59mMjMxKkehJ4Df4AR9",
+  "vaultAta": "EU7HSS967pn2Hifv8EVkQUdYo4UmFU4cMiqg8wVzi6rr",
   "loanConfig": "GiFVH6Sv32WCafpWDK5gD8haXZnbK6aE8nHTRDSoXNVy",
   "steps": {
-    "initVaultConfig": "3BQ88zYfjNFYhPTVKSk9rY7ouA6FvQ4Hsihb8UHHwy5TmCfoHkrMBckMKfq9c35bcZnL2VxMycJUwSE9rHS5ZNtY",
-    "initVault": "29UPEhvaRKYd4HHCRcpnXS7m8qDEiHUc2F6AamRjypQumaGEMsUt8zzgR8Q4p7FQ1gQ93Mwi94PneK7q2gSHPUz1",
-    "initLoanConfig": "5kZbD5iWCkUuRqtGJtP1Xf4AAqFmGceg4LZyzS2BriCyJXyxbEbfkyb2peBPhhmYHhJbqdTngvM1iZnwC9KXMEZt",
-    "deposit": "2z9fckfUQ8dMAx2jS3biZVXTSnuN4mepy1unZfobHf8o2s5hA9qEXBM7xBkL9psEFJkoUDfomCzatL7ANLnAK685"
+    "initVaultConfig": "skipped",
+    "initVault": "c8NccpWzuBtnPRW6ojp5vqKD5dbpWdZBT4UqgGTQfXEVFLQ438AytQpeJn9bXS4enM5rUsUx8DSFgEMPxaDoxP7",
+    "initLoanConfig": "skipped",
+    "deposit": "5ynYJcgfmPpBPbxQfr8fRFoiLH493YeGshwSguP1MMgqMtCZciQiAV6hDhT7QrNe7ATNYDYewLmmCd7Wuo4TPqDc"
   },
-  "shareMint": "Bbk28GfZxehhQF3SwLzemKuUcooxTD3MWat3HaFjRi9R"
+  "shareMint": "BE2XT9iqWtNpJrK9Pst1vT2V2c5Pac1RJKWfZLEx7Ady"
 }
