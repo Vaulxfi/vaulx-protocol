@@ -129,6 +129,12 @@
                 <a href="{{ route('team') }}" class="text-muted text-decoration-none me-3">Team</a>
                 <a href="{{ route('simulator') }}" class="text-muted text-decoration-none">Simulator</a>
             </div>
+            <div class="mt-3 d-flex justify-content-center gap-3" style="font-size:1.1rem">
+                <a href="https://github.com/Vaulxfi" target="_blank" rel="noopener" class="text-muted text-decoration-none" aria-label="Vaulx on GitHub"><i class="bi bi-github"></i></a>
+                <a href="https://x.com/vaulx_rwa" target="_blank" rel="noopener" class="text-muted text-decoration-none" aria-label="Vaulx on X"><i class="bi bi-twitter-x"></i></a>
+                <a href="https://t.me/vaulx_rwa" target="_blank" rel="noopener" class="text-muted text-decoration-none" aria-label="Vaulx on Telegram"><i class="bi bi-telegram"></i></a>
+                <a href="mailto:hello@vaulx.fi" class="text-muted text-decoration-none" aria-label="Email Vaulx"><i class="bi bi-envelope"></i></a>
+            </div>
             <div class="mt-3" style="font-size:0.7rem;color:var(--vx-text-subtle);letter-spacing:0.04em">
                 © {{ date('Y') }} Vaulx. Built for private wealth.
             </div>
