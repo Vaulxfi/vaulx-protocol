@@ -51,7 +51,7 @@ External services we can wire without commercial agreements:
 | ⏳ Chrono24 | Reference-price API ingestion for watches | Self-serve API key |
 | ⏳ Kamino V2 | Vaulx-curated V2 market with a wrapped position-SPL as collateral | Permissionless deploy (Vik confirmed); reserve whitelist via Kamino multisig handshake |
 | ⏳ Loopscale | Listing on Loopscale USDC pool | Permissionless |
-| ⏳ Grafeno.digital | API integration for CCB issuance | Confirm self-serve API tier; otherwise commercial conversation |
+| ⏳ Grafeno.digital (or equivalent BR digital-bank white-label CCB issuer) | API integration for CCB issuance | Confirm self-serve API tier; otherwise commercial conversation |
 
 ---
 
@@ -78,9 +78,8 @@ These need commercial agreements before any production integration:
 |---|---|---|
 | 🔒 Mercado Bitcoin | BRL on/off-ramp + asset tokenization rails | Conversation open. Commercial terms pending. |
 | 🔒 Vaultik | Online watch-appraisal API | Need API access from Vaultik team |
-| 🔒 Brink's / Loomis / Prosegur | Licensed physical custody for São Paulo vault + CFTV/IoT rights | MOU required; one custodian must close before mainnet |
-| 🔒 BACEN-licensed SCD | Regulatory rail for BR-side fiat operations | LOI required |
-| 🔒 Lloyd's of London (or local broker) | Master policy: theft + damage to trustee | Quote → bind → per-asset cert |
+| 🔒 Brink's / Loomis / Sekuro | Licensed physical custody for São Paulo vault + CFTV/IoT rights | MOU required; one custodian must close before mainnet |
+| 🔒 Insurance partner | Master policy: theft + damage to trustee | Quote → bind → per-asset cert |
 | 🔒 Curator on Kamino (Re7 / Steakhouse / Allez / MEV Capital) | LP capital routed via curated vault | After Vaulx market is live on Kamino V2 (Phase 3) |
 | 🔒 Brazilian fintech counsel | CCB + fiduciary alienation legal review | Retain before mainnet |
 
@@ -100,11 +99,11 @@ These need commercial agreements before any production integration:
 ## Phase 7 — Geographic + asset expansion
 **Window:** Q4 2026 onward
 
-- ⏳ Second market: **Mexico** (same legal pawn-monopoly pattern, similar RWA pain)
+- ⏳ Second market: **other LatAm jurisdictions** (same legal pawn-monopoly pattern, similar RWA pain)
 - ⏳ Asset-class expansion: jewellery → fine art → vehicles
 - ⏳ Borrower tooling: partial repay, rollover automation, top-up
 - ⏳ Lender tooling: programmatic senior/junior tranche split + POL first-loss buffer
-- ⏳ Third + fourth markets (Turkey, India, SEA, ZA, NG — pick by partner readiness, not vanity)
+- ⏳ Beyond LatAm: Turkey, India, SEA, South Africa, Nigeria — pick by partner readiness, not vanity
 
 ---
 
