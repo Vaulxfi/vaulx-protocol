@@ -23,7 +23,7 @@ Status legend: ✅ done · 🚧 in progress · ⏳ next · 🔒 partner-gated
 ---
 
 ## Phase 2 — Close the existing flow end-to-end
-**Window:** late May → mid June 2026
+**Window:** May 2026
 
 Components that are smoke-tested or placeholder, but not yet wired into the live demo path:
 
@@ -38,7 +38,7 @@ Components that are smoke-tested or placeholder, but not yet wired into the live
 ---
 
 ## Phase 3 — Self-service integrations
-**Window:** June → July 2026 (parallel to Phase 2 finish)
+**Window:** May → June 2026 (parallel to Phase 2 finish)
 
 External services we can wire without commercial agreements:
 
@@ -56,7 +56,7 @@ External services we can wire without commercial agreements:
 ---
 
 ## Phase 4 — Audit + mainnet readiness
-**Window:** July → August 2026
+**Window:** July 2026
 
 - ⏳ External smart-contract audit on all 4 Anchor programs (this is the "Day 0" in the pitch)
 - ⏳ Penetration test on bridge (`apps/bridge/`) and indexer
@@ -105,16 +105,6 @@ These need commercial agreements before any production integration:
 - ⏳ Borrower tooling: partial repay, rollover automation, top-up
 - ⏳ Lender tooling: programmatic senior/junior tranche split + POL first-loss buffer
 - ⏳ Third + fourth markets (Turkey, India, SEA, ZA, NG — pick by partner readiness, not vanity)
-
----
-
-## Out of scope (intentional, for 2026)
-
-- ❌ Vaulx protocol token / governance token launch
-- ❌ DAO governance (Squads V4 multisig remains governance through 2026)
-- ❌ Cross-chain (Solana-only through end of 2026)
-- ❌ Non-USDC stablecoins as primary unit (BRZ observed, not integrated)
-- ❌ Crypto-only collateral (we are explicitly the *physical* RWA rail)
 
 ---
 
