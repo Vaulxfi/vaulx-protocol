@@ -12,13 +12,13 @@ Status legend: ✅ done · 🚧 in progress · ⏳ next · 🔒 partner-gated
 **Window:** May 2026
 
 - ✅ Public repo consolidated to a single monorepo (`Vaulxfi/vaulx-protocol`)
-- ✅ Internal docs moved to private archive (`Vaulxfi/vaulx-internal`)
-- ✅ Honest README with verified Devnet transactions + multisig PDA
+- ✅ Internal docs moved to a private archive
+- ✅ README with verified Devnet transactions and multisig PDA
 - ✅ Branch protection on `main` (PR + 1 approval required)
-- ⏳ Fix CI (rustc 1.85 → 1.88 to clear the upstream `icu_*` / `time` dep break)
-- ⏳ `CODEOWNERS` file — auto-assign reviewers (programs → Edson, site → Marcelo, etc.)
-- ⏳ Tag `v0.1.0-frontier` for the Colosseum submission snapshot (rollback anchor)
-- ⏳ `staging` branch + Edson's second EC2 vhost → `staging.vaulx.fi`
+- ✅ Fix CI Rust toolchain (1.85 → 1.88, clears upstream `icu_*` / `time` dep break)
+- ✅ `CODEOWNERS` for automatic reviewer assignment per area
+- ✅ Tag `v0.1.0-frontier` — Colosseum submission snapshot, rollback anchor
+- ⏳ Staging environment at `staging.vaulx.fi` (deploy-side wiring)
 
 ---
 
