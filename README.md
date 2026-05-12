@@ -6,7 +6,7 @@ Submitted to the **Solana Frontier Hackathon (Colosseum)**, May 2026.
 
 [![Network](https://img.shields.io/badge/network-Solana%20Devnet-9333EA)]()
 [![Anchor](https://img.shields.io/badge/anchor-0.30.1-22C55E)]()
-[![Tests](https://img.shields.io/badge/tests-45%20programs%20%2B%2031%20vitest-22C55E)]()
+[![Tests](https://img.shields.io/badge/tests-88%20anchor%20%2B%20135%20vitest-22C55E)]()
 [![License](https://img.shields.io/badge/license-MIT-0A0B0D)]()
 
 - 🌐 Live demo — **[vaulx.fi](https://vaulx.fi)**
@@ -92,7 +92,7 @@ Supporting records committed to this repo:
 - **Compressed NFT:** Metaplex Bubblegum + SPL account compression
 - **Oracles:** Pyth (price) — wired, gated off in demo per hackathon scope
 - **Governance:** Squads V4 multisig (2-of-3 timelock) holds upgrade authority on all four programs
-- **Tests:** mocha + chai for Anchor (45 specs); vitest workspace-wide (31 specs)
+- **Tests:** mocha + chai for Anchor programs (88 specs across `tests/`); vitest workspace-wide (135 specs across `apps/` + `packages/`) — 223 total
 - **Toolchain:** pnpm workspaces, Turborepo
 
 ---
