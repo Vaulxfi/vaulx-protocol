@@ -155,9 +155,8 @@ scripts/dev/    Devnet deploy + smoke-test artifacts
                 End-to-end "moments" runners
 
 site/           Laravel demo UI — borrower + admin flows that power
-                the live demo at vaulx.fi (Blade + Vite + SQLite, Caddy
-                on Hetzner). Self-contained PHP app. Migrated from
-                Vaulxfi/site.
+                the live demo at vaulx.fi. Self-contained PHP app
+                (Blade + Vite + SQLite). Migrated from Vaulxfi/site.
 
 tests/          mocha specs for the 4 programs + 3 e2e moments
 supabase/       Postgres migrations for the indexer
