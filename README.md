@@ -37,10 +37,10 @@ All four programs are deployed to Solana **Devnet**. Upgrade authority is held b
 
 | Program | Address | Purpose |
 |---|---|---|
-| **trdc** | [`FcDPvRaixjAz7LeC64h9xkXPzvHT7dusbNmg83eJfr7R`](https://explorer.solana.com/address/FcDPvRaixjAz7LeC64h9xkXPzvHT7dusbNmg83eJfr7R?cluster=devnet) | Loan state machine. The only program authorized to mint the compressed-NFT representation of a collateralized asset. |
-| **vault** | [`4PPyUvazjDBvFndGUL2rgKTwZrFbsSP1tk4a2uMhE9MS`](https://explorer.solana.com/address/4PPyUvazjDBvFndGUL2rgKTwZrFbsSP1tk4a2uMhE9MS?cluster=devnet) | USDC reserve with share-based accounting and KYC gate. Only `loan` can move funds out via CPI. |
-| **loan** | [`BHdxEKkfsyjERiz5XiUybDLquvoWRtF7r1zDgVCDZJow`](https://explorer.solana.com/address/BHdxEKkfsyjERiz5XiUybDLquvoWRtF7r1zDgVCDZJow?cluster=devnet) | Orchestrates origination, atomic custody confirmation, disbursement, repayment, and renewal. |
-| **auction** | [`8FRBHN14CsA2y21hMeJJ2oxbEXNRXicVKMEDHRGyGefj`](https://explorer.solana.com/address/8FRBHN14CsA2y21hMeJJ2oxbEXNRXicVKMEDHRGyGefj?cluster=devnet) | Permissionless Dutch-auction foreclosure on default. |
+| **trdc** | [`26rb68SPyjKmFNwSUmfZA7WRFtsKFheXf5xN8eHeeRWk`](https://explorer.solana.com/address/26rb68SPyjKmFNwSUmfZA7WRFtsKFheXf5xN8eHeeRWk?cluster=devnet) | Loan state machine. The only program authorized to mint the compressed-NFT representation of a collateralized asset. |
+| **vault** | [`GQU6pGwdUAWdhzNDGUU8toVCqxo22mHpFrJeFRE4hpDL`](https://explorer.solana.com/address/GQU6pGwdUAWdhzNDGUU8toVCqxo22mHpFrJeFRE4hpDL?cluster=devnet) | USDC reserve with share-based accounting and KYC gate. Only `loan` can move funds out via CPI. |
+| **loan** | [`BCzcP4soWYSVWAt8gWPZmcNxcCiw8LdU8sT5VS3TPuW8`](https://explorer.solana.com/address/BCzcP4soWYSVWAt8gWPZmcNxcCiw8LdU8sT5VS3TPuW8?cluster=devnet) | Orchestrates origination, atomic custody confirmation, disbursement, repayment, and renewal. |
+| **auction** | [`Fth5WyopNBi6JatJtTnxb7eHs2GSFhJU7AqskRBZGU8m`](https://explorer.solana.com/address/Fth5WyopNBi6JatJtTnxb7eHs2GSFhJU7AqskRBZGU8m?cluster=devnet) | Permissionless Dutch-auction foreclosure on default. |
 
 Each program is in its own crate under `programs/`. Compromising any single program cannot drain the system — the vault enforces a two-layer authority gate (PDA + Instructions-sysvar verification) before releasing funds.
 
@@ -62,15 +62,19 @@ The borrower's USDC destination is **pinned to the borrower's public key in the 
 
 ## On-chain proof — verified devnet transactions
 
-These instructions have been executed on Devnet against this deployment and can be inspected:
+These instructions have been executed on Devnet against the deployed programs above and can be inspected on Solana Explorer:
 
 | Instruction | Signature | Program |
 |---|---|---|
-| `publish_price` | [`22CYgACX…X2zvz`](https://explorer.solana.com/tx/22CYgACXhy2jFofAoZphjLRnTfB6VCZGSvvHA7sQFq5y4jpXxWhkqDC5wZBU88ZNXD5UEHSYiWdUyALkrULy2zvz?cluster=devnet) | loan |
-| `issue_kyc_attestation` | [`3rVRcPbV…6su`](https://explorer.solana.com/tx/3rVRcPbVHSzMqFYhQ4sz5Vjmgs8siQbX8aZBA5Hr34Vu4M1qDcsvEyFyqXC1iwbpvJwB71x2P87UhnkNQ4jzk6su?cluster=devnet) | vault |
-| `mint_trdc_cnft` (Bubblegum) | [`5UwtTb3M…4sK`](https://explorer.solana.com/tx/5UwtTb3MsqLJfhwBpqi6bMK4hdPnZmiWHnCWqaE8gNhZxxift5yiKHLM8HPMQjVBPgD35GJJkeMeqq6vTJC5Y4sK?cluster=devnet) | trdc |
+| `init_vault` | [`c8NccpWz…aDoxP7`](https://explorer.solana.com/tx/c8NccpWzuBtnPRW6ojp5vqKD5dbpWdZBT4UqgGTQfXEVFLQ438AytQpeJn9bXS4enM5rUsUx8DSFgEMPxaDoxP7?cluster=devnet) | vault |
+| `deposit` (LP capital) | [`5ynYJcgf…TPqDc`](https://explorer.solana.com/tx/5ynYJcgfmPpBPbxQfr8fRFoiLH493YeGshwSguP1MMgqMtCZciQiAV6hDhT7QrNe7ATNYDYewLmmCd7Wuo4TPqDc?cluster=devnet) | vault |
 
-The full smoke-test record (with PDAs, asset IDs, and additional signatures) lives in [`scripts/dev/smoke-test-results.json`](scripts/dev/smoke-test-results.json). Original deploy record: [`scripts/dev/devnet-deploy.json`](scripts/dev/devnet-deploy.json). Multisig transfer history: [`scripts/dev/squads-upgrade-history.json`](scripts/dev/squads-upgrade-history.json).
+The atomic `confirm_custody + disburse` and `create_ccb_trdc` instructions are wired and executed via the bridge (`apps/bridge/`); the full set of signed instructions, PDAs, and Squads multisig transfer history is recorded in:
+
+- [`scripts/dev/edson-devnet.json`](scripts/dev/edson-devnet.json) — current deployment state (vault + loan config, PDAs, init signatures)
+- [`scripts/dev/edson-usdc.json`](scripts/dev/edson-usdc.json) — Devnet USDC mint owned by the operator
+- [`scripts/dev/devnet-deploy.json`](scripts/dev/devnet-deploy.json) — program-deploy record
+- [`scripts/dev/squads-upgrade-history.json`](scripts/dev/squads-upgrade-history.json) — multisig authority-transfer history
 
 ---
 
