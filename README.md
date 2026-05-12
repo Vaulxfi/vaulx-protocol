@@ -9,8 +9,8 @@ Submitted to the **Solana Frontier Hackathon (Colosseum)**, May 2026.
 [![Tests](https://img.shields.io/badge/tests-45%20programs%20%2B%2031%20vitest-22C55E)]()
 [![License](https://img.shields.io/badge/license-MIT-0A0B0D)]()
 
-- 🌐 Public site — **[vaulx.fi](https://vaulx.fi)**
-- 📺 Demo UI repo — **[github.com/Vaulxfi/site](https://github.com/Vaulxfi/site)** (Laravel borrower + admin flows)
+- 🌐 Live demo — **[vaulx.fi](https://vaulx.fi)**
+- 📺 Demo UI code — **[`site/`](./site)** (Laravel borrower + admin flows that power the live demo)
 - 🔐 Upgrade authority — **Squads V4 multisig** PDA [`99o9WXdP3Gt1wwnYtEXheTh5x599f6SfmAdn9um3hejR`](https://explorer.solana.com/address/99o9WXdP3Gt1wwnYtEXheTh5x599f6SfmAdn9um3hejR?cluster=devnet)
 
 ---
@@ -153,6 +153,10 @@ packages/
 scripts/dev/    Devnet deploy + smoke-test artifacts
                 Squads multisig setup + upgrade history
                 End-to-end "moments" runners
+
+site/           Laravel demo UI — borrower + admin flows that power
+                the live demo at vaulx.fi (Blade templates, Vite, SQLite,
+                Caddy-fronted on Hetzner). Self-contained PHP app.
 
 tests/          mocha specs for the 4 programs + 3 e2e moments
 supabase/       Postgres migrations for the indexer

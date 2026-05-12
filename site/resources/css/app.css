@@ -1,0 +1,821 @@
+/* ==========================================================================
+   Vaulx — Brand CSS Layer (Vault Noir)
+   Luxury pawn meets private bank.
+   Obsidian · Champagne Gold · Amber.
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+    /* --- Vault Noir palette ----------------------------------------------- */
+    --vx-bg:           #0D0D0D;  /* Obsidian */
+    --vx-surface:      #1A1A1A;
+    --vx-surface-2:    #242424;
+    --vx-gold:         #C9A84C;  /* Primary */
+    --vx-gold-dark:    #A88935;
+    --vx-champagne:    #E8C96B;  /* Highlight */
+    --vx-amber:        #FF8C00;  /* CTA */
+    --vx-amber-dark:   #E67E00;
+
+    --vx-text:         #F5F2EC;
+    --vx-text-muted:   #9A9285;
+    --vx-text-subtle:  #6B6458;
+    --vx-border:       #2A2A2A;
+    --vx-border-soft:  rgba(201, 168, 76, 0.18);
+
+    /* Theme-aware accent for inline-styled marks (bullets, brand-x).
+       Reference this from inline `style=""` so the colour follows the theme. */
+    --vx-accent-mark:  var(--vx-gold);   /* dark = gold; light overrides below */
+
+    /* Legacy alias — keep pre-existing CSS/views working ------------------- */
+    --gf-primary:      #C9A84C;
+    --gf-primary-dark: #A88935;
+    --gf-primary-soft: rgba(201, 168, 76, 0.10);
+    --gf-accent:       #E8C96B;
+    --gf-accent-dark:  #D4B552;
+    --gf-dark:         #0D0D0D;
+    --gf-surface:      #1A1A1A;
+    --gf-warning:      #FF8C00;
+    --gf-danger:       #CF4A3F;
+    --gf-muted:        #9A9285;
+    --gf-surface-light: #0D0D0D;
+    --gf-border:       #2A2A2A;
+    --gf-text:         #F5F2EC;
+    --gf-text-muted:   #9A9285;
+
+    --gf-radius-sm:    4px;
+    --gf-radius:       6px;
+    --gf-radius-lg:    10px;
+    --gf-shadow-sm:    0 1px 3px rgba(0,0,0,.35);
+    --gf-shadow:       0 8px 24px rgba(0,0,0,.45);
+    --gf-shadow-lg:    0 20px 60px rgba(0,0,0,.55);
+    --gf-transition:   0.22s cubic-bezier(.4, 0, .2, 1);
+
+    --bs-body-bg:      #0D0D0D;
+    --bs-body-color:   #F5F2EC;
+    --bs-body-font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* --- Global: dark obsidian is the baseline -------------------------------- */
+html, body {
+    background: var(--vx-bg) !important;
+    color: var(--vx-text);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-weight: 400;
+    letter-spacing: -0.005em;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: var(--vx-text);
+    letter-spacing: -0.02em;
+}
+
+/* Serif treatment: hero/display headings + marketing pages ----------------- */
+.vx-serif, .hero h1, h1.vx-display, h2.vx-display, .vx-display {
+    font-family: 'Playfair Display', 'Didot', Georgia, serif;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    line-height: 1.08;
+}
+.vx-italic { font-style: italic; font-family: 'Playfair Display', Georgia, serif; color: var(--vx-champagne); }
+.text-gold { color: var(--vx-gold); }
+.text-champagne { color: var(--vx-champagne); }
+.text-amber { color: var(--vx-amber); }
+
+/* --- Light mode: Vaulx Deck (paper + ink + teal accent) ------------------ */
+/* Active by default since data-bs-theme="light" is set on <html>.          */
+/* Mirrors vaulx.io editorial palette: paper background, ink text,          */
+/* teal italic accent, ink-solid CTA, Outfit + JetBrains Mono typography.   */
+/* Authed dark mode (toggle) keeps Vault Noir untouched.                    */
+[data-bs-theme="light"] {
+    /* Deck palette tokens — overrides Vault Noir cream values */
+    --vx-bg:           #FAFAF7;  /* paper */
+    --vx-surface:      #FFFFFF;  /* paper-pure */
+    --vx-surface-2:    #EFEDE5;  /* paper-2 */
+    --vx-text:         #0A0A0B;  /* ink */
+    --vx-text-muted:   #6B6B70;  /* mute */
+    --vx-text-subtle:  #9A9A9F;  /* mute-d */
+    --vx-border:       rgba(10, 10, 11, 0.12);
+    --vx-border-soft:  rgba(10, 10, 11, 0.08);
+    /* Deck accent tokens (new) */
+    --vx-teal:         #0E7C7B;
+    --vx-teal-2:       #2BA09E;
+    /* Override the theme-aware mark so inline gold dots / brand-x become teal */
+    --vx-accent-mark:  #2BA09E;
+    /* Bootstrap mirror */
+    --bs-body-bg:      #FAFAF7;
+    --bs-body-color:   #0A0A0B;
+    --bs-body-font-family: 'Outfit', system-ui, sans-serif;
+    /* GF aliases */
+    --gf-text:         #0A0A0B;
+    --gf-text-muted:   #6B6B70;
+    --gf-border:       rgba(10, 10, 11, 0.12);
+    --gf-surface-light:#FAFAF7;
+    --gf-danger:       #B8412C;
+    /* Cascade: --gf-primary / --gf-accent are referenced by 30+ inline styles
+       across simulator/profile/auth/admin/wizard. Re-mapping them to teal
+       here automatically tints all those icons/badges/wizard steps without
+       editing each blade. */
+    --gf-primary:       #2BA09E;  /* was gold #C9A84C */
+    --gf-primary-dark:  #0E7C7B;
+    --gf-primary-soft:  rgba(43, 160, 158, 0.10);
+    --gf-accent:        #0E7C7B;  /* was champagne #E8C96B */
+    --gf-accent-dark:   #0a5e5d;
+}
+
+[data-bs-theme="light"] body {
+    background: #FAFAF7 !important;
+    color: #0A0A0B;
+    font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+}
+
+[data-bs-theme="light"] h1,
+[data-bs-theme="light"] h2,
+[data-bs-theme="light"] h3,
+[data-bs-theme="light"] h4,
+[data-bs-theme="light"] h5,
+[data-bs-theme="light"] h6,
+[data-bs-theme="light"] .vx-display,
+[data-bs-theme="light"] .vx-serif,
+[data-bs-theme="light"] .hero h1 {
+    font-family: 'Outfit', system-ui, sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    color: #0A0A0B;
+}
+
+/* Italic accent — teal in light, replaces Playfair champagne */
+[data-bs-theme="light"] .vx-italic,
+[data-bs-theme="light"] .hero h1 em,
+[data-bs-theme="light"] h1 em,
+[data-bs-theme="light"] h2 em {
+    font-family: 'Outfit', system-ui, sans-serif;
+    font-style: italic;
+    font-weight: 700;
+    color: #2BA09E;
+}
+
+/* Cards — paper-pure surface with ink hairline */
+[data-bs-theme="light"] .card {
+    background: #FFFFFF;
+    color: #0A0A0B;
+    border: 1px solid rgba(10, 10, 11, 0.12);
+    box-shadow: none;
+}
+
+/* Navbar — paper bg, ink links in mono uppercase */
+[data-bs-theme="light"] .navbar-vx,
+[data-bs-theme="light"] .navbar-gf {
+    background: #FAFAF7 !important;
+    border-bottom: 1px solid rgba(10, 10, 11, 0.08);
+}
+[data-bs-theme="light"] .navbar-vx .navbar-brand,
+[data-bs-theme="light"] .navbar-gf .navbar-brand {
+    color: #0A0A0B !important;
+    font-family: 'Outfit', system-ui, sans-serif;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+}
+/* Navbar brand x — colour comes from --vx-accent-mark (gold dark / teal light) */
+[data-bs-theme="light"] .navbar-vx .nav-link,
+[data-bs-theme="light"] .navbar-gf .nav-link {
+    color: #0A0A0B !important;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-weight: 500;
+}
+
+/* CTA buttons — ink solid primary, ink outlined secondary */
+[data-bs-theme="light"] .btn-gf,
+[data-bs-theme="light"] .btn-gf-accent {
+    background: #0A0A0B;
+    color: #FAFAF7;
+    border: 1px solid #0A0A0B;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+[data-bs-theme="light"] .btn-gf:hover,
+[data-bs-theme="light"] .btn-gf-accent:hover {
+    background: transparent;
+    color: #0A0A0B;
+}
+[data-bs-theme="light"] .btn-outline-light {
+    background: transparent;
+    color: #0A0A0B;
+    border: 1px solid rgba(10, 10, 11, 0.3);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+[data-bs-theme="light"] .btn-outline-light:hover {
+    background: #0A0A0B;
+    color: #FAFAF7;
+}
+
+/* Pitch line eyebrow — mono mute with teal bullet */
+[data-bs-theme="light"] .pitch-line {
+    color: #6B6B70 !important;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    border-color: rgba(10, 10, 11, 0.2) !important;
+}
+[data-bs-theme="light"] .pitch-line span:first-child {
+    color: #0E7C7B !important;
+}
+
+/* Pitch numbers (hero stats) — ink Outfit, no gold */
+[data-bs-theme="light"] .pitch-number {
+    color: #0A0A0B !important;
+    font-family: 'Outfit', system-ui, sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+}
+[data-bs-theme="light"] .pitch-number.accent {
+    color: #2BA09E !important;
+}
+
+/* Text utilities — turn gold/champagne into deck equivalents in light mode */
+[data-bs-theme="light"] .text-gold,
+[data-bs-theme="light"] .text-champagne,
+[data-bs-theme="light"] .text-amber {
+    color: #0E7C7B !important;
+}
+
+/* Sidebar — active link (was gold) becomes teal in light mode */
+[data-bs-theme="light"] .sidebar .nav-link:hover {
+    color: #0A0A0B;
+    background: rgba(43, 160, 158, 0.06);
+}
+[data-bs-theme="light"] .sidebar .nav-link.active {
+    color: #0E7C7B;
+    background: rgba(43, 160, 158, 0.10);
+}
+
+/* --- Dark mode: Deck DARK (black + paper + teal accent) ------------------ */
+/* Mirrors vaulx.io modo escuro per BRAND.txt §1.5: pure-black background,  */
+/* paper text, teal italic accent, teal-solid CTA, Outfit + JetBrains Mono. */
+/* Replaces the previous Vault Noir obsidian/gold/Playfair dark look.        */
+[data-bs-theme="dark"] {
+    --vx-bg:           #000000;  /* black puro (was obsidian #0D0D0D) */
+    --vx-surface:      #0A0A0B;  /* ink as raised surface */
+    --vx-surface-2:    #14141A;
+    --vx-text:         #FAFAF7;  /* paper */
+    --vx-text-muted:   #9A9A9F;
+    --vx-text-subtle:  #6B6B70;
+    --vx-border:       rgba(250, 250, 247, 0.14);
+    --vx-border-soft:  rgba(250, 250, 247, 0.08);
+    --vx-teal:         #0E7C7B;
+    --vx-teal-2:       #2BA09E;
+    --vx-accent-mark:  #2BA09E;  /* dot/brand-x → teal in dark too */
+    --bs-body-bg:      #000000;
+    --bs-body-color:   #FAFAF7;
+    --bs-body-font-family: 'Outfit', system-ui, sans-serif;
+    --gf-text:         #FAFAF7;
+    --gf-text-muted:   #9A9A9F;
+    --gf-border:       rgba(250, 250, 247, 0.14);
+    --gf-surface-light:#000000;
+    --gf-danger:       #E57971;
+    --gf-primary:       #2BA09E;
+    --gf-primary-dark:  #0E7C7B;
+    --gf-primary-soft:  rgba(43, 160, 158, 0.10);
+    --gf-accent:        #0E7C7B;
+    --gf-accent-dark:   #0a5e5d;
+}
+
+[data-bs-theme="dark"] body {
+    background: #000000 !important;
+    color: #FAFAF7;
+    font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+}
+
+[data-bs-theme="dark"] h1,
+[data-bs-theme="dark"] h2,
+[data-bs-theme="dark"] h3,
+[data-bs-theme="dark"] h4,
+[data-bs-theme="dark"] h5,
+[data-bs-theme="dark"] h6,
+[data-bs-theme="dark"] .vx-display,
+[data-bs-theme="dark"] .vx-serif,
+[data-bs-theme="dark"] .hero h1 {
+    font-family: 'Outfit', system-ui, sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    color: #FAFAF7;
+}
+
+/* Italic accent — teal-2 in dark too */
+[data-bs-theme="dark"] .vx-italic,
+[data-bs-theme="dark"] .hero h1 em,
+[data-bs-theme="dark"] h1 em,
+[data-bs-theme="dark"] h2 em {
+    font-family: 'Outfit', system-ui, sans-serif;
+    font-style: italic;
+    font-weight: 700;
+    color: #2BA09E;
+}
+
+/* Cards — ink surface with paper-tinted hairline */
+[data-bs-theme="dark"] .card {
+    background: #0A0A0B;
+    color: #FAFAF7;
+    border: 1px solid rgba(250, 250, 247, 0.14);
+    box-shadow: none;
+}
+
+/* Navbar — black bg, paper links in mono uppercase */
+[data-bs-theme="dark"] .navbar-vx,
+[data-bs-theme="dark"] .navbar-gf {
+    background: #000000 !important;
+    border-bottom: 1px solid rgba(250, 250, 247, 0.08);
+}
+[data-bs-theme="dark"] .navbar-vx .navbar-brand,
+[data-bs-theme="dark"] .navbar-gf .navbar-brand {
+    color: #FAFAF7 !important;
+    font-family: 'Outfit', system-ui, sans-serif;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+}
+[data-bs-theme="dark"] .navbar-vx .nav-link,
+[data-bs-theme="dark"] .navbar-gf .nav-link {
+    color: #FAFAF7 !important;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-weight: 500;
+}
+
+/* CTA buttons — teal solid primary, paper outlined secondary */
+[data-bs-theme="dark"] .btn-gf,
+[data-bs-theme="dark"] .btn-gf-accent {
+    background: #0E7C7B;
+    color: #FAFAF7;
+    border: 1px solid #0E7C7B;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+[data-bs-theme="dark"] .btn-gf:hover,
+[data-bs-theme="dark"] .btn-gf-accent:hover {
+    background: transparent;
+    color: #2BA09E;
+    border-color: #2BA09E;
+}
+[data-bs-theme="dark"] .btn-outline-light {
+    background: transparent;
+    color: #FAFAF7;
+    border: 1px solid rgba(250, 250, 247, 0.3);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+[data-bs-theme="dark"] .btn-outline-light:hover {
+    background: #FAFAF7;
+    color: #000000;
+}
+
+/* Pitch line eyebrow — teal pill with teal bullet */
+[data-bs-theme="dark"] .pitch-line {
+    color: #2BA09E !important;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    border-color: #0E7C7B !important;
+}
+[data-bs-theme="dark"] .pitch-line span:first-child {
+    color: #0E7C7B !important;
+}
+
+/* Pitch numbers (hero stats) — paper Outfit */
+[data-bs-theme="dark"] .pitch-number {
+    color: #FAFAF7 !important;
+    font-family: 'Outfit', system-ui, sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+}
+[data-bs-theme="dark"] .pitch-number.accent {
+    color: #2BA09E !important;
+}
+
+/* Text utilities */
+[data-bs-theme="dark"] .text-gold,
+[data-bs-theme="dark"] .text-champagne,
+[data-bs-theme="dark"] .text-amber {
+    color: #2BA09E !important;
+}
+
+/* Sidebar — active link teal in dark */
+[data-bs-theme="dark"] .sidebar .nav-link:hover {
+    color: #FAFAF7;
+    background: rgba(43, 160, 158, 0.08);
+}
+[data-bs-theme="dark"] .sidebar .nav-link.active {
+    color: #2BA09E;
+    background: rgba(43, 160, 158, 0.14);
+}
+
+/* --- Cards ---------------------------------------------------------------- */
+.card {
+    background: var(--vx-surface);
+    color: var(--vx-text);
+    border: 1px solid var(--vx-border);
+    border-radius: var(--gf-radius);
+    box-shadow: var(--gf-shadow-sm);
+    transition: border-color var(--gf-transition), box-shadow var(--gf-transition);
+}
+.card:hover { border-color: var(--vx-border-soft); box-shadow: var(--gf-shadow); }
+
+/* --- Navbar (full rebrand) ------------------------------------------------ */
+.navbar-gf, .navbar-vx {
+    background: var(--vx-bg) !important;
+    border-bottom: 1px solid var(--vx-border);
+    padding: 1.1rem 0;
+}
+.navbar-gf .navbar-brand, .navbar-vx .navbar-brand {
+    color: var(--vx-text) !important;
+    font-family: 'Playfair Display', Georgia, serif;
+    font-weight: 500;
+    font-size: 1.5rem;
+    letter-spacing: -0.01em;
+    text-transform: lowercase;
+}
+.navbar-gf .navbar-brand span, .navbar-vx .navbar-brand span {
+    color: var(--vx-accent-mark);
+}
+.navbar-gf .nav-link, .navbar-vx .nav-link {
+    color: var(--vx-text-muted) !important;
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.5rem 1rem !important;
+}
+.navbar-gf .nav-link:hover, .navbar-vx .nav-link:hover {
+    color: var(--vx-gold) !important;
+}
+
+/* --- Sidebar -------------------------------------------------------------- */
+.sidebar {
+    background: var(--vx-bg);
+    border-right: 1px solid var(--vx-border);
+}
+.sidebar .nav-link { color: var(--vx-text-muted); transition: all var(--gf-transition); }
+.sidebar .nav-link:hover { color: var(--vx-text); background: rgba(201, 168, 76, 0.06); }
+.sidebar .nav-link.active { color: var(--vx-gold); background: rgba(201, 168, 76, 0.10); }
+
+/* --- Buttons (Vault Noir) ------------------------------------------------- */
+.btn {
+    border-radius: var(--gf-radius-sm);
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    padding: 0.65rem 1.5rem;
+    transition: all var(--gf-transition);
+    border-width: 1px;
+}
+.btn-gf, .btn-primary {
+    background: transparent;
+    border: 1px solid var(--vx-gold);
+    color: var(--vx-gold);
+}
+.btn-gf:hover, .btn-primary:hover {
+    background: var(--vx-gold);
+    color: var(--vx-bg);
+    border-color: var(--vx-gold);
+    box-shadow: 0 0 0 4px rgba(201, 168, 76, 0.12);
+}
+.btn-gf-accent {
+    background: var(--vx-amber);
+    border-color: var(--vx-amber);
+    color: var(--vx-bg);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+}
+.btn-gf-accent:hover {
+    background: var(--vx-amber-dark);
+    border-color: var(--vx-amber-dark);
+    color: var(--vx-bg);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(255, 140, 0, 0.25);
+}
+.btn-outline-secondary {
+    border-color: var(--vx-border);
+    color: var(--vx-text-muted);
+}
+.btn-outline-secondary:hover {
+    background: var(--vx-surface);
+    border-color: var(--vx-text-muted);
+    color: var(--vx-text);
+}
+.btn-outline-light { color: var(--vx-text-muted); border-color: var(--vx-border); background: transparent; }
+.btn-outline-light:hover { background: var(--vx-surface); color: var(--vx-text); border-color: var(--vx-text-muted); }
+.btn-success { background: var(--vx-gold); border-color: var(--vx-gold); color: var(--vx-bg); }
+.btn-success:hover { background: var(--vx-champagne); border-color: var(--vx-champagne); color: var(--vx-bg); }
+.btn-danger { background: #CF4A3F; border-color: #CF4A3F; }
+.btn-info, .btn-dark { background: var(--vx-surface-2); border-color: var(--vx-border); color: var(--vx-text); }
+.btn-info:hover, .btn-dark:hover { background: var(--vx-surface); border-color: var(--vx-gold); color: var(--vx-gold); }
+
+/* --- Forms ---------------------------------------------------------------- */
+.form-control,
+.form-select,
+.input-group-text {
+    background: var(--vx-surface);
+    color: var(--vx-text);
+    border: 1px solid var(--vx-border);
+    border-radius: var(--gf-radius-sm);
+    transition: border-color var(--gf-transition), box-shadow var(--gf-transition);
+}
+.form-control::placeholder { color: var(--vx-text-subtle); }
+.form-control:focus,
+.form-select:focus {
+    background: var(--vx-surface);
+    color: var(--vx-text);
+    border-color: var(--vx-gold);
+    box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.18);
+}
+.form-label { color: var(--vx-text); font-weight: 500; letter-spacing: 0.01em; }
+.form-check-input:checked { background-color: var(--vx-gold); border-color: var(--vx-gold); }
+.form-range::-webkit-slider-thumb { background: var(--vx-gold); }
+.form-range::-moz-range-thumb { background: var(--vx-gold); }
+
+/* --- Tables --------------------------------------------------------------- */
+.table {
+    --bs-table-bg: var(--vx-surface);
+    --bs-table-color: var(--vx-text);
+    color: var(--vx-text);
+}
+.table thead th {
+    background: transparent !important;
+    color: var(--vx-text-muted);
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 0.72rem;
+    border-bottom: 1px solid var(--vx-border);
+}
+.table tbody tr { transition: background-color var(--gf-transition); }
+.table tbody tr:hover { background-color: rgba(201, 168, 76, 0.05); }
+.table-light { --bs-table-bg: var(--vx-surface-2); color: var(--vx-text); }
+.table-danger { --bs-table-bg: rgba(207, 74, 63, 0.15); color: var(--vx-text); }
+
+/* --- Badges --------------------------------------------------------------- */
+.badge {
+    padding: 0.35em 0.65em;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-size: 0.68rem;
+    border-radius: 3px;
+}
+.bg-primary { background: var(--vx-gold) !important; color: var(--vx-bg) !important; }
+.bg-success { background: rgba(201, 168, 76, 0.18) !important; color: var(--vx-gold) !important; }
+.bg-warning { background: rgba(255, 140, 0, 0.18) !important; color: var(--vx-amber) !important; }
+.bg-danger { background: rgba(207, 74, 63, 0.18) !important; color: #E57971 !important; }
+.bg-info { background: var(--vx-surface-2) !important; color: var(--vx-champagne) !important; }
+.bg-secondary { background: var(--vx-surface-2) !important; color: var(--vx-text-muted) !important; }
+.bg-light { background: var(--vx-surface-2) !important; color: var(--vx-text-muted) !important; }
+.bg-dark { background: var(--vx-bg) !important; }
+.text-bg-success { background: rgba(201, 168, 76, 0.18); color: var(--vx-gold); }
+.text-bg-danger { background: rgba(207, 74, 63, 0.2); color: #E57971; }
+.text-bg-warning { background: rgba(255, 140, 0, 0.18); color: var(--vx-amber); }
+.text-bg-info { background: var(--vx-surface-2); color: var(--vx-champagne); }
+
+.badge-devnet {
+    background: var(--vx-surface-2);
+    color: var(--vx-amber);
+    border: 1px solid rgba(255, 140, 0, 0.3);
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    font-size: 0.62rem;
+    padding: 0.3em 0.7em;
+    border-radius: 3px;
+}
+
+/* --- Alerts --------------------------------------------------------------- */
+.alert { border: 1px solid var(--vx-border); background: var(--vx-surface); color: var(--vx-text); border-radius: var(--gf-radius-sm); }
+.alert-success { background: rgba(201, 168, 76, 0.08); border-color: rgba(201, 168, 76, 0.3); color: var(--vx-gold); }
+.alert-warning { background: rgba(255, 140, 0, 0.08); border-color: rgba(255, 140, 0, 0.3); color: var(--vx-amber); }
+.alert-danger { background: rgba(207, 74, 63, 0.10); border-color: rgba(207, 74, 63, 0.35); color: #E57971; }
+.alert-info { background: var(--vx-surface-2); border-color: var(--vx-border); color: var(--vx-champagne); }
+.alert-light { background: var(--vx-surface-2); color: var(--vx-text); border-color: var(--vx-border); }
+
+/* --- Modals --------------------------------------------------------------- */
+.modal-content {
+    background: var(--vx-surface);
+    color: var(--vx-text);
+    border: 1px solid var(--vx-border);
+    border-radius: var(--gf-radius);
+}
+.modal-header { border-bottom: 1px solid var(--vx-border); background: var(--vx-bg) !important; }
+.modal-footer { border-top: 1px solid var(--vx-border); }
+
+/* --- Progress ------------------------------------------------------------- */
+.progress { background: var(--vx-border); border-radius: 2px; }
+.progress-bar { background: var(--vx-gold); }
+.progress-bar.bg-warning { background: var(--vx-amber) !important; }
+.progress-bar.bg-success { background: var(--vx-gold) !important; }
+
+/* --- Stat card accent variants ------------------------------------------- */
+.stat-card,
+.card-accent {
+    border-left: 3px solid var(--vx-gold);
+}
+.stat-card.accent, .card-accent.accent { border-left-color: var(--vx-champagne); }
+.stat-card.warning, .card-accent.warning { border-left-color: var(--vx-amber); }
+.stat-card.danger, .card-accent.danger { border-left-color: #CF4A3F; }
+.stat-card.muted, .card-accent.muted { border-left-color: var(--vx-border); }
+
+/* --- Touch targets -------------------------------------------------------- */
+@media (max-width: 991.98px) {
+    .btn, .btn-sm:not(.py-0) {
+        min-height: 44px;
+        display: inline-flex; align-items: center; justify-content: center;
+    }
+    .form-control, .form-select { min-height: 44px; font-size: 16px; }
+}
+
+/* --- Skeleton loader ------------------------------------------------------ */
+.skeleton {
+    background: linear-gradient(90deg, var(--vx-surface) 0%, var(--vx-surface-2) 50%, var(--vx-surface) 100%);
+    background-size: 200% 100%;
+    animation: skeleton-shine 1.4s ease-in-out infinite;
+    border-radius: var(--gf-radius-sm);
+}
+.skeleton-line { height: 0.9em; margin: 0.35em 0; }
+.skeleton-line.lg { height: 1.3em; }
+.skeleton-line.sm { height: 0.7em; }
+.skeleton-circle { border-radius: 50%; }
+@keyframes skeleton-shine {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+/* --- Empty state ---------------------------------------------------------- */
+.empty-state { text-align: center; padding: 3rem 1rem; color: var(--vx-text-muted); }
+.empty-state .empty-icon { font-size: 3rem; color: var(--vx-border); margin-bottom: 1rem; }
+.empty-state h5 { color: var(--vx-text); margin-bottom: 0.5rem; }
+
+/* --- Theme toggle --------------------------------------------------------- */
+.theme-toggle {
+    background: transparent;
+    border: 1px solid var(--vx-border);
+    color: var(--vx-text-muted);
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--gf-transition);
+    padding: 0;
+}
+.theme-toggle:hover { color: var(--vx-gold); border-color: var(--vx-gold); }
+
+/* --- Wallet dropdown ------------------------------------------------------ */
+.wallet-info { background: var(--vx-surface); border: 1px solid var(--vx-border); }
+.wallet-info:hover { background: var(--vx-surface-2); }
+.wallet-info .wallet-address { color: var(--vx-gold); }
+.wallet-dropdown { background: var(--vx-surface); border-color: var(--vx-border); }
+.wallet-dropdown .dd-item { color: var(--vx-text-muted); }
+.wallet-dropdown .dd-item:hover { background: var(--vx-surface-2); color: var(--vx-text); }
+
+/* --- Wizard --------------------------------------------------------------- */
+.wizard-step {
+    background: var(--vx-surface);
+    color: var(--vx-text-muted);
+    border: 1px solid var(--vx-border);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-size: 0.72rem;
+    font-weight: 500;
+}
+.wizard-step.active { background: var(--vx-gold); color: var(--vx-bg); border-color: var(--vx-gold); }
+.wizard-step.done { background: var(--vx-surface-2); color: var(--vx-gold); border-color: var(--vx-gold); }
+.wizard-step .step-num { background: rgba(13, 13, 13, 0.25); }
+.wizard-panel { opacity: 0; transition: opacity 0.2s ease-in-out; }
+.wizard-panel.active { opacity: 1; }
+
+/* --- Focus ring ----------------------------------------------------------- */
+*:focus { outline: none; }
+*:focus-visible {
+    outline: 2px solid var(--vx-gold);
+    outline-offset: 2px;
+    border-radius: 3px;
+}
+
+/* --- Dropdown ------------------------------------------------------------- */
+.dropdown-menu {
+    background: var(--vx-surface);
+    border: 1px solid var(--vx-border);
+    color: var(--vx-text);
+    border-radius: var(--gf-radius);
+}
+
+/* --- Accordion ------------------------------------------------------------ */
+.accordion-item { background: var(--vx-surface); border: 1px solid var(--vx-border); }
+.accordion-button { background: var(--vx-surface); color: var(--vx-text); }
+.accordion-button:not(.collapsed) { background: var(--vx-surface-2); color: var(--vx-gold); box-shadow: none; }
+.accordion-button:focus { box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.18); border-color: var(--vx-gold); }
+
+/* --- Hero section (marketing) -------------------------------------------- */
+.hero {
+    background: radial-gradient(ellipse at top left, rgba(201, 168, 76, 0.08) 0%, transparent 55%),
+                radial-gradient(ellipse at bottom right, rgba(255, 140, 0, 0.05) 0%, transparent 55%),
+                var(--vx-bg);
+    color: var(--vx-text);
+    padding: 7rem 0 6rem;
+    border-bottom: 1px solid var(--vx-border);
+    position: relative;
+}
+.hero h1 {
+    font-size: clamp(2.8rem, 6vw, 5rem);
+    font-family: 'Playfair Display', Georgia, serif;
+    font-weight: 500;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    color: var(--vx-text);
+}
+.hero h1 em, .hero h1 .vx-italic { font-style: italic; color: var(--vx-champagne); }
+.hero .lead { color: var(--vx-text-muted); font-size: 1.15rem; line-height: 1.6; max-width: 38rem; margin: 0 auto; }
+.hero .pitch-line { color: var(--vx-gold); letter-spacing: 0.15em; text-transform: uppercase; font-size: 0.75rem; font-weight: 500; }
+
+/* --- Pitch numbers -------------------------------------------------------- */
+.pitch-number { font-family: 'Playfair Display', serif; font-weight: 600; font-size: 3rem; color: var(--vx-gold); letter-spacing: -0.01em; }
+.pitch-number.accent { color: var(--vx-champagne); }
+
+/* --- How-it-works icon --------------------------------------------------- */
+.step-icon {
+    width: 60px; height: 60px;
+    background: var(--vx-surface);
+    border: 1px solid var(--vx-gold);
+    color: var(--vx-gold);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 1rem;
+    font-size: 1.5rem;
+}
+
+/* --- Asset type cards (home) --------------------------------------------- */
+.asset-type-card {
+    background: var(--vx-surface);
+    border: 1px solid var(--vx-border);
+    border-radius: var(--gf-radius);
+    padding: 2rem 1.25rem;
+    text-align: center;
+    transition: all var(--gf-transition);
+    color: var(--vx-text);
+}
+.asset-type-card:hover {
+    border-color: var(--vx-gold);
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px rgba(0,0,0,.45);
+}
+.asset-type-card i { font-size: 2.25rem; color: var(--vx-gold); }
+
+/* --- CTA section --------------------------------------------------------- */
+.cta-section {
+    background: linear-gradient(135deg, var(--vx-surface) 0%, var(--vx-bg) 100%);
+    color: var(--vx-text);
+    padding: 6rem 0;
+    border-top: 1px solid var(--vx-border);
+}
+
+/* --- Footer -------------------------------------------------------------- */
+footer {
+    background: var(--vx-bg);
+    border-top: 1px solid var(--vx-border);
+    color: var(--vx-text-subtle);
+}
+
+/* --- Utility -------------------------------------------------------------- */
+.gf-sr-only {
+    position: absolute !important; width: 1px !important; height: 1px !important;
+    padding: 0 !important; margin: -1px !important; overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important;
+}
+hr { border-color: var(--vx-border); }
+code { color: var(--vx-champagne); background: var(--vx-surface-2); padding: 0.1em 0.4em; border-radius: 3px; }
+.wallet-addr { font-family: 'JetBrains Mono', 'Courier New', monospace; color: var(--vx-text-muted); font-size: 0.82rem; }
+.wallet-addr:hover { color: var(--vx-gold); }
+
+/* --- Text helpers --------------------------------------------------------- */
+.text-muted { color: var(--vx-text-muted) !important; }
+.text-white-50 { color: var(--vx-text-muted) !important; }
+.text-success { color: var(--vx-gold) !important; }
+.text-warning { color: var(--vx-amber) !important; }
+.text-danger { color: #E57971 !important; }
+.text-info { color: var(--vx-champagne) !important; }
+
+/* --- Toast --------------------------------------------------------------- */
+.toast { background: var(--vx-surface); color: var(--vx-text); border: 1px solid var(--vx-border); }
+.toast-container .text-bg-success { background: rgba(201,168,76,.95) !important; color: var(--vx-bg) !important; }
+.toast-container .text-bg-danger { background: rgba(207,74,63,.95) !important; color: #fff !important; }
+.toast-container .text-bg-warning { background: rgba(255,140,0,.95) !important; color: var(--vx-bg) !important; }
+.toast-container .text-bg-info { background: var(--vx-surface-2) !important; color: var(--vx-champagne) !important; }

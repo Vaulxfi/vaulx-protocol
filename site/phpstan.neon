@@ -1,0 +1,13 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 5
+    paths:
+        - app/Services
+        - app/Http/Controllers/Api
+        - app/Providers/ViteServiceProvider.php
+    excludePaths:
+        - app/Console/Kernel.php
+    checkMissingIterableValueType: false
+    reportUnmatchedIgnoredErrors: false
