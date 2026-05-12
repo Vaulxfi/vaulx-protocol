@@ -9,7 +9,7 @@ Submitted to the **Solana Frontier Hackathon (Colosseum)**, May 2026.
 [![Tests](https://img.shields.io/badge/tests-45%20programs%20%2B%2031%20vitest-22C55E)]()
 [![License](https://img.shields.io/badge/license-MIT-0A0B0D)]()
 
-- 🌐 Public site — **[vaulx.io](https://vaulx.io)**
+- 🌐 Public site — **[vaulx.fi](https://vaulx.fi)**
 - 📺 Demo UI repo — **[github.com/Vaulxfi/site](https://github.com/Vaulxfi/site)** (Laravel borrower + admin flows)
 - 🔐 Upgrade authority — **Squads V4 multisig** PDA [`99o9WXdP3Gt1wwnYtEXheTh5x599f6SfmAdn9um3hejR`](https://explorer.solana.com/address/99o9WXdP3Gt1wwnYtEXheTh5x599f6SfmAdn9um3hejR?cluster=devnet)
 
@@ -62,17 +62,21 @@ The borrower's USDC destination is **pinned to the borrower's public key in the 
 
 ## On-chain proof — verified devnet transactions
 
-These instructions have been executed on Devnet against the deployed programs above and can be inspected on Solana Explorer:
+These instructions have been executed against the deployed programs above and can be inspected on Solana Explorer:
 
-| Instruction | Signature | Program |
+| Instruction | Signature | What it proves |
 |---|---|---|
-| `init_vault` | [`c8NccpWz…aDoxP7`](https://explorer.solana.com/tx/c8NccpWzuBtnPRW6ojp5vqKD5dbpWdZBT4UqgGTQfXEVFLQ438AytQpeJn9bXS4enM5rUsUx8DSFgEMPxaDoxP7?cluster=devnet) | vault |
-| `deposit` (LP capital) | [`5ynYJcgf…TPqDc`](https://explorer.solana.com/tx/5ynYJcgfmPpBPbxQfr8fRFoiLH493YeGshwSguP1MMgqMtCZciQiAV6hDhT7QrNe7ATNYDYewLmmCd7Wuo4TPqDc?cluster=devnet) | vault |
+| **Atomic `confirm_custody + disburse`** | [`5Vny6HYe…AGgP`](https://explorer.solana.com/tx/5Vny6HYevykUyHujFS5zmb7FBYUbn5ZXB5CmiYrWTQiwakXvZX1BhF3gSr7NAVmLnqBiipqFqXTCYcunsTuzAGgP?cluster=devnet) | One signed tx: `ConfirmCustody → ConfirmCustodyTransition → Disburse → TransitionToActive`. The load-bearing tech: no USDC moves until the licensed custodian confirms on-chain. |
+| `create_ccb_trdc` | [`52SUbPcE…MtGL`](https://explorer.solana.com/tx/52SUbPcEhDwqbdvoWM5TYQYGxoakTe4ND4b7qBiABZC36NjhKRXMxjpYUZtewvRT5wkxxxCd7vHvRgXEr2oDMtGL?cluster=devnet) | CCB (Cédula de Crédito Bancário) creation + TRDC state initialisation — the legally-binding loan instrument anchored to the on-chain state. |
+| `init_vault` | [`c8NccpWz…aDoxP7`](https://explorer.solana.com/tx/c8NccpWzuBtnPRW6ojp5vqKD5dbpWdZBT4UqgGTQfXEVFLQ438AytQpeJn9bXS4enM5rUsUx8DSFgEMPxaDoxP7?cluster=devnet) | USDC reserve initialised for this asset mint. |
+| `deposit` (LP capital) | [`5ynYJcgf…TPqDc`](https://explorer.solana.com/tx/5ynYJcgfmPpBPbxQfr8fRFoiLH493YeGshwSguP1MMgqMtCZciQiAV6hDhT7QrNe7ATNYDYewLmmCd7Wuo4TPqDc?cluster=devnet) | LP capital deposited; vault shares minted. |
 
-The atomic `confirm_custody + disburse` and `create_ccb_trdc` instructions are wired and executed via the bridge (`apps/bridge/`); the full set of signed instructions, PDAs, and Squads multisig transfer history is recorded in:
+Click the **`5Vny6HYe…`** signature first — it's the single transaction where loan state transitions atomically, the borrower's USDC ATA is debited from the vault PDA, and the loan ends in the `Active` state. All four state changes in one signed instruction.
 
-- [`scripts/dev/edson-devnet.json`](scripts/dev/edson-devnet.json) — current deployment state (vault + loan config, PDAs, init signatures)
-- [`scripts/dev/edson-usdc.json`](scripts/dev/edson-usdc.json) — Devnet USDC mint owned by the operator
+Supporting records committed to this repo:
+
+- [`scripts/dev/edson-devnet.json`](scripts/dev/edson-devnet.json) — current deployment PDAs + init signatures
+- [`scripts/dev/edson-usdc.json`](scripts/dev/edson-usdc.json) — Devnet USDC mint metadata
 - [`scripts/dev/devnet-deploy.json`](scripts/dev/devnet-deploy.json) — program-deploy record
 - [`scripts/dev/squads-upgrade-history.json`](scripts/dev/squads-upgrade-history.json) — multisig authority-transfer history
 
