@@ -99,11 +99,10 @@ These need commercial agreements before any production integration:
 ## Phase 7 — Geographic + asset expansion
 **Window:** Q4 2026 onward
 
-- ⏳ Second market: **other LatAm jurisdictions** (same legal pawn-monopoly pattern, similar RWA pain)
+- ⏳ Geographic expansion across LatAm, with parallel evaluation of the US and other emerging markets — sequenced by partner readiness, not vanity
 - ⏳ Asset-class expansion: jewellery → fine art → vehicles
 - ⏳ Borrower tooling: partial repay, rollover automation, top-up
 - ⏳ Lender tooling: programmatic senior/junior tranche split + POL first-loss buffer
-- ⏳ Beyond LatAm: Turkey, India, SEA, South Africa, Nigeria — pick by partner readiness, not vanity
 
 ---
 
