@@ -1,0 +1,37 @@
+# CODEOWNERS — automatic reviewer assignment on PRs.
+# See https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Syntax: <path-glob>  <reviewer1> <reviewer2> ...
+# Reviewers can be individual @usernames or @Vaulxfi/<team>.
+# The LAST matching pattern wins.
+
+# Default — anything not otherwise matched
+*                               @Vaulxfi/maintainers
+
+# Anchor programs (Rust)
+/programs/                      @Vaulxfi/protocol
+/Anchor.toml                    @Vaulxfi/protocol
+/Cargo.toml                     @Vaulxfi/protocol
+/Cargo.lock                     @Vaulxfi/protocol
+/rust-toolchain.toml            @Vaulxfi/protocol
+
+# Off-chain TS apps
+/apps/bridge/                   @Vaulxfi/backend
+/apps/indexer/                  @Vaulxfi/backend
+/apps/web/                      @Vaulxfi/frontend
+
+# Workspace TS packages (IDLs, typed clients, shared libs)
+/packages/                      @Vaulxfi/backend
+
+# Demo UI (Laravel)
+/site/                          @Vaulxfi/frontend
+
+# Devops + scripts + CI
+/scripts/                       @Vaulxfi/protocol
+/.github/                       @Vaulxfi/maintainers
+/supabase/                      @Vaulxfi/backend
+
+# Docs + roadmap — light review, everyone can touch
+/README.md                      @Vaulxfi/maintainers
+/ROADMAP.md                     @Vaulxfi/maintainers
+/CHANGELOG.md                   @Vaulxfi/maintainers
