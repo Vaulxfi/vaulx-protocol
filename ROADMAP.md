@@ -1,39 +1,39 @@
 # Vaulx — Roadmap
 
-**Where we are (May 2026):** 4 Anchor programs deployed to Solana Devnet under a Squads V4 2-of-3 multisig. Atomic `confirm_custody + disburse` working live. 223 tests across the stack. Live demo at [vaulx.fi](https://vaulx.fi).
+Vaulx is a Solana-native credit rail that turns physical luxury collateral into on-chain USDC loans. Borrowers deposit assets with a licensed custodian; loan state, custody confirmation, and disbursement settle atomically across four Anchor programs.
 
-**Where we're going (Q3 2026):** audited mainnet protocol, first 50 BR loans originated, anchor LP capital flowing via Kamino V2 curated vaults and direct counterparties.
+**Where we are (May 2026):** the protocol is live on Solana Devnet under a Squads V4 multisig, with the atomic custody-to-disbursement invariant operational end-to-end and a working borrower demo at [vaulx.fi](https://vaulx.fi).
 
-Status legend: ✅ done · 🚧 in progress · ⏳ next · 🔒 partner-gated
+**Where we're going (Q3 2026):** audited mainnet release, first fifty Brazilian loans originated, anchor LP capital routed through Kamino V2 curated vaults and direct institutional counterparties.
 
----
-
-## Phase 1 — Repo + process discipline
-**Window:** May 2026
-
-- ✅ Public repo consolidated to a single monorepo (`Vaulxfi/vaulx-protocol`)
-- ✅ Internal docs moved to a private archive
-- ✅ README with verified Devnet transactions and multisig PDA
-- ✅ Branch protection on `main` (PR + 1 approval required)
-- ✅ Fix CI Rust toolchain (1.85 → 1.88, clears upstream `icu_*` / `time` dep break)
-- ✅ `CODEOWNERS` for automatic reviewer assignment per area
-- ✅ Tag `v0.1.0-frontier` — Colosseum submission snapshot, rollback anchor
-- ⏳ Staging environment at `staging.vaulx.fi` (deploy-side wiring)
+Status legend: ✅ shipped · 🚧 in progress · ⏳ next · 🔒 partner-gated
 
 ---
 
-## Phase 2 — Close the existing flow end-to-end
+## Phase 1 — Devnet validation
 **Window:** May 2026
 
-Components that are smoke-tested or placeholder, but not yet wired into the live demo path:
+- ✅ Four Anchor programs (`trdc`, `vault`, `loan`, `auction`) deployed to Solana Devnet
+- ✅ Atomic invariant operational on-chain: licensed-custodian confirmation, vault debit, USDC disbursement, and loan-state transition all settle in a single signed transaction
+- ✅ Cédula de Crédito Bancário (CCB) creation anchored to the on-chain TRDC state
+- ✅ Vault initialisation and LP-deposit flow operational
+- ✅ Squads V4 2-of-3 multisig holds upgrade authority on all four programs
+- ✅ Borrower demo UI live at [vaulx.fi](https://vaulx.fi)
+- ✅ Solana Frontier Hackathon submission (Colosseum, May 11, 2026)
 
-- ⏳ Wire `mint_trdc_cnft` into the live borrower flow (currently smoke-only)
-- ⏳ Wire `auction` instructions for default scenarios (currently smoke-only)
-- ⏳ Bridge: implement `pay` / `repay` / `renew` (currently placeholders — wallet-signed flow)
-- ⏳ Tighten `confirm_custody_transition` → loan-program-only CPI gate (`programs/trdc/src/lib.rs:77`)
-- ⏳ Activate KYC gate in staging (`vault_config.kyc_required = true`); verify Sumsub attestation end-to-end
-- ⏳ Wire Pyth + RedStone feeds for LTV (currently `oracle_admin = system_program`)
-- ⏳ Indexer hardening: rate limits, retries, backfill
+---
+
+## Phase 2 — Core feature completion
+**Window:** May 2026
+
+Components implemented at the program level and to be wired into the live borrower path:
+
+- ⏳ Live cNFT issuance per loan — Metaplex Bubblegum compressed NFT carrying the full asset record (model, valuation, custody location, insurance reference, settlement contract)
+- ⏳ Default flow — permissionless on-chain Dutch auction with foreclosure executed by the auction program
+- ⏳ Full borrower lifecycle — pay, partial repay, renewal, repayment-and-unlock
+- ⏳ KYC enforcement activated — Sumsub attestation issuance gates every money-touching instruction
+- ⏳ Oracle-driven LTV monitoring activated — Pyth and RedStone feeds wired into vault and loan logic
+- ⏳ Production-grade event indexing for the read-side
 
 ---
 
@@ -58,14 +58,12 @@ External services we can wire without commercial agreements:
 ## Phase 4 — Audit + mainnet readiness
 **Window:** July 2026
 
-- ⏳ External smart-contract audit on all 4 Anchor programs (this is the "Day 0" in the pitch)
-- ⏳ Penetration test on bridge (`apps/bridge/`) and indexer
+- ⏳ External smart-contract audit on all four Anchor programs
+- ⏳ Penetration test on the off-chain bridge and indexer
 - ⏳ Mainnet redeploy with audited binaries
-- ⏳ Squads V4 multisig migrated to mainnet (with timelock)
-- ⏳ Production RPC (Helius or Triton, paid tier)
-- ⏳ Production Postgres (Supabase Pro or similar)
-- ⏳ Monitoring + alerting (Sentry, Better Stack, PagerDuty)
-- ⏳ Incident runbook at `docs/runbooks/`
+- ⏳ Squads V4 multisig migrated to mainnet, with timelock
+- ⏳ Production-grade RPC, database, monitoring, and alerting
+- ⏳ Incident response runbook published
 
 ---
 
@@ -106,12 +104,4 @@ These need commercial agreements before any production integration:
 
 ---
 
-## How this file evolves
-
-Single source of truth for what's next. Edit via PR like any other code:
-- ✅ → move done items but keep them visible for one phase (recent wins)
-- ⏳ → 🚧 when work starts; 🚧 → ✅ when shipped
-- Add new dependencies or partners as they surface
-- Add a one-line note + date on status changes (`✅ Crossmint prod tier · 2026-06-15`)
-
-PRs against this file follow the same `main` branch protection as the rest of the repo.
+_Living document. Updated as milestones close and dependencies surface._
