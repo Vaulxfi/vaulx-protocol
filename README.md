@@ -180,7 +180,7 @@ MIT — see [LICENSE](./LICENSE).
 ## Team
 
 - **George Dimitrov** — CEO · 15+ years in banking operations
-- **Marcelo Coelho** — Chief Operations · 38 years Brazilian physical-security infrastructure
+- **Marcelo Coelho** — Chief Operations · Brazilian physical-security infrastructure
 - **Rodrigo Coelho** — Chief Growth · institutional network, market entry across LATAM
 - **Edson Pohren** — Senior Engineer · Anchor · Bubblegum · oracle integration
 - **Felipe Veloso** — DeFi Advisor & Community · founder of 4p.finance
