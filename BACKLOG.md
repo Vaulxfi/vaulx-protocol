@@ -39,22 +39,25 @@ Last updated: 2026-05-13
 
 ## Laravel → Next port — implementation waves (queued, in order)
 
-Each wave produces its own spec under `docs/plans/` before any integrator agent runs. All four gates (CI / QA / security / operator ACK) apply per CLAUDE.md §3.4. Laravel `site/` stays running unchanged throughout.
+Each wave produces its own spec under `docs/plans/` before any integrator agent runs. All four gates (CI / QA / security if applicable / operator ACK) apply per CLAUDE.md §3.4. Laravel `site/` stays running unchanged throughout. See `docs/plans/inventory/00-synthesis.md` for the discovery-driven rationale.
 
-- `[planned]` **Wave 1 — Public surface port** (home, simulator, faq, terms, team)
-  Pixel-equivalent in Next at `app.vaulx.fi/`. No auth dependency. Spec: `2026-05-14-wave1-public-surface-spec.md`.
+- `[planned]` **Wave 0 — Schema reconciliation** — `feat/schema-recon`
+  Server-only. Aligns the `onchain_events` Supabase migration with the canonical Laravel shape (PK uuid, composite unique on `(signature, event_name)`, `occurred_at` timestamp, nullability fixes). Adds the missing `ccb-pdfs` Supabase Storage bucket migration. Pre-requisite for Wave 3. Spec: `2026-05-14-wave0-schema-recon-spec.md`.
 
-- `[planned]` **Wave 2 — Auth + SIWS port**
-  Email/password, password reset, SIWS challenge/verify, role model, magic-link demo login. Establishes the auth foundation Waves 3–6 depend on.
+- `[planned]` **Wave 1 — Public surface port** (5 PRs)
+  Pixel-equivalent in Next at `app.vaulx.fi/`. PRs in order: `feat/design-tokens-deck-light` (fixes wrong gold-scheme tokens; installs Deck Light palette + Outfit/JetBrains Mono), then `feat/home-port`, `feat/simulator-port`, `feat/static-pages-port`, `feat/team-port`. Meta-spec: `2026-05-14-wave1-public-surface-spec.md`.
+
+- `[planned]` **Wave 2 — Auth + SIWS via Supabase Auth**
+  Email/password, SIWS (uses Supabase `signInWithWeb3` — not a from-scratch crypto port), password reset, magic-link demo login, role middleware. Drops Laravel's `/csrf-fresh` and `auth.nocache`.
 
 - `[planned]` **Wave 3 — Borrower portal + off-chain integrations**
-  Dashboard, onboarding, loans **plus** Crossmint smart-wallet prod, Sumsub KYC prod (when SLA clears), Apify Chrono24 prod. Triggers the first on-chain program upgrade (Sumsub attestation gate on `loan` + `vault`).
+  Dashboard, onboarding, loans **plus** Crossmint smart-wallet prod, Apify Chrono24 prod, Sumsub KYC prod (when SLA clears). Triggers the first on-chain program upgrade since Frontier — Sumsub attestation gate on `loan` + `vault`, signed by Squads V4 multisig.
 
 - `[planned]` **Wave 4 — Evaluator portal**
   Online + offline evaluation flows, dashboard.
 
 - `[planned]` **Wave 5 — Owner portal**
-  Evaluation decisions.
+  Evaluation decisions. Smallest portal.
 
 - `[planned]` **Wave 6 — Admin portal**
   Largest. Dashboard, evaluators, loans, market-config, users, vaults, multisig monitor, BRZ monitor, cron-bot, on-chain events viewer. May split into 6a (read views) and 6b (mutations).

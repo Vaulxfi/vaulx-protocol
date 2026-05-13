@@ -52,25 +52,35 @@ Session compatibility between the two apps is not required — a user logged int
 
 ## 3. Implementation waves
 
-Each wave = one spec doc + one or more PRs + agents (integrator, QA, security) + operator ACK. Waves are sequential by default but Wave 2 can run in parallel with Wave 3 if helpful.
+Renumbered post-discovery: Wave 0 (schema reconciliation) and a token-reset step inside Wave 1 are added based on findings in `docs/plans/inventory/00-synthesis.md`. Each wave = one spec doc + one or more PRs + agents (integrator, QA, security if applicable) + operator ACK.
 
-### Wave 1 — Public surface
-Home, simulator, FAQ, terms, team. Pixel-equivalent in Next using the design tokens extracted by the design-system discovery agent. Wires into `app.vaulx.fi/`. No auth dependency.
+### Wave 0 — Schema reconciliation (server-only, no UI)
+Aligns the `onchain_events` Supabase migration with the canonical Laravel shape (PK type, composite unique, timestamp column, nullability). Adds the missing `ccb-pdfs` Storage bucket migration. Pre-requisite for Wave 3 parallel-run. Spec: `2026-05-14-wave0-schema-recon-spec.md`.
 
-### Wave 2 — Auth + SIWS
-NextAuth.js or custom session, SIWS challenge/verify ported, password reset, role model, magic-link demo login. Establishes the auth foundation every subsequent wave depends on.
+### Wave 1 — Public surface port (5 PRs)
+Pixel-equivalent port of home, simulator, FAQ, terms, team to Next.js at `app.vaulx.fi/`. Sequenced as:
+1. `feat/design-tokens-deck-light` — fix wrong gold-scheme tokens in `apps/web/`; install Deck Light palette (paper/ink/teal + Outfit/JetBrains Mono). Pre-req for every subsequent visual port.
+2. `feat/home-port` — home page.
+3. `feat/simulator-port` — interactive simulator with numeric-parity guarantee.
+4. `feat/static-pages-port` — FAQ + terms together (shared narrow layout).
+5. `feat/team-port` — team page (5-col grid at 1280+).
 
-### Wave 3 — Borrower portal
-Dashboard, onboarding, loans. **This is also where the off-chain integrations land** — Crossmint smart-wallet, Sumsub KYC, Apify Chrono24 appraisal. Wires into `app.vaulx.fi/borrow`.
+Spec: `2026-05-14-wave1-public-surface-spec.md`.
+
+### Wave 2 — Auth + SIWS via Supabase Auth
+Email/password, SIWS (using Supabase `signInWithWeb3` — not a from-scratch crypto port), password reset, magic-link demo login, single-column `role` middleware. Drops `/csrf-fresh` and `auth.nocache`. Foundation Wave 3+ depends on.
+
+### Wave 3 — Borrower portal + off-chain integrations
+Dashboard, onboarding, loans **plus** Crossmint smart-wallet prod, Apify Chrono24 prod, Sumsub KYC prod (when SLA clears). Triggers the first on-chain program upgrade since Frontier submission — Sumsub attestation gate on `loan` + `vault`, signed by Squads V4 multisig.
 
 ### Wave 4 — Evaluator portal
 Online + offline evaluation flows, dashboard.
 
 ### Wave 5 — Owner portal
-Evaluation decisions.
+Evaluation decisions. Smallest portal.
 
 ### Wave 6 — Admin portal
-Largest. Dashboard, evaluators, loans, market-config, users, vaults, multisig monitor, BRZ monitor, cron-bot, on-chain events viewer.
+Largest. Dashboard, evaluators, loans, market-config, users, vaults, multisig monitor, BRZ monitor, cron-bot, on-chain events viewer. May split into 6a (read-only views) and 6b (mutations).
 
 ### Wave 7 — Parity validation + cutover (operator-gated)
 Side-by-side runs. Operator validates each surface feels at least as good as Laravel. Only then do we repoint `vaulx.fi` DNS at Vercel and archive Laravel.
