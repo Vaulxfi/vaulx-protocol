@@ -70,6 +70,35 @@ This means in practice:
 
 If you find a real bug in Laravel that's affecting live behavior, **STOP and ask the operator**. Don't fix it. The fix might be worse than the bug from a "judging artifact integrity" standpoint.
 
+### 2.0.1 The repo is PUBLIC — public-repo discipline matters
+
+**`github.com/Vaulxfi/vaulx-protocol` is a public repo.** Anything committed, pushed, or merged is visible immediately to anyone — judges, competitors, recruiters, journalists. PR descriptions, branch names, commit messages, doc content, file diffs are all readable.
+
+There is a private sibling: `github.com/Vaulxfi/vaulx-internal`. **Internal "kitchen" content belongs there**, not in this repo.
+
+Quick guide for what goes where:
+
+| Goes in public repo (`vaulx-protocol`) | Goes in private repo (`vaulx-internal`) |
+|---|---|
+| Engineering specs, design docs | Strategy decisions, financials, commercial-partner terms |
+| Inventory + discovery findings (objective technical) | Self-critique, drift retrospectives, "what we got wrong" |
+| Code, tests, migrations | Personnel / role discussions |
+| PR descriptions (factual: what landed, gates) | Anything that paints in-progress thinking as embarrassing |
+| Roadmap / Changelog (public-facing intent) | Pre-decision exploration, brainstorming dumps |
+| Wave specs (engineering plans) | Anything legal, compliance, or partner-sensitive |
+| Honest descriptions of bugs found + fixed | Anything that reads as internal team friction |
+
+**The principle:** if a Colosseum judge or a competitor read it, would they conclude "this team is technically rigorous" or "this team is messy"? The first is fine. The second goes private.
+
+Concrete recent examples:
+- The discovery inventories (01-laravel-inventory.md, 02-schema-and-data.md, etc.) → **public is fine.** They demonstrate engineering rigor.
+- The wave specs and design docs → **public is fine.** Shows architectural thinking.
+- This handoff doc you're reading → **borderline.** The "mistakes the previous session made" section is internally honest but reads as self-critical. **Consider moving this file (and future handoffs) to `vaulx-internal`** once the new session has absorbed it. Or leave it — it does also show good engineering hygiene. Operator's call.
+
+If you're about to commit something internal-flavoured, pause and ask the operator whether it belongs in `vaulx-internal` instead. The default for anything resembling a retro or kitchen-doc is private.
+
+`CLAUDE.md` §1 already states: *"Internal docs and notes live in the private `Vaulxfi/vaulx-internal` repo, not here."* Honor it.
+
 ### 2.1 Hard rules table
 
 These come from `CLAUDE.md`. The previous session occasionally drifted on these — don't:
