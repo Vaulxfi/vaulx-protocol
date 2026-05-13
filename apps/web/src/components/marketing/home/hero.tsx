@@ -30,7 +30,7 @@ export function Hero() {
           Your Assets.
           <br />
           Your{" "}
-          <em className="not-italic italic font-bold text-[var(--vx-teal-2)]">
+          <em className="italic font-bold text-[var(--vx-teal-2)]">
             Liquidity
           </em>
           .

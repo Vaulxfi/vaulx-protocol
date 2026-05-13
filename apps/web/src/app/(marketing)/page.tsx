@@ -172,7 +172,7 @@ export default async function HomePage() {
       {/* COLLATERAL TYPES */}
       <section
         id="collateral"
-        className="bg-[var(--vx-surface-2)] py-[3rem]"
+        className="bg-[var(--vx-surface)] py-[3rem]"
       >
         <div className="mx-auto w-full max-w-[1320px] px-4 py-6 md:px-6">
           <div className="mb-12 text-center">
@@ -254,7 +254,7 @@ export default async function HomePage() {
       </section>
 
       {/* EXAMPLE TX */}
-      <section className="bg-[var(--vx-surface-2)] py-[3rem]">
+      <section className="bg-[var(--vx-surface)] py-[3rem]">
         <div className="mx-auto w-full max-w-[1320px] px-4 py-6 md:px-6">
           <div className="grid items-center gap-10 md:grid-cols-2">
             <div>

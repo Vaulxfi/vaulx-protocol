@@ -33,10 +33,13 @@ export function PitchLine({ children, variant = "inline", className }: Props) {
     );
   }
 
+  // Laravel's general `.pitch-line` rule (site/resources/css/app.css:220-224)
+  // is mixed-case; only `.hero .pitch-line` (line 747) applies uppercase.
+  // Section eyebrows here keep title-case to match.
   return (
     <p
       className={cn(
-        "mb-2 font-mono text-[0.75rem] font-medium uppercase tracking-[0.14em]",
+        "mb-2 font-mono text-[0.75rem] font-medium",
         "text-[var(--vx-text-muted)]",
         className,
       )}
