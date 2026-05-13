@@ -23,8 +23,15 @@
 # Workspace TS packages (IDLs, typed clients, shared libs)
 /packages/                      @Vaulxfi/backend
 
-# Demo UI (Laravel)
-/site/                          @Vaulxfi/frontend
+# Demo UI (Laravel) — FROZEN until judging window closes.
+# See CLAUDE.md §2.1. Architect approval required for any change here.
+/site/                          @Vaulxfi/maintainers @Vaulxfi/frontend
+
+# Mocked demo subtree inside the Next.js app — FROZEN.
+# Mirrors the submission video. CI already enforces no personal names
+# (.github/workflows/ci.yml:33-41); CODEOWNERS enforces architect review
+# for any semantic change.
+/apps/web/src/app/demo/         @Vaulxfi/maintainers @Vaulxfi/frontend
 
 # Devops + scripts + CI
 /scripts/                       @Vaulxfi/protocol
