@@ -21,15 +21,15 @@ Last updated: 2026-05-13
 ## Integrations — sandbox → production
 
 - `[planned]` **Crossmint production tier** — `feat/crossmint-prod`
-  Promote `@crossmint/client-sdk-react-ui@4.1.5` from sandbox. Tasks: request prod tier, map BR Non-Doc CPF per Crossmint docs, swap env keys (Vercel only), add smoke test, document in `docs/integrations/crossmint.md`.
+  Promote `@crossmint/client-sdk-react-ui@4.1.5` from sandbox. Env shape already defined in `apps/web/.env.example` (`NEXT_PUBLIC_CROSSMINT_API_KEY`, `NEXT_PUBLIC_CROSSMINT_ENV`) with a prefix-guard in `apps/web/src/app/demo/_components/crossmint-wallet.tsx`. Tasks: request prod tier from Crossmint, lift the provider out of `/demo/_components/` into a shared `apps/web/src/lib/crossmint/` module so `/borrow` and `/lend` can use it, map BR Non-Doc CPF per Crossmint docs, add integration test, document in `docs/integrations/crossmint.md`. Prod keys go straight into Vercel env when approved.
   Gate: security review required (KYC + env).
 
 - `[planned]` **Apify Chrono24 production token** — `feat/apify-prod`
-  Promote `apify-client@2.23.0`. `chrono24PriceViaApify()` at `apps/web/src/lib/appraisal/chrono24.ts` already drafted. Tasks: prod token in Vercel env, scheduled actor run, response cache layer, wire into `/borrow` appraisal step, add integration test with recorded fixture.
+  Promote `apify-client@2.23.0`. Env shape already defined (`APIFY_API_TOKEN`, `APIFY_CHRONO24_ACTOR_ID` defaults to `apify/chrono24-scraper`). `chrono24PriceViaApify()` at `apps/web/src/lib/appraisal/chrono24.ts` already drafted. Tasks: prod token in Vercel env, scheduled actor run, response cache layer, wire into `/borrow` appraisal step, add integration test with recorded fixture.
   Gate: standard QA review.
 
 - `[blocked]` **Sumsub production tier** — `feat/sumsub-prod`
-  Blocked on Sumsub prod-tier application (~1 week SLA). Once approved: env swap, attestation issuance pipeline, wire SAS attestation as a precondition on every money-touching Anchor instruction.
+  Blocked on Sumsub prod-tier application (~1 week SLA). Env shape already defined (`sumsub_token`, `sumsub_secret`, `SUMSUB_WEBHOOK_SECRET`, `NEXT_PUBLIC_SUMSUB_LEVEL_NAME`); attestation/webhook/client modules in `apps/web/src/lib/sumsub/`. Once approved: prod token/secret in Vercel env, attestation issuance pipeline, wire SAS attestation as a precondition on every money-touching Anchor instruction.
   Gate: security review required (KYC + custody + money flow).
 
 ---
