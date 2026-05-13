@@ -54,24 +54,28 @@ Laravel users on the existing MySQL side stay where they are during the port win
 - TS helpers in `apps/web/src/lib/auth/`: `getServerUser()`, `requireUser()`, `useUser()` hook
 - No new routes yet — only the foundation
 
-### Wave 2.2 — Email/password routes
-**Branch:** `feat/auth-email-password`
-**Spec:** `docs/plans/2026-05-14-wave2.2-email-password-spec.md` (drafted when 2.1 lands)
+### Wave 2.2 — Wallet auth (Crossmint + direct SIWS, unified)
+**Branch:** `feat/auth-wallet-signin`
+**Spec:** `docs/plans/2026-05-14-wave2.2-wallet-auth-spec.md`
 
-- `/login`, `/register`, `/logout` (POST), `/forgot-password`, `/reset-password/[token]`
-- Server components + Server Actions (no client-side fetch for credential flow)
-- Uses Supabase Auth's `signInWithPassword`, `signUp`, `resetPasswordForEmail`
-- Port the Laravel forms 1:1 in visual identity (Deck Light)
-- **Drops** Laravel's `/csrf-fresh` and `auth.nocache` — Next handles CSRF and caching correctly out of the box
+**Revised direction** (architect call, 2026-05-14): Vaulx is wallet-native — wallet pubkey IS the identity. Both signup paths funnel through Supabase Auth `signInWithWeb3`. No traditional email/password forms anywhere.
 
-### Wave 2.3 — SIWS + wallet linking
-**Branch:** `feat/auth-siws-wallet`
-**Spec:** `docs/plans/2026-05-14-wave2.3-siws-spec.md` (drafted when 2.2 lands)
+- Single "Sign in" modal in MarketingNav with two paths:
+  - Crossmint (email/Google/Apple → smart wallet, for non-crypto-natives)
+  - Direct wallet adapter (Phantom/Solflare/etc., for crypto-natives)
+- Both end at `signInWithWeb3` → Supabase session + `public.users` row populated with wallet pubkey
+- Crossmint-issued users get their real email; direct-SIWS users get synthetic `<pubkey>@siws.vaulx.local` (matches Laravel's pattern)
+- Server Action `linkAuthenticatedWallet` populates `public.users.email` + `solana_address` post-signin via RLS-scoped client
 
-- "Sign in with Solana" button on `/login` and `/register`
-- Uses Supabase Auth `signInWithWeb3` (handles nonce + ed25519 verify natively)
-- On success: link the wallet to `public.users.solana_address`. If no `auth.users` row exists for this wallet → auto-create one with a synthetic email matching Laravel's `<pubkey>@siws.vaulx.local` pattern
-- `/profile` page gets a "Link wallet" section
+### Wave 2.3 — Account / wallet management
+**Branch:** `feat/auth-account-management`
+**Spec:** `docs/plans/2026-05-14-wave2.3-account-mgmt-spec.md` (drafted when 2.2 lands)
+
+- `/profile` page — display name, email (from Crossmint or synthetic, read-only), linked wallet visible
+- Add a second wallet (link another pubkey to the same account; for users with multiple wallets)
+- Switch primary wallet
+- Disconnect wallet (destructive; requires confirmation)
+- This replaces what was originally planned as "SIWS button" — that lives in 2.2 now
 
 ### Wave 2.4 — Role middleware + magic-link demo
 **Branch:** `feat/auth-role-middleware`
