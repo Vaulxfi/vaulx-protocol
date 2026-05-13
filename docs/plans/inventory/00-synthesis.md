@@ -34,10 +34,19 @@ Bottom line — the port is meaningful work, but it's a finite, well-bounded set
 
 **Action:** Wave 1 starts with a token-reset PR (no page work, just `globals.css` + `tailwind.config.ts`). Every subsequent page port consumes the new tokens.
 
-### 2.2 `onchain_events` schema is drifted between Laravel and Supabase
-The only Laravel↔Next shared table today, and the two migrations disagree on five points: PK type (uuid vs bigint), composite vs single-column UNIQUE, timestamp column name (`occurred_at` vs `created_at`), nullability of `payload`/`slot`/`signature`, and indexes. Next route handlers query the Supabase shape; Laravel writes the Laravel shape. Today this works only because they bypass each other's expectations via service-role inserts.
+### 2.2 `onchain_events` schema has two independent owners
+**Corrected after Wave 0 implementation (2026-05-13).** The original framing said Laravel and Next share the `onchain_events` table. They do **not**.
 
-**Action:** Wave 0 — schema reconciliation. A small server-only PR that aligns the Supabase migration to the Laravel canonical shape, plus a migration for the missing `ccb-pdfs` Supabase Storage bucket. Must land before any Wave 3 (borrower) parallel-run.
+- **Laravel runs MySQL.** `site/.env.example` has `DB_CONNECTION=mysql`. Laravel's `BridgeWebhookController@store` writes to its own MySQL `onchain_events` table.
+- **Supabase Postgres is written by `apps/indexer`.** `apps/indexer/src/supabase.ts:insertEvent()` writes to the Supabase `onchain_events` table. Next reads from Supabase.
+
+These are two physically separate tables in two separate databases, populated by two different processes consuming the same on-chain event stream. There is no parallel-run risk because there is no shared row — only a shared schema concept.
+
+**What Wave 0 actually does** (PR #10): improves the **Supabase** schema with fixes that are independently valuable — composite UNIQUE `(signature, event_name)` so multi-event txs don't collide; explicit `occurred_at` column with `default now()` so the indexer's INSERT shape continues to work; nullable `payload`/`slot`. Plus adds the missing `ccb-pdfs` Storage bucket migration referenced by `apps/web/src/lib/chain/ccb-storage.ts:19`.
+
+**No Laravel migration needed.** Laravel's MySQL table is its own concern.
+
+**Real follow-up bug surfaced during Wave 0 security review:** `apps/web/src/lib/chain/ccb-storage.ts` uses the anon Supabase key to upload to the now-private `ccb-pdfs` bucket. With Wave 0 in place, those uploads will silently fail on RLS denial. Spawned as a separate task — pre-existing bug, not introduced by Wave 0.
 
 ### 2.3 Auth model is simpler than feared
 - Roles: a single `role` column on `users` with four values — `borrower | admin | evaluator_online | evaluator_offline`. No Spatie, no policies, no gates. "Owner" is not a role; it's the asset-owner concept inside `OwnerDecisionController`. "Super admin" is an alias.
