@@ -36,7 +36,7 @@ export async function GET(
 
   const { data, error } = await client
     .from("onchain_events")
-    .select("payload, slot, signature, created_at")
+    .select("payload, slot, signature, occurred_at")
     .eq("event_name", "bidPlaced")
     .or(
       `payload->>auction.eq.${auctionPda},payload->>auctionPda.eq.${auctionPda}`,
@@ -70,7 +70,7 @@ export async function GET(
         ts: Number(payload.ts ?? 0),
         slot: Number(row.slot ?? 0),
         signature: (row.signature as string | undefined) ?? "",
-        created_at: row.created_at as string,
+        created_at: row.occurred_at as string,
       };
     }) ?? [];
 
