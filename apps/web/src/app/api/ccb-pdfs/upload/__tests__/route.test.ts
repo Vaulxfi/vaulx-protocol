@@ -1,8 +1,23 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createPrivateKey, sign as cryptoSign } from "node:crypto";
-import { Keypair } from "@solana/web3.js";
-import { utils } from "@coral-xyz/anchor";
+import { Keypair, PublicKey } from "@solana/web3.js";
+import { BorshAccountsCoder, BN, utils, type Idl } from "@coral-xyz/anchor";
+import { vaultIdl } from "@vaulx/idls";
+
+const kycCoder = new BorshAccountsCoder(vaultIdl as unknown as Idl);
+
+async function encodeKycAttestation(attestedAtSec: number): Promise<Buffer> {
+  // Anchor 0.30 BorshAccountsCoder uses the IDL field names verbatim
+  // (snake_case here). Passing camelCase silently zero-fills.
+  return kycCoder.encode("KycAttestation", {
+    owner: PublicKey.default,
+    attestor: PublicKey.default,
+    attested_at: new BN(attestedAtSec),
+    jwt_hash: Array.from({ length: 32 }, () => 0),
+    bump: 0,
+  });
+}
 
 const ED25519_PKCS8_PREFIX = Buffer.from(
   "302e020100300506032b657004220420",
@@ -125,6 +140,7 @@ beforeEach(() => {
   uploadMock.mockResolvedValue({ data: { path: "x" }, error: null });
   getAccountInfoMock.mockReset();
   delete process.env.NEXT_PUBLIC_CCB_KYC_GATE;
+  delete process.env.KYC_MAX_AGE_DAYS;
   process.env.SUPABASE_URL = "https://example.supabase.co";
   process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
 });
@@ -260,6 +276,59 @@ describe("POST /api/ccb-pdfs/upload", () => {
     const res = await POST(req);
     expect(res.status).toBe(200);
     expect(getAccountInfoMock).not.toHaveBeenCalled();
+  });
+
+  it("KYC gate ON + attestation older than KYC_MAX_AGE_DAYS → 403 kyc_stale", async () => {
+    process.env.NEXT_PUBLIC_CCB_KYC_GATE = "true";
+    process.env.KYC_MAX_AGE_DAYS = "365";
+    const nowSec = Math.floor(Date.now() / 1000);
+    const attestedAt = nowSec - 366 * 86_400;
+    const data = await encodeKycAttestation(attestedAt);
+    getAccountInfoMock.mockResolvedValue({ lamports: 1, data });
+    const req = await buildRequest();
+    const res = await POST(req);
+    expect(res.status).toBe(403);
+    expect((await res.json()).error).toBe("kyc_stale");
+    expect(uploadMock).not.toHaveBeenCalled();
+  });
+
+  it("KYC gate ON + attestation within KYC_MAX_AGE_DAYS → 200", async () => {
+    process.env.NEXT_PUBLIC_CCB_KYC_GATE = "true";
+    process.env.KYC_MAX_AGE_DAYS = "365";
+    const nowSec = Math.floor(Date.now() / 1000);
+    const attestedAt = nowSec - 364 * 86_400;
+    const data = await encodeKycAttestation(attestedAt);
+    getAccountInfoMock.mockResolvedValue({ lamports: 1, data });
+    const req = await buildRequest();
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    expect(uploadMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("KYC gate ON + KYC_MAX_AGE_DAYS unset + ancient attestation → 200 (existence-only preserved)", async () => {
+    process.env.NEXT_PUBLIC_CCB_KYC_GATE = "true";
+    const nowSec = Math.floor(Date.now() / 1000);
+    const attestedAt = nowSec - 10_000 * 86_400;
+    const data = await encodeKycAttestation(attestedAt);
+    getAccountInfoMock.mockResolvedValue({ lamports: 1, data });
+    const req = await buildRequest();
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    expect(uploadMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("KYC gate ON + corrupted account data → 403 kyc_required (fail-closed)", async () => {
+    process.env.NEXT_PUBLIC_CCB_KYC_GATE = "true";
+    process.env.KYC_MAX_AGE_DAYS = "365";
+    getAccountInfoMock.mockResolvedValue({
+      lamports: 1,
+      data: Buffer.from([1, 2, 3, 4]),
+    });
+    const req = await buildRequest();
+    const res = await POST(req);
+    expect(res.status).toBe(403);
+    expect((await res.json()).error).toBe("kyc_required");
+    expect(uploadMock).not.toHaveBeenCalled();
   });
 
   it("500 persist_failed when Supabase upload errors", async () => {
