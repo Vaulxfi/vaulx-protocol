@@ -10,11 +10,14 @@ Last updated: 2026-05-13
 
 ## Build phase — foundation
 
-- `[in-review]` **Build-phase operating model** — `docs/build-phase-foundation` → PR #TBD
+- `[in-review]` **Build-phase operating model** — `docs/build-phase-foundation` → PR #7
   Adds `CLAUDE.md`, this `BACKLOG.md`, design doc at `docs/plans/2026-05-13-build-phase-design.md`, CODEOWNERS site-freeze reinforcement.
 
+- `[in-review]` **Laravel → Next port plan (B2, full port, no cutover until proven better)** — `docs/port-plan` (stacked on foundation)
+  Adds design doc `docs/plans/2026-05-13-laravel-to-next-port-design.md`. Four discovery agents in flight writing inventory to `docs/plans/inventory/`. Once back, architect synthesizes Wave 1 spec.
+
 - `[planned]` **`app.vaulx.fi` CNAME + Vercel custom domain**
-  Owner: George. CNAME `app → cname.vercel-dns.com.`, attach to Vercel project `vaulx-web`. Verify TLS issuance and that the live-build banner renders on `/`.
+  Operator: George (CNAME). CNAME `app → cname.vercel-dns.com.`, attach to Vercel project `vaulx`. Verify TLS issuance. No live-build banner — the Next app is being built up to parity, not announced as a half-finished build.
 
 ---
 
@@ -31,6 +34,33 @@ Last updated: 2026-05-13
 - `[blocked]` **Sumsub production tier** — `feat/sumsub-prod`
   Blocked on Sumsub prod-tier application (~1 week SLA). Env shape already defined (`sumsub_token`, `sumsub_secret`, `SUMSUB_WEBHOOK_SECRET`, `NEXT_PUBLIC_SUMSUB_LEVEL_NAME`); attestation/webhook/client modules in `apps/web/src/lib/sumsub/`. Once approved: prod token/secret in Vercel env, attestation issuance pipeline, wire SAS attestation as a precondition on every money-touching Anchor instruction.
   Gate: security review required (KYC + custody + money flow).
+
+---
+
+## Laravel → Next port — implementation waves (queued, in order)
+
+Each wave produces its own spec under `docs/plans/` before any integrator agent runs. All four gates (CI / QA / security / operator ACK) apply per CLAUDE.md §3.4. Laravel `site/` stays running unchanged throughout.
+
+- `[planned]` **Wave 1 — Public surface port** (home, simulator, faq, terms, team)
+  Pixel-equivalent in Next at `app.vaulx.fi/`. No auth dependency. Spec: `2026-05-14-wave1-public-surface-spec.md`.
+
+- `[planned]` **Wave 2 — Auth + SIWS port**
+  Email/password, password reset, SIWS challenge/verify, role model, magic-link demo login. Establishes the auth foundation Waves 3–6 depend on.
+
+- `[planned]` **Wave 3 — Borrower portal + off-chain integrations**
+  Dashboard, onboarding, loans **plus** Crossmint smart-wallet prod, Sumsub KYC prod (when SLA clears), Apify Chrono24 prod. Triggers the first on-chain program upgrade (Sumsub attestation gate on `loan` + `vault`).
+
+- `[planned]` **Wave 4 — Evaluator portal**
+  Online + offline evaluation flows, dashboard.
+
+- `[planned]` **Wave 5 — Owner portal**
+  Evaluation decisions.
+
+- `[planned]` **Wave 6 — Admin portal**
+  Largest. Dashboard, evaluators, loans, market-config, users, vaults, multisig monitor, BRZ monitor, cron-bot, on-chain events viewer. May split into 6a (read views) and 6b (mutations).
+
+- `[planned]` **Wave 7 — Parity validation + cutover** (operator-gated)
+  Side-by-side comparison. Operator signs off. DNS for `vaulx.fi` repoints to Vercel. Laravel archived.
 
 ---
 
