@@ -128,4 +128,7 @@ jobs:
         run: anchor build
 
       - name: Anchor test
-        run: anchor test --skip-local-validator=false
+        # `--skip-local-validator` is a bare boolean in anchor 0.30.1 — its
+        # presence skips, its absence starts a fresh local validator. We want
+        # the validator, so we pass no flag.
+        run: anchor test
