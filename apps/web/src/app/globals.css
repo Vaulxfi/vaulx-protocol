@@ -3,87 +3,123 @@
 @tailwind utilities;
 
 /* =========================================================================
- * VAULX · DESIGN TOKENS
- * Dark-first. Editorial magazine × dark operator.
+ * VAULX · DESIGN TOKENS — Deck Light (default) + Deck Dark
+ * Canonical palette mirrors site/ Laravel deck. See
+ * docs/plans/inventory/04-design-system.md §A for source values.
  * ========================================================================= */
 
 @layer base {
   :root,
-  .dark {
-    /* Editorial palette — DARK is the default. */
-    --bg: #0a0b0d;
-    --bg-elev-1: #111317;
-    --bg-elev-2: #171a20;
-    --ink: #f4f2ed;
-    --ink-dim: #c9c5bb;
-    --ink-muted: #8a8f98;
-    --rule: #22262d;
-    --rule-strong: #2e333c;
-    --brand: #d4af37;
-    --brand-dim: #8a7128;
-    --brand-wash: rgba(212, 175, 55, 0.08);
-    --signal-good: #22c55e;
-    --signal-warn: #f59e0b;
-    --signal-bad: #ef4444;
+  .light {
+    /* Deck Light — vx-* canonical tokens */
+    --vx-bg: #FAFAF7;
+    --vx-surface: #FFFFFF;
+    --vx-surface-2: #EFEDE5;
+    --vx-text: #0A0A0B;
+    --vx-text-muted: #6B6B70;
+    --vx-text-subtle: #9A9A9F;
+    --vx-border: rgba(10, 10, 11, 0.12);
+    --vx-border-soft: rgba(10, 10, 11, 0.08);
+    --vx-teal: #0E7C7B;
+    --vx-teal-2: #2BA09E;
+    --vx-accent-mark: #2BA09E;
+    --vx-danger: #B8412C;
 
-    /* shadcn HSL mapping (derived from the hex tokens above). */
-    --background: 220 11% 4%;
-    --foreground: 40 25% 94%;
-    --card: 220 13% 8%;
-    --card-foreground: 40 25% 94%;
-    --popover: 220 13% 8%;
-    --popover-foreground: 40 25% 94%;
-    --primary: 45 65% 52%;
-    --primary-foreground: 220 15% 5%;
-    --secondary: 220 12% 11%;
-    --secondary-foreground: 40 25% 94%;
-    --muted: 220 12% 11%;
-    --muted-foreground: 220 6% 57%;
-    --accent: 45 65% 52%;
-    --accent-foreground: 220 15% 5%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 40 25% 94%;
-    --border: 220 13% 15%;
-    --input: 220 13% 15%;
-    --ring: 45 65% 52%;
+    /* Generic palette aliases consumed by existing styles. */
+    --bg: var(--vx-bg);
+    --bg-elev-1: var(--vx-surface);
+    --bg-elev-2: var(--vx-surface-2);
+    --ink: var(--vx-text);
+    --ink-dim: #2E333C;
+    --ink-muted: var(--vx-text-muted);
+    --ink-subtle: var(--vx-text-subtle);
+    --rule: var(--vx-border);
+    --rule-strong: rgba(10, 10, 11, 0.2);
+    --rule-soft: var(--vx-border-soft);
+    --brand: var(--vx-teal);
+    --brand-2: var(--vx-teal-2);
+    --brand-wash: rgba(43, 160, 158, 0.08);
+    --signal-good: #16A34A;
+    --signal-warn: #D97706;
+    --signal-bad: var(--vx-danger);
+
+    /* Motion */
+    --ease-glide: cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* shadcn HSL mapping derived from the Deck Light tokens above. */
+    --background: 56 24% 97%;
+    --foreground: 240 6% 5%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 6% 5%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 6% 5%;
+    --primary: 179 80% 27%;
+    --primary-foreground: 56 24% 97%;
+    --secondary: 48 20% 92%;
+    --secondary-foreground: 240 6% 5%;
+    --muted: 48 20% 92%;
+    --muted-foreground: 240 3% 43%;
+    --accent: 178 57% 40%;
+    --accent-foreground: 240 6% 5%;
+    --destructive: 10 64% 45%;
+    --destructive-foreground: 56 24% 97%;
+    --border: 0 0% 88%;
+    --input: 0 0% 88%;
+    --ring: 179 80% 27%;
     --radius: 0.375rem;
   }
 
-  .light {
-    --bg: #f4f2ed;
-    --bg-elev-1: #ffffff;
-    --bg-elev-2: #faf8f3;
-    --ink: #0a0b0d;
-    --ink-dim: #2e333c;
-    --ink-muted: #5c6370;
-    --rule: #e3dfd5;
-    --rule-strong: #ccc6b5;
-    --brand: #8a7128;
-    --brand-dim: #b89539;
-    --brand-wash: rgba(138, 113, 40, 0.08);
-    --signal-good: #16a34a;
-    --signal-warn: #d97706;
-    --signal-bad: #dc2626;
+  .dark {
+    /* Deck Dark — pure black with paper text */
+    --vx-bg: #000000;
+    --vx-surface: #0A0A0B;
+    --vx-surface-2: #14141A;
+    --vx-text: #FAFAF7;
+    --vx-text-muted: #9A9A9F;
+    --vx-text-subtle: #6B6B70;
+    --vx-border: rgba(250, 250, 247, 0.14);
+    --vx-border-soft: rgba(250, 250, 247, 0.08);
+    --vx-teal: #0E7C7B;
+    --vx-teal-2: #2BA09E;
+    --vx-accent-mark: #2BA09E;
+    --vx-danger: #E57971;
 
-    --background: 40 25% 94%;
-    --foreground: 220 15% 5%;
-    --card: 0 0% 100%;
-    --card-foreground: 220 15% 5%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 15% 5%;
-    --primary: 41 55% 35%;
-    --primary-foreground: 40 25% 94%;
-    --secondary: 40 22% 96%;
-    --secondary-foreground: 220 15% 5%;
-    --muted: 40 22% 96%;
-    --muted-foreground: 220 8% 40%;
-    --accent: 41 55% 35%;
-    --accent-foreground: 40 25% 94%;
-    --destructive: 0 72% 45%;
-    --destructive-foreground: 40 25% 94%;
-    --border: 40 18% 86%;
-    --input: 40 18% 86%;
-    --ring: 41 55% 35%;
+    --bg: var(--vx-bg);
+    --bg-elev-1: var(--vx-surface);
+    --bg-elev-2: var(--vx-surface-2);
+    --ink: var(--vx-text);
+    --ink-dim: #C9C5BB;
+    --ink-muted: var(--vx-text-muted);
+    --ink-subtle: var(--vx-text-subtle);
+    --rule: var(--vx-border);
+    --rule-strong: rgba(250, 250, 247, 0.3);
+    --rule-soft: var(--vx-border-soft);
+    --brand: var(--vx-teal-2);
+    --brand-2: var(--vx-teal);
+    --brand-wash: rgba(43, 160, 158, 0.10);
+    --signal-good: #22c55e;
+    --signal-warn: #f59e0b;
+    --signal-bad: var(--vx-danger);
+
+    --background: 0 0% 0%;
+    --foreground: 56 24% 97%;
+    --card: 240 6% 5%;
+    --card-foreground: 56 24% 97%;
+    --popover: 240 6% 5%;
+    --popover-foreground: 56 24% 97%;
+    --primary: 178 57% 40%;
+    --primary-foreground: 240 6% 5%;
+    --secondary: 240 12% 9%;
+    --secondary-foreground: 56 24% 97%;
+    --muted: 240 12% 9%;
+    --muted-foreground: 240 3% 62%;
+    --accent: 179 80% 27%;
+    --accent-foreground: 56 24% 97%;
+    --destructive: 6 68% 67%;
+    --destructive-foreground: 240 6% 5%;
+    --border: 240 10% 18%;
+    --input: 240 10% 18%;
+    --ring: 178 57% 40%;
   }
 }
 
@@ -93,19 +129,18 @@
   }
 
   html {
-    color-scheme: dark;
+    color-scheme: light;
     background: var(--bg);
   }
 
-  html.light {
-    color-scheme: light;
+  html.dark {
+    color-scheme: dark;
   }
 
   body {
     background: var(--bg);
     color: var(--ink);
     font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
-    font-feature-settings: "ss01", "cv11";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -115,13 +150,11 @@
     color: var(--ink);
   }
 
-  /* Fraunces optical-size: scale with headings. */
   h1,
   h2,
   h3,
   .font-display {
-    font-family: var(--font-display), ui-serif, Georgia, serif;
-    font-variation-settings: "opsz" 96;
+    font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
   }
 }
 
@@ -148,33 +181,30 @@
   }
 
   .display-xl {
-    font-family: var(--font-display), ui-serif, Georgia, serif;
+    font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
     font-weight: 800;
     font-size: clamp(3rem, 8vw, 6.5rem);
     line-height: 1.02;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.025em;
     color: var(--ink);
-    font-variation-settings: "opsz" 144;
   }
 
   .display-lg {
-    font-family: var(--font-display), ui-serif, Georgia, serif;
+    font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
     font-weight: 700;
     font-size: clamp(2rem, 4vw, 3.5rem);
     line-height: 1.08;
-    letter-spacing: -0.015em;
+    letter-spacing: -0.02em;
     color: var(--ink);
-    font-variation-settings: "opsz" 96;
   }
 
   .display-md {
-    font-family: var(--font-display), ui-serif, Georgia, serif;
+    font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
     font-weight: 600;
     font-size: clamp(1.5rem, 2.5vw, 2.25rem);
     line-height: 1.15;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.015em;
     color: var(--ink);
-    font-variation-settings: "opsz" 48;
   }
 
   .lead {
@@ -218,11 +248,12 @@
     color: var(--bg);
     background: var(--brand);
     border: 1px solid var(--brand);
-    transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1), background 240ms;
+    transition: transform 240ms var(--ease-glide), background 240ms;
   }
   .btn-gold:hover {
     transform: translateY(-2px);
-    background: #e0bc4a;
+    background: var(--brand-2);
+    border-color: var(--brand-2);
   }
 
   .btn-ghost {
@@ -238,7 +269,7 @@
     color: var(--ink);
     background: transparent;
     border: 1px solid var(--rule-strong);
-    transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1), border-color 240ms, color 240ms;
+    transition: transform 240ms var(--ease-glide), border-color 240ms, color 240ms;
   }
   .btn-ghost:hover {
     transform: translateY(-2px);
@@ -259,7 +290,7 @@
     color: var(--brand);
     background: transparent;
     border: 1px solid var(--brand);
-    transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1), background 240ms, color 240ms;
+    transition: transform 240ms var(--ease-glide), background 240ms, color 240ms;
   }
   .btn-gold-outline:hover {
     transform: translateY(-2px);
@@ -398,7 +429,7 @@
 }
 
 /* =========================================================================
- * SHADCN POLISH (dark-first)
+ * SHADCN POLISH
  * ========================================================================= */
 
 .dark [data-wallet-adapter-modal],
