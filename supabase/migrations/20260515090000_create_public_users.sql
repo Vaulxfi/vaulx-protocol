@@ -23,8 +23,8 @@ create table public.users (
 );
 
 create index users_role_idx on public.users (role);
-create index users_solana_address_idx on public.users (solana_address)
-  where solana_address is not null;
+-- Note: the inline `unique` on solana_address already creates a btree index
+-- covering the column. No separate partial index needed.
 
 -- Trigger: keep public.users.email in sync with auth.users.email
 create or replace function public.handle_auth_user_email_change()
@@ -65,14 +65,30 @@ create policy users_self_update on public.users
   for update using (auth.uid() = id)
   with check (auth.uid() = id);
 
--- Admins can read all rows (for the future admin portal in Wave 6)
-create policy users_admin_read on public.users
-  for select using (
-    exists (
-      select 1 from public.users u
-      where u.id = auth.uid() and u.role = 'admin'
-    )
+-- Admins can read all rows (for the future admin portal in Wave 6).
+--
+-- Implementation note: the admin check is wrapped in a SECURITY DEFINER
+-- function rather than inlined as `EXISTS (SELECT FROM public.users ...)`
+-- because the latter triggers Postgres "42P17 infinite recursion detected
+-- in policy for relation \"users\"". The function bypasses RLS for its
+-- internal query (search_path locked to public to prevent schema-search
+-- hijack); the policy itself only calls the function, so no recursion.
+-- Standard Supabase pattern: https://supabase.com/docs/guides/database/postgres/row-level-security#user-role-check
+create or replace function public.current_user_is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.users
+    where id = auth.uid() and role = 'admin'
   );
+$$;
+
+create policy users_admin_read on public.users
+  for select using (public.current_user_is_admin());
 
 -- updated_at touch trigger
 create or replace function public.touch_updated_at()

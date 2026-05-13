@@ -108,6 +108,15 @@ describe("requireUser", () => {
 
     await expect(requireUser()).rejects.toBeInstanceOf(AuthRequiredError);
   });
+
+  it("throws AuthRequiredError when session exists but public.users row is missing", async () => {
+    currentAuthUser = { id: FIXTURE_USER.id };
+    currentRow = null;
+
+    const { requireUser, AuthRequiredError } = await import("../server");
+
+    await expect(requireUser()).rejects.toBeInstanceOf(AuthRequiredError);
+  });
 });
 
 describe("getAuthedClient", () => {
