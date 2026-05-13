@@ -51,14 +51,36 @@ That gives you the full state.
 
 ## 2. Hard rules — non-negotiable
 
+### 2.0 The freeze on `vaulx.fi` exists because it's our live Colosseum submission
+
+**This is the most important rule in this document.** Read it twice.
+
+We submitted to **Colosseum Frontier on 2026-05-11**. The judging window is open. `vaulx.fi` (Laravel at `site/`) is the live demo artifact that judges may reload at any moment to verify what we showed in the recorded video. Breaking it = breaking our submission.
+
+Specifically:
+- **The Laravel app at `site/` is the running production system.** Every authenticated flow that exists today (borrower, evaluator, owner, admin portals) runs there. Synthetic test accounts use it. Live on-chain Devnet reads come through it.
+- **Judges may revisit the site at any time during the judging window.** If they see a 500 error, broken styling, or content that diverges from the recorded video, that damages our submission.
+- **We do not touch Laravel until the Next.js replacement is operator-validated AND Edson signs off on cutover.** That's the bar. Not "the new pages look better." Not "we've shipped Wave 5." Operator validation + Edson explicit blessing.
+- **`vaulx.fi` stays alive even after Wave 7 closes.** The DNS cut to Vercel + Laravel archive only happens when George + Edson agree we're ready.
+
+This means in practice:
+- Never edit anything under `site/` — not even a comment, not even a typo, not even to add a `console.log`
+- Never edit `apps/web/src/app/demo/*` — that's the Next.js mirror of the recorded mocked flow, frozen for the same reason
+- Never modify the CI rule at `.github/workflows/ci.yml:33-41` that enforces no-personal-names in the demo subtree — it's a guard rail, not a stylistic preference
+
+If you find a real bug in Laravel that's affecting live behavior, **STOP and ask the operator**. Don't fix it. The fix might be worse than the bug from a "judging artifact integrity" standpoint.
+
+### 2.1 Hard rules table
+
 These come from `CLAUDE.md`. The previous session occasionally drifted on these — don't:
 
-| Rule | Status |
+| Rule | Why |
 |---|---|
-| `site/` is FROZEN | Read-only. Don't edit anything under `site/` except true blocking emergency. |
-| `apps/web/src/app/demo/*` is FROZEN | Read-only. CI grep rule already enforces no-personal-names. |
-| `.github/workflows/ci.yml` — never touch the personal-names grep | Block (lines 33-41). Modifying it breaks demo-surface protection. |
-| No force push, no `--no-verify`, no `--no-gpg-sign` | Sandbox blocks force-push to feature branches anyway. Don't try to work around. |
+| `site/` is FROZEN | Live Colosseum submission artifact. See §2.0. |
+| `apps/web/src/app/demo/*` is FROZEN | Next.js mirror of recorded demo flow. Same submission-integrity reason. |
+| `.github/workflows/ci.yml` lines 33-41 — DO NOT TOUCH | CI grep rule that enforces no-personal-names in the demo subtree. Protects the freeze. |
+| `programs/*` and `target/idl/*` — DO NOT TOUCH without explicit instruction | The deployed Devnet binaries are what the demo runs against. Changing the IDL underneath could break a judge reloading. |
+| No force push, no `--no-verify`, no `--no-gpg-sign` | Sandbox blocks force-push anyway. Don't try to work around. |
 | No commits unless explicitly asked | The operator pulls the trigger. You open PRs, they merge. |
 | No secrets in diff, ever | Even test placeholders should be obviously fake. |
 | Never write production code > ~5 lines yourself | Dispatch an integrator. The exception is mechanical fixups after QA. |
@@ -96,7 +118,11 @@ Include branch name, head SHA, deviations from spec with reasons.
 ## 4. Architectural decisions already locked — DO NOT re-litigate
 
 ### 4.1 The port direction: B2, full Laravel → Next port
-Not B1 (port public surface only). Not Path A/C from Wave 2 deliberation. The operator wants the **whole Laravel app** ported into Next.js at `apps/web/`. Laravel stays running at `vaulx.fi`; Next deploys to `app.vaulx.fi`. Cutover happens when Edson signs off — not before.
+Not B1 (port public surface only). Not Path A/C from Wave 2 deliberation. The operator wants the **whole Laravel app** ported into Next.js at `apps/web/`. Laravel stays running at `vaulx.fi`; Next deploys to `app.vaulx.fi`.
+
+**Cutover bar:** the new app must be operator-validated AND Edson must explicitly bless the cutover. Until both happen, `vaulx.fi` stays the live system. See §2.0 — this is non-negotiable because `vaulx.fi` is our live Colosseum Frontier submission and judges may reload it any time during the judging window.
+
+The new architect's job is to build app.vaulx.fi to be **demonstrably better** than vaulx.fi, then let the operator + Edson decide when that bar is met.
 
 ### 4.2 Vaulx has NO real users on Laravel yet
 This is critical. Laravel has been tested with synthetic accounts. **There is no user data to preserve or migrate.** Build the Next app as if you were building from scratch for new users. Don't design "parallel user pools," don't design cross-stack SSO bridges, don't fret about how Laravel users will move over — that's a non-problem.
