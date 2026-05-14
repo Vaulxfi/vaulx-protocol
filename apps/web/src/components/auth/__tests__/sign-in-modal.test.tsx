@@ -100,7 +100,6 @@ describe("SignInModal", () => {
 
     await vi.waitFor(() => {
       expect(linkAuthenticatedWalletMock).toHaveBeenCalledWith({
-        email: `${pubkey}@siws.vaulx.local`,
         wallet: pubkey,
       });
     });
@@ -110,9 +109,13 @@ describe("SignInModal", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
-  it("surfaces the Crossmint stub message instead of signing in", () => {
+  it("renders the Crossmint button as disabled with a 'coming soon' badge and does not trigger any sign-in", () => {
     render(<SignInModal open={true} onOpenChange={() => {}} />);
-    fireEvent.click(screen.getByTestId("sign-in-crossmint"));
+    const btn = screen.getByTestId("sign-in-crossmint") as HTMLButtonElement;
+    expect(btn.disabled).toBe(true);
+    expect(btn.getAttribute("aria-disabled")).toBe("true");
+    expect(btn.textContent).toMatch(/coming soon/i);
+    fireEvent.click(btn);
     expect(signInWithWeb3).not.toHaveBeenCalled();
     expect(linkAuthenticatedWalletMock).not.toHaveBeenCalled();
   });

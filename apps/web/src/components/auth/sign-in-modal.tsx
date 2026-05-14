@@ -6,6 +6,8 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { toast } from "sonner";
 
+import { cn } from "@/lib/utils";
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,7 +21,6 @@ import { createBrowserClient } from "@vaulx/supabase/browser";
 
 import { linkAuthenticatedWallet } from "@/app/(auth)/actions";
 
-const SYNTHETIC_EMAIL_DOMAIN = "siws.vaulx.local";
 const REDIRECT_AFTER_SIGNIN = "/";
 const STATEMENT =
   "Sign in to Vaulx with your Solana wallet. By signing, you agree to the Vaulx Terms of Service.";
@@ -72,10 +73,7 @@ export function SignInModal({ open, onOpenChange }: SignInModalProps) {
       }
 
       const pubkey = wallet.publicKey.toBase58();
-      const link = await linkAuthenticatedWallet({
-        email: `${pubkey}@${SYNTHETIC_EMAIL_DOMAIN}`,
-        wallet: pubkey,
-      });
+      const link = await linkAuthenticatedWallet({ wallet: pubkey });
       if (!link.ok) {
         if (link.code === "conflict") {
           toast.error("This wallet is already linked to another account.");
@@ -110,12 +108,8 @@ export function SignInModal({ open, onOpenChange }: SignInModalProps) {
   // signInWithWeb3 SIWS flow as drafted. See
   // apps/web/src/components/providers/crossmint-wallet-adapter.ts for the
   // canonical write-up. Until Crossmint exposes a signMessage primitive,
-  // we surface a graceful explainer and steer the user to the direct path.
-  const handleCrossmintClick = useCallback(() => {
-    toast.info(
-      "Email / social sign-in is coming soon. For now, please use a Solana wallet (Phantom, Solflare, Backpack).",
-    );
-  }, []);
+  // the button is rendered disabled so the divider/visual rhythm of the
+  // spec is preserved but the user cannot mistake it for a working flow.
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -133,12 +127,18 @@ export function SignInModal({ open, onOpenChange }: SignInModalProps) {
           <Button
             type="button"
             variant="default"
-            className="w-full justify-start"
-            onClick={handleCrossmintClick}
-            disabled={busy !== null}
+            className={cn(
+              "w-full justify-between opacity-60",
+              "cursor-not-allowed",
+            )}
+            disabled
+            aria-disabled="true"
             data-testid="sign-in-crossmint"
           >
-            Continue with email or social
+            <span>Continue with email or social</span>
+            <span className="ml-3 rounded-full border border-[var(--rule)] px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.16em] text-[var(--ink-muted)]">
+              Coming soon
+            </span>
           </Button>
 
           <div className="relative my-1 flex items-center">

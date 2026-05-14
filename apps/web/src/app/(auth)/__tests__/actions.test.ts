@@ -13,14 +13,38 @@ const FIXTURE_USER: PublicUser = {
 };
 
 const VALID_WALLET = "9w3TgmPwxFFu1xq4tGyHGT4qwq7e8c9P9PzL2dQjg1Yo";
+const OTHER_WALLET = "8tGmPwxFFu1xq4tGyHGT4qwq7e8c9P9PzL2dQjg1Yo9X";
 
 let authedShouldThrow: "auth" | "none" = "none";
+// Default auth.users shape returned by Supabase after a Web3 (Solana) sign-in.
+// Mirrors the structure persisted by supabase/auth: identity_data carries
+// { provider: "web3", chain: "solana", address: "<pubkey>" } and user_metadata
+// receives a flattened copy.
+let mockAuthUser: unknown = {
+  id: FIXTURE_USER.id,
+  identities: [
+    {
+      provider: "web3",
+      identity_data: {
+        chain: "solana",
+        address: VALID_WALLET,
+        sub: `web3:solana:${VALID_WALLET}`,
+      },
+    },
+  ],
+  user_metadata: {
+    chain: "solana",
+    address: VALID_WALLET,
+  },
+  app_metadata: { provider: "web3", providers: ["web3"] },
+};
 let updateResult: { error: { message?: string; code?: string } | null } = {
   error: null,
 };
 const updateEq = vi.fn();
 const updateFn = vi.fn(() => ({ eq: updateEq }));
 const fromFn = vi.fn(() => ({ update: updateFn }));
+const getUserFn = vi.fn(async () => ({ data: { user: mockAuthUser }, error: null }));
 
 vi.mock("next/headers", () => ({
   cookies: () => ({
@@ -54,7 +78,10 @@ vi.mock("@/lib/auth/server", async () => {
       if (authedShouldThrow === "auth") throw new AuthRequiredError();
       return {
         user: FIXTURE_USER,
-        supabase: { from: fromFn },
+        supabase: {
+          from: fromFn,
+          auth: { getUser: getUserFn },
+        },
       };
     }),
   };
@@ -63,21 +90,35 @@ vi.mock("@/lib/auth/server", async () => {
 beforeEach(() => {
   authedShouldThrow = "none";
   updateResult = { error: null };
+  mockAuthUser = {
+    id: FIXTURE_USER.id,
+    identities: [
+      {
+        provider: "web3",
+        identity_data: {
+          chain: "solana",
+          address: VALID_WALLET,
+          sub: `web3:solana:${VALID_WALLET}`,
+        },
+      },
+    ],
+    user_metadata: { chain: "solana", address: VALID_WALLET },
+    app_metadata: { provider: "web3", providers: ["web3"] },
+  };
   updateEq.mockReset();
   updateEq.mockImplementation(async () => updateResult);
   updateFn.mockClear();
   fromFn.mockClear();
+  getUserFn.mockClear();
+  getUserFn.mockImplementation(async () => ({ data: { user: mockAuthUser }, error: null }));
   process.env.NEXT_PUBLIC_SUPABASE_URL = "https://stub.supabase.co";
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "stub-anon-key";
 });
 
 describe("linkAuthenticatedWallet", () => {
-  it("updates public.users for the authenticated caller", async () => {
+  it("updates public.users with the attested wallet and server-derived synthetic email", async () => {
     const { linkAuthenticatedWallet } = await import("../actions");
-    const result = await linkAuthenticatedWallet({
-      email: `${VALID_WALLET}@siws.vaulx.local`,
-      wallet: VALID_WALLET,
-    });
+    const result = await linkAuthenticatedWallet({ wallet: VALID_WALLET });
     expect(result).toEqual({ ok: true });
     expect(fromFn).toHaveBeenCalledWith("users");
     expect(updateFn).toHaveBeenCalledWith({
@@ -87,13 +128,50 @@ describe("linkAuthenticatedWallet", () => {
     expect(updateEq).toHaveBeenCalledWith("id", FIXTURE_USER.id);
   });
 
+  it("rejects when client-supplied wallet does not match the SIWS-attested wallet", async () => {
+    const { linkAuthenticatedWallet } = await import("../actions");
+    const result = await linkAuthenticatedWallet({ wallet: OTHER_WALLET });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.code).toBe("invalid");
+      expect(result.message).toMatch(/does not match/i);
+    }
+    expect(updateFn).not.toHaveBeenCalled();
+  });
+
+  it("rejects when no Web3 identity is attached to the auth user", async () => {
+    mockAuthUser = {
+      id: FIXTURE_USER.id,
+      identities: [],
+      user_metadata: {},
+      app_metadata: {},
+    };
+    const { linkAuthenticatedWallet } = await import("../actions");
+    const result = await linkAuthenticatedWallet({ wallet: VALID_WALLET });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe("invalid");
+    expect(updateFn).not.toHaveBeenCalled();
+  });
+
+  it("falls back to user_metadata.address when identities array is missing the web3 entry", async () => {
+    mockAuthUser = {
+      id: FIXTURE_USER.id,
+      identities: [],
+      user_metadata: { chain: "solana", address: VALID_WALLET },
+    };
+    const { linkAuthenticatedWallet } = await import("../actions");
+    const result = await linkAuthenticatedWallet({ wallet: VALID_WALLET });
+    expect(result).toEqual({ ok: true });
+    expect(updateFn).toHaveBeenCalledWith({
+      email: `${VALID_WALLET}@siws.vaulx.local`,
+      solana_address: VALID_WALLET,
+    });
+  });
+
   it("rejects unauthenticated callers", async () => {
     authedShouldThrow = "auth";
     const { linkAuthenticatedWallet } = await import("../actions");
-    const result = await linkAuthenticatedWallet({
-      email: `${VALID_WALLET}@siws.vaulx.local`,
-      wallet: VALID_WALLET,
-    });
+    const result = await linkAuthenticatedWallet({ wallet: VALID_WALLET });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.code).toBe("unauthenticated");
     expect(updateFn).not.toHaveBeenCalled();
@@ -101,13 +179,11 @@ describe("linkAuthenticatedWallet", () => {
 
   it("rejects invalid wallet input without hitting Supabase", async () => {
     const { linkAuthenticatedWallet } = await import("../actions");
-    const result = await linkAuthenticatedWallet({
-      email: "borrower@example.com",
-      wallet: "not-a-base58",
-    });
+    const result = await linkAuthenticatedWallet({ wallet: "not-a-base58" });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.code).toBe("invalid");
     expect(updateFn).not.toHaveBeenCalled();
+    expect(getUserFn).not.toHaveBeenCalled();
   });
 
   it("maps unique-violation errors to a conflict code", async () => {
@@ -115,12 +191,23 @@ describe("linkAuthenticatedWallet", () => {
       error: { code: "23505", message: "duplicate key value violates unique constraint" },
     };
     const { linkAuthenticatedWallet } = await import("../actions");
-    const result = await linkAuthenticatedWallet({
-      email: `${VALID_WALLET}@siws.vaulx.local`,
-      wallet: VALID_WALLET,
-    });
+    const result = await linkAuthenticatedWallet({ wallet: VALID_WALLET });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.code).toBe("conflict");
+  });
+
+  it("masks unknown DB error messages with a generic failure string", async () => {
+    updateResult = {
+      error: { code: "42P01", message: 'relation "users" does not exist' },
+    };
+    const { linkAuthenticatedWallet } = await import("../actions");
+    const result = await linkAuthenticatedWallet({ wallet: VALID_WALLET });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.code).toBe("error");
+      expect(result.message).toBe("Failed to link wallet");
+      expect(result.message).not.toMatch(/relation|users|does not exist/i);
+    }
   });
 });
 
