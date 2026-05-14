@@ -6,8 +6,8 @@
  * Use crypto.timingSafeEqual to prevent timing attacks during signature
  * comparison.
  *
- * Env var (LOWERCASE — matches the user's existing .env):
- *   - sumsub_webhook_secret
+ * Env var (matches apps/web/.env.example):
+ *   - SUMSUB_WEBHOOK_SECRET
  */
 import crypto from "node:crypto";
 
