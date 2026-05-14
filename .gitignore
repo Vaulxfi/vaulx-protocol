@@ -45,6 +45,10 @@ wallet-*.json
 .claude/
 .vercel
 
+# Internal workspace (sibling private repo symlinked here)
+.internal
+/reports/
+
 # Test artifacts (Playwright MCP, generated traces)
 .playwright-mcp/
 apps/web/test-results/
