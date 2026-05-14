@@ -6,7 +6,7 @@
 @php
     // Team data — kept inline for now since it's static and small. Move to
     // config/database when bios/photos start changing per-environment.
-    // Source of truth for these fields: vaulx.io/#team (LinkedIn URLs,
+    // Source of truth for these fields: vaulx.fi/#team (LinkedIn URLs,
     // emails, refined bio length). Synced 2026-05-11.
     $team = [
         [

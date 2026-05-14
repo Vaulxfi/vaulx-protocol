@@ -84,7 +84,7 @@ h1, h2, h3, h4, h5, h6 {
 
 /* --- Light mode: Vaulx Deck (paper + ink + teal accent) ------------------ */
 /* Active by default since data-bs-theme="light" is set on <html>.          */
-/* Mirrors vaulx.io editorial palette: paper background, ink text,          */
+/* Mirrors vaulx.fi editorial palette: paper background, ink text,          */
 /* teal italic accent, ink-solid CTA, Outfit + JetBrains Mono typography.   */
 /* Authed dark mode (toggle) keeps Vault Noir untouched.                    */
 [data-bs-theme="light"] {
@@ -256,7 +256,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* --- Dark mode: Deck DARK (black + paper + teal accent) ------------------ */
-/* Mirrors vaulx.io modo escuro per BRAND.txt §1.5: pure-black background,  */
+/* Mirrors vaulx.fi modo escuro per BRAND.txt §1.5: pure-black background,  */
 /* paper text, teal italic accent, teal-solid CTA, Outfit + JetBrains Mono. */
 /* Replaces the previous Vault Noir obsidian/gold/Playfair dark look.        */
 [data-bs-theme="dark"] {
