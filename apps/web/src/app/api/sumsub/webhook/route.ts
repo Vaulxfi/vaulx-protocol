@@ -10,8 +10,8 @@
  *      (we log internally; idempotency in mintAttestationForWallet
  *      handles dupes safely)
  *
- * Env var (LOWERCASE — matches the user's .env):
- *   - sumsub_webhook_secret
+ * Env var (matches apps/web/.env.example):
+ *   - SUMSUB_WEBHOOK_SECRET
  */
 import { NextRequest, NextResponse } from "next/server";
 import { PublicKey } from "@solana/web3.js";
@@ -26,9 +26,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  const secret = process.env.sumsub_webhook_secret;
+  const secret = process.env.SUMSUB_WEBHOOK_SECRET;
   if (!secret) {
-    console.error("[sumsub.webhook] sumsub_webhook_secret not set");
+    console.error("[sumsub.webhook] SUMSUB_WEBHOOK_SECRET not set");
     return NextResponse.json({ ok: false }, { status: 500 });
   }
 
