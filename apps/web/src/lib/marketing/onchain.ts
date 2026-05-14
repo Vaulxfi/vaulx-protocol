@@ -137,3 +137,26 @@ export async function readHomeOnchain(): Promise<HomeOnchain> {
     fetched_at: formatTimestamp(new Date()),
   };
 }
+
+export interface SimulatorOnchain {
+  asset_mint: string;
+  vault: OnchainEnvelope;
+  fetched_at: string;
+}
+
+/**
+ * Simulator-only snapshot — vault TVL on devnet, refreshed every 60s.
+ *
+ * Mirrors Laravel `HomeController@simulator`: only `readVault` is fetched
+ * because MAX_LTV and rates are protocol constants surfaced through the
+ * sliders, not config-driven. Hidden in the view when offline.
+ */
+export async function readSimulatorOnchain(): Promise<SimulatorOnchain> {
+  const assetMint = process.env.NEXT_PUBLIC_USDC_MINT ?? "";
+  const vault = await readVault(assetMint);
+  return {
+    asset_mint: assetMint,
+    vault,
+    fetched_at: formatTimestamp(new Date()),
+  };
+}
