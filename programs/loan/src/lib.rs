@@ -206,15 +206,34 @@ pub mod loan {
             appraisal_value
         };
 
-        // KYC gate — replaces the sunset Civic Pass check. When
-        // `loan_config.kyc_required == true` the payer must present a valid
-        // KycAttestation PDA (this program's PDA, owner == payer,
-        // attestor == loan_config.admin). Default is gate OFF.
+        // F2-B — KYC gate now validates the **vault**-program-owned
+        // KycAttestation PDA (single canonical source of truth; vault is the
+        // KYC issuer, webhook only mints there). When the gate is OFF the
+        // body is skipped, preserving demo backward-compat (callers pass
+        // SystemProgram as a placeholder).
+        //
+        // Layered checks (all required when gate is ON):
+        //  1. PDA address re-derived under `vault::ID` and required to equal
+        //     the supplied account key. Rejects legacy loan-program-owned
+        //     attestations at the wrong address.
+        //  2. Account data is owned by the vault program (not loan).
+        //  3. Borsh deserialize succeeds (Anchor discriminator matches).
+        //  4. `att.owner == payer`.
+        //  5. `att.attestor == loan_config.admin` — in practice operator key
+        //     is shared between vault and loan admins; if they ever diverge,
+        //     the operator coordinates an admin rotation across both programs.
         if ctx.accounts.loan_config.kyc_required {
             let att_info = &ctx.accounts.kyc_attestation;
+            let (expected_pda, _bump) =
+                KycAttestation::pda(&ctx.accounts.payer.key(), &vault::ID);
+            require_keys_eq!(
+                att_info.key(),
+                expected_pda,
+                LoanError::NoKycAttestation
+            );
             require_keys_eq!(
                 *att_info.owner,
-                crate::ID,
+                vault::ID,
                 LoanError::NoKycAttestation
             );
             let data = att_info.try_borrow_data()?;
@@ -1204,7 +1223,9 @@ pub struct CreateCcbTrdc<'info> {
 
     #[account(seeds = [LoanConfig::SEED], bump = loan_config.bump)]
     pub loan_config: Account<'info, LoanConfig>,
-    /// CHECK: validated inline (deserialized + owner-checked) when
+    /// CHECK: F2-B — must be the vault-program-owned KycAttestation PDA for
+    /// `payer`. Validated inline (PDA re-derive under `vault::ID`,
+    /// owner-check, deserialize, owner+attestor binding) when
     /// `loan_config.kyc_required == true`. When the gate is OFF, callers may
     /// pass any account (e.g. SystemProgram).
     pub kyc_attestation: UncheckedAccount<'info>,

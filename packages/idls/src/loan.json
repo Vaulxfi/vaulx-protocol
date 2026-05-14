@@ -293,6 +293,8 @@
         {
           "name": "kyc_attestation",
           "docs": [
+            "`payer`. Validated inline (PDA re-derive under `vault::ID`,",
+            "owner-check, deserialize, owner+attestor binding) when",
             "`loan_config.kyc_required == true`. When the gate is OFF, callers may",
             "pass any account (e.g. SystemProgram)."
           ]
