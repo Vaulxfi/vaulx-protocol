@@ -48,10 +48,26 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))"
         },
+        // Deck Light canonical palette. Inventory §A.1.
+        vx: {
+          paper: "var(--vx-bg)",
+          surface: "var(--vx-surface)",
+          "surface-2": "var(--vx-surface-2)",
+          ink: "var(--vx-text)",
+          "ink-muted": "var(--vx-text-muted)",
+          "ink-subtle": "var(--vx-text-subtle)",
+          border: "var(--vx-border)",
+          "border-soft": "var(--vx-border-soft)",
+          teal: "var(--vx-teal)",
+          "teal-2": "var(--vx-teal-2)",
+          "accent-mark": "var(--vx-accent-mark)",
+          danger: "var(--vx-danger)"
+        },
         ink: {
           DEFAULT: "var(--ink)",
           dim: "var(--ink-dim)",
-          muted: "var(--ink-muted)"
+          muted: "var(--ink-muted)",
+          subtle: "var(--ink-subtle)"
         },
         bg: {
           DEFAULT: "var(--bg)",
@@ -60,15 +76,13 @@ const config: Config = {
         },
         rule: {
           DEFAULT: "var(--rule)",
-          strong: "var(--rule-strong)"
+          strong: "var(--rule-strong)",
+          soft: "var(--rule-soft)"
         },
         brand: {
           DEFAULT: "var(--brand)",
-          dim: "var(--brand-dim)",
-          wash: "var(--brand-wash)",
-          // legacy aliases so any stragglers keep building
-          blue: "var(--ink)",
-          gold: "var(--brand)"
+          2: "var(--brand-2)",
+          wash: "var(--brand-wash)"
         },
         signal: {
           good: "var(--signal-good)",
@@ -77,8 +91,9 @@ const config: Config = {
         }
       },
       fontFamily: {
-        display: ["var(--font-display)", "ui-serif", "Georgia", "serif"],
         sans: ["var(--font-body)", "ui-sans-serif", "system-ui", "sans-serif"],
+        outfit: ["var(--font-body)", "ui-sans-serif", "system-ui", "sans-serif"],
+        display: ["var(--font-display)", "ui-sans-serif", "system-ui", "sans-serif"],
         mono: [
           "var(--font-mono)",
           "ui-monospace",
@@ -86,8 +101,13 @@ const config: Config = {
           "Menlo",
           "monospace"
         ],
-        // legacy aliases
-        heading: ["var(--font-display)", "ui-serif", "Georgia", "serif"]
+        "jetbrains-mono": [
+          "var(--font-mono)",
+          "ui-monospace",
+          "SFMono-Regular",
+          "Menlo",
+          "monospace"
+        ]
       },
       letterSpacing: {
         editorial: "-0.02em",
@@ -99,7 +119,8 @@ const config: Config = {
         sm: "calc(var(--radius) - 4px)"
       },
       transitionTimingFunction: {
-        decisive: "cubic-bezier(0.22, 1, 0.36, 1)"
+        decisive: "cubic-bezier(0.22, 1, 0.36, 1)",
+        glide: "cubic-bezier(0.4, 0, 0.2, 1)"
       }
     }
   },
