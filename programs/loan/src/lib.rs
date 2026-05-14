@@ -44,6 +44,9 @@ pub mod loan {
         cfg.civic_network = civic_network;
         cfg.kyc_required = false;
         cfg.bump = ctx.bumps.loan_config;
+        // V3 — set the explicit init flag so admin-gated ixs can reject a
+        // closed+reinit-style attempt before doing any work.
+        cfg.initialized = true;
         Ok(())
     }
 
@@ -56,6 +59,11 @@ pub mod loan {
         owner: Pubkey,
         jwt_hash: [u8; 32],
     ) -> Result<()> {
+        // V3 — defense-in-depth init-flag check.
+        require!(
+            ctx.accounts.loan_config.initialized,
+            LoanError::ConfigNotInitialized
+        );
         require_keys_eq!(
             ctx.accounts.admin.key(),
             ctx.accounts.loan_config.admin,
@@ -73,6 +81,11 @@ pub mod loan {
     /// Admin-only: flip `loan_config.kyc_required` between true and false.
     /// Gated on `signer == loan_config.admin`. Mirrors `vault::set_kyc_required`.
     pub fn set_kyc_required(ctx: Context<SetKycRequired>, required: bool) -> Result<()> {
+        // V3 — defense-in-depth init-flag check.
+        require!(
+            ctx.accounts.loan_config.initialized,
+            LoanError::ConfigNotInitialized
+        );
         require_keys_eq!(
             ctx.accounts.admin.key(),
             ctx.accounts.loan_config.admin,
@@ -95,6 +108,11 @@ pub mod loan {
         ctx: Context<CloseKycAttestation>,
         _owner: Pubkey,
     ) -> Result<()> {
+        // V3 — defense-in-depth init-flag check.
+        require!(
+            ctx.accounts.loan_config.initialized,
+            LoanError::ConfigNotInitialized
+        );
         require_keys_eq!(
             ctx.accounts.admin.key(),
             ctx.accounts.loan_config.admin,
@@ -279,13 +297,26 @@ pub mod loan {
         );
 
         // Step 1: PendingCustody → ActiveInCustody (writes doc_hash on TRDCState).
+        // V1 — trdc requires the `loan_authority` PDA as signer; derive seeds
+        // here so the inner CPI invoke_signed satisfies the trdc account
+        // constraint (`seeds::program = LOAN_PROGRAM_ID`).
+        let (expected_authority, auth_bump) =
+            Pubkey::find_program_address(&[LOAN_AUTHORITY_SEED], &crate::ID);
+        require_keys_eq!(
+            ctx.accounts.loan_authority.key(),
+            expected_authority,
+            LoanError::UnauthorizedAdmin
+        );
+        let auth_seeds: &[&[u8]] = &[LOAN_AUTHORITY_SEED, &[auth_bump]];
+        let auth_signer_seeds: &[&[&[u8]]] = &[auth_seeds];
         trdc::cpi::confirm_custody_transition(
-            CpiContext::new(
+            CpiContext::new_with_signer(
                 ctx.accounts.trdc_program.to_account_info(),
                 ConfirmCustodyTransition {
                     trdc_state: ctx.accounts.trdc_state.to_account_info(),
-                    authority: ctx.accounts.custodian.to_account_info(),
+                    loan_authority: ctx.accounts.loan_authority.to_account_info(),
                 },
+                auth_signer_seeds,
             ),
             doc_hash,
         )?;
@@ -311,7 +342,6 @@ pub mod loan {
             &ctx.accounts.token_program.to_account_info(),
             &ctx.accounts.instructions_sysvar.to_account_info(),
             &ctx.accounts.price_feed.to_account_info(),
-            &ctx.accounts.custodian.to_account_info(),
             amount,
         )?;
 
@@ -345,7 +375,6 @@ pub mod loan {
             &ctx.accounts.token_program.to_account_info(),
             &ctx.accounts.instructions_sysvar.to_account_info(),
             &ctx.accounts.price_feed.to_account_info(),
-            &ctx.accounts.borrower.to_account_info(),
             amount,
         )?;
 
@@ -388,13 +417,24 @@ pub mod loan {
 
         // Decrement principal via CPI — the loan program doesn't own the
         // trdc_state account and so cannot serialize writes to it directly.
+        // V1 — trdc gates on the `loan_authority` PDA; derive signer seeds.
+        let (expected_authority, auth_bump) =
+            Pubkey::find_program_address(&[LOAN_AUTHORITY_SEED], &crate::ID);
+        require_keys_eq!(
+            ctx.accounts.loan_authority.key(),
+            expected_authority,
+            LoanError::UnauthorizedAdmin
+        );
+        let auth_seeds: &[&[u8]] = &[LOAN_AUTHORITY_SEED, &[auth_bump]];
+        let auth_signer_seeds: &[&[&[u8]]] = &[auth_seeds];
         trdc::cpi::apply_installment(
-            CpiContext::new(
+            CpiContext::new_with_signer(
                 ctx.accounts.trdc_program.to_account_info(),
                 TransitionAuth {
                     trdc_state: ctx.accounts.trdc_state.to_account_info(),
-                    authority: ctx.accounts.borrower.to_account_info(),
+                    loan_authority: ctx.accounts.loan_authority.to_account_info(),
                 },
+                auth_signer_seeds,
             ),
             amount,
         )?;
@@ -452,12 +492,23 @@ pub mod loan {
         // after the CPI, so any outer mutation done BEFORE this would be
         // clobbered. We mutate `principal_remaining` AFTER the CPI to avoid
         // that foot-gun.
-        trdc::cpi::transition_active_to_repaid(CpiContext::new(
+        // V1 — trdc gates on the `loan_authority` PDA; derive signer seeds.
+        let (expected_authority, auth_bump) =
+            Pubkey::find_program_address(&[LOAN_AUTHORITY_SEED], &crate::ID);
+        require_keys_eq!(
+            ctx.accounts.loan_authority.key(),
+            expected_authority,
+            LoanError::UnauthorizedAdmin
+        );
+        let auth_seeds: &[&[u8]] = &[LOAN_AUTHORITY_SEED, &[auth_bump]];
+        let auth_signer_seeds: &[&[&[u8]]] = &[auth_seeds];
+        trdc::cpi::transition_active_to_repaid(CpiContext::new_with_signer(
             ctx.accounts.trdc_program.to_account_info(),
             TransitionAuth {
                 trdc_state: ctx.accounts.trdc_state.to_account_info(),
-                authority: ctx.accounts.borrower.to_account_info(),
+                loan_authority: ctx.accounts.loan_authority.to_account_info(),
             },
+            auth_signer_seeds,
         ))?;
 
         // Vault accounting: full payoff (principal + interest) flows back in.
@@ -521,13 +572,24 @@ pub mod loan {
         // Active -> Renewed -> Active + set new due_ts/rate_bps/created_at
         // via trdc CPI. The loan program doesn't own the trdc_state account
         // and so cannot write to it directly.
+        // V1 — trdc gates on the `loan_authority` PDA; derive signer seeds.
+        let (expected_authority, auth_bump) =
+            Pubkey::find_program_address(&[LOAN_AUTHORITY_SEED], &crate::ID);
+        require_keys_eq!(
+            ctx.accounts.loan_authority.key(),
+            expected_authority,
+            LoanError::UnauthorizedAdmin
+        );
+        let auth_seeds: &[&[u8]] = &[LOAN_AUTHORITY_SEED, &[auth_bump]];
+        let auth_signer_seeds: &[&[&[u8]]] = &[auth_seeds];
         trdc::cpi::transition_renew(
-            CpiContext::new(
+            CpiContext::new_with_signer(
                 ctx.accounts.trdc_program.to_account_info(),
                 TransitionAuth {
                     trdc_state: ctx.accounts.trdc_state.to_account_info(),
-                    authority: ctx.accounts.borrower.to_account_info(),
+                    loan_authority: ctx.accounts.loan_authority.to_account_info(),
                 },
+                auth_signer_seeds,
             ),
             new_due_ts,
             new_rate_bps,
@@ -598,22 +660,24 @@ pub mod loan {
         let signer_seeds: &[&[&[u8]]] = &[seeds];
 
         if needs_active_to_overdue {
-            trdc::cpi::transition_active_to_overdue(CpiContext::new(
+            trdc::cpi::transition_active_to_overdue(CpiContext::new_with_signer(
                 ctx.accounts.trdc_program.to_account_info(),
                 TransitionAuth {
                     trdc_state: ctx.accounts.trdc_state.to_account_info(),
-                    authority: ctx.accounts.payer.to_account_info(),
+                    loan_authority: ctx.accounts.loan_authority.to_account_info(),
                 },
+                signer_seeds,
             ))?;
             ctx.accounts.trdc_state.reload()?;
         }
 
-        trdc::cpi::transition_overdue_to_defaulted(CpiContext::new(
+        trdc::cpi::transition_overdue_to_defaulted(CpiContext::new_with_signer(
             ctx.accounts.trdc_program.to_account_info(),
             TransitionAuth {
                 trdc_state: ctx.accounts.trdc_state.to_account_info(),
-                authority: ctx.accounts.payer.to_account_info(),
+                loan_authority: ctx.accounts.loan_authority.to_account_info(),
             },
+            signer_seeds,
         ))?;
 
         auction::cpi::create_auction(
@@ -709,10 +773,55 @@ pub mod loan {
         Ok(())
     }
 
+    /// V3 — one-shot migration ix for upgrades coming from a pre-`initialized`
+    /// LoanConfig layout (138 bytes; new layout is 139). Reallocs the account
+    /// to the new size, writes `initialized = true` at the new byte offset,
+    /// pays the rent delta from `admin`. Idempotent: a no-op when the account
+    /// is already at the new size AND `initialized = true`. Admin-gated via
+    /// the admin-pubkey-at-offset-8 constraint (stable across both layouts).
+    pub fn migrate_loan_config_v3(ctx: Context<MigrateLoanConfigV3>) -> Result<()> {
+        let cfg = &ctx.accounts.loan_config;
+        let info = cfg.to_account_info();
+        let new_size = LoanConfig::SIZE;
+        let cur_size = info.data_len();
+        if cur_size < new_size {
+            // Top up rent to cover the larger account.
+            let rent = Rent::get()?;
+            let new_rent = rent.minimum_balance(new_size);
+            let cur_lamports = info.lamports();
+            if new_rent > cur_lamports {
+                let topup = new_rent - cur_lamports;
+                anchor_lang::system_program::transfer(
+                    CpiContext::new(
+                        ctx.accounts.system_program.to_account_info(),
+                        anchor_lang::system_program::Transfer {
+                            from: ctx.accounts.admin.to_account_info(),
+                            to: info.clone(),
+                        },
+                    ),
+                    topup,
+                )?;
+            }
+            info.realloc(new_size, true)?;
+        }
+        // Write `initialized = true` at offset (new_size - 1). Idempotent:
+        // re-running this ix on a row already at `1` re-writes `1`.
+        {
+            let mut data = info.try_borrow_mut_data()?;
+            data[new_size - 1] = 1u8;
+        }
+        Ok(())
+    }
+
     pub fn set_oracle_admin(
         ctx: Context<SetOracleAdmin>,
         new_oracle_admin: Pubkey,
     ) -> Result<()> {
+        // V3 — defense-in-depth init-flag check.
+        require!(
+            ctx.accounts.loan_config.initialized,
+            LoanError::ConfigNotInitialized
+        );
         require_keys_eq!(
             ctx.accounts.admin.key(),
             ctx.accounts.loan_config.admin,
@@ -841,7 +950,6 @@ fn do_atomic_disburse<'info>(
     token_program: &AccountInfo<'info>,
     instructions_sysvar: &AccountInfo<'info>,
     price_feed: &AccountInfo<'info>,
-    transition_authority: &AccountInfo<'info>,
     amount: u64,
 ) -> Result<()> {
     // THE invariant — checked once, in one place.
@@ -936,12 +1044,16 @@ fn do_atomic_disburse<'info>(
 
     // 2) trdc::transition_to_active — ActiveInCustody → Active. trdc owns the
     //    trdc_state account; this CPI is the only legitimate writer.
-    trdc::cpi::transition_to_active(CpiContext::new(
+    // V1 — trdc gates on the `loan_authority` PDA. We've already validated
+    // `loan_authority.key() == expected_authority` above; re-use the same
+    // signer_seeds.
+    trdc::cpi::transition_to_active(CpiContext::new_with_signer(
         trdc_program.clone(),
         TransitionToActive {
             trdc_state: trdc_state.to_account_info(),
-            authority: transition_authority.clone(),
+            loan_authority: loan_authority.clone(),
         },
+        signer_seeds,
     ))?;
 
     Ok(())
@@ -1030,12 +1142,16 @@ pub struct LoanConfig {
     /// appraisal path. Once set (via `set_oracle_admin`), every loan opening
     /// enforces a fresh on-chain feed. SR-3 / SR-4.
     pub oracle_admin: Pubkey,
+    /// V3 — explicit initialization flag. Set to `true` by
+    /// `initialize_loan_config`. Checked at the top of every admin-gated
+    /// instruction as defense-in-depth against a future close+reinit attack.
+    pub initialized: bool,
 }
 
 impl LoanConfig {
     // disc(8) + admin(32) + custodian(32) + civic_network(32)
-    //   + kyc_required(1) + bump(1) + oracle_admin(32)
-    pub const SIZE: usize = 8 + 32 + 32 + 32 + 1 + 1 + 32;
+    //   + kyc_required(1) + bump(1) + oracle_admin(32) + initialized(1) = 139
+    pub const SIZE: usize = 8 + 32 + 32 + 32 + 1 + 1 + 32 + 1;
     pub const SEED: &'static [u8] = b"loan_config";
 }
 
@@ -1318,6 +1434,26 @@ pub struct SetOracleAdmin<'info> {
 /// The ix body verifies the discriminator + admin offset manually.
 #[derive(Accounts)]
 pub struct MigrateLoanConfigV2<'info> {
+    /// CHECK: PDA derivation enforced via seeds; admin offset verified in body.
+    #[account(
+        mut,
+        seeds = [LoanConfig::SEED],
+        bump,
+        constraint = loan_config.owner == &crate::ID @ LoanError::Unauthorized,
+        constraint = loan_config.try_borrow_data()?.len() >= 8 + 32 @ LoanError::AccountTooSmall,
+        constraint = loan_config.try_borrow_data()?[8..40] == admin.key().to_bytes() @ LoanError::UnauthorizedAdmin,
+    )]
+    pub loan_config: UncheckedAccount<'info>,
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+/// V3 — accounts for `migrate_loan_config_v3`. Same shape as `MigrateLoanConfigV2`;
+/// the admin-pubkey-at-offset-8 constraint binds the migration to the v1/v2
+/// admin so a stray signer can't grow the account.
+#[derive(Accounts)]
+pub struct MigrateLoanConfigV3<'info> {
     /// CHECK: PDA derivation enforced via seeds; admin offset verified in body.
     #[account(
         mut,

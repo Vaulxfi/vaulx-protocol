@@ -30,8 +30,68 @@
           "writable": true
         },
         {
-          "name": "authority",
-          "signer": true
+          "name": "loan_authority",
+          "signer": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  97,
+                  110,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                151,
+                167,
+                101,
+                227,
+                201,
+                255,
+                26,
+                25,
+                13,
+                245,
+                180,
+                1,
+                107,
+                172,
+                230,
+                75,
+                246,
+                70,
+                130,
+                130,
+                3,
+                124,
+                116,
+                34,
+                104,
+                163,
+                156,
+                213,
+                109,
+                125,
+                10,
+                121
+              ]
+            }
+          }
         }
       ],
       "args": [
@@ -59,8 +119,68 @@
           "writable": true
         },
         {
-          "name": "authority",
-          "signer": true
+          "name": "loan_authority",
+          "signer": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  97,
+                  110,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                151,
+                167,
+                101,
+                227,
+                201,
+                255,
+                26,
+                25,
+                13,
+                245,
+                180,
+                1,
+                107,
+                172,
+                230,
+                75,
+                246,
+                70,
+                130,
+                130,
+                3,
+                124,
+                116,
+                34,
+                104,
+                163,
+                156,
+                213,
+                109,
+                125,
+                10,
+                121
+              ]
+            }
+          }
         }
       ],
       "args": [
@@ -536,39 +656,6 @@
       ]
     },
     {
-      "name": "test_transition",
-      "discriminator": [
-        22,
-        30,
-        75,
-        8,
-        163,
-        145,
-        16,
-        176
-      ],
-      "accounts": [
-        {
-          "name": "trdc_state",
-          "writable": true
-        },
-        {
-          "name": "authority",
-          "signer": true
-        }
-      ],
-      "args": [
-        {
-          "name": "next",
-          "type": {
-            "defined": {
-              "name": "Status"
-            }
-          }
-        }
-      ]
-    },
-    {
       "name": "transition_active_to_overdue",
       "docs": [
         "Moment 7 (pt 1) — `Active -> Overdue` when `now > due_ts + grace`.",
@@ -592,8 +679,68 @@
           "writable": true
         },
         {
-          "name": "authority",
-          "signer": true
+          "name": "loan_authority",
+          "signer": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  97,
+                  110,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                151,
+                167,
+                101,
+                227,
+                201,
+                255,
+                26,
+                25,
+                13,
+                245,
+                180,
+                1,
+                107,
+                172,
+                230,
+                75,
+                246,
+                70,
+                130,
+                130,
+                3,
+                124,
+                116,
+                34,
+                104,
+                163,
+                156,
+                213,
+                109,
+                125,
+                10,
+                121
+              ]
+            }
+          }
         }
       ],
       "args": []
@@ -620,8 +767,68 @@
           "writable": true
         },
         {
-          "name": "authority",
-          "signer": true
+          "name": "loan_authority",
+          "signer": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  97,
+                  110,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                151,
+                167,
+                101,
+                227,
+                201,
+                255,
+                26,
+                25,
+                13,
+                245,
+                180,
+                1,
+                107,
+                172,
+                230,
+                75,
+                246,
+                70,
+                130,
+                130,
+                3,
+                124,
+                116,
+                34,
+                104,
+                163,
+                156,
+                213,
+                109,
+                125,
+                10,
+                121
+              ]
+            }
+          }
         }
       ],
       "args": []
@@ -630,7 +837,9 @@
       "name": "transition_defaulted_to_liquidated",
       "docs": [
         "Moment 7 (pt 3) — `Defaulted -> Liquidated`. Called from",
-        "`auction::close_auction` regardless of whether the auction had bidders."
+        "`auction::close_auction` regardless of whether the auction had bidders.",
+        "V1 — `TransitionByAuction` binds the `auction_authority` PDA, so only",
+        "the auction program's `invoke_signed` CPI can drive this transition."
       ],
       "discriminator": [
         207,
@@ -648,8 +857,71 @@
           "writable": true
         },
         {
-          "name": "authority",
-          "signer": true
+          "name": "auction_authority",
+          "signer": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  117,
+                  99,
+                  116,
+                  105,
+                  111,
+                  110,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                221,
+                65,
+                141,
+                239,
+                68,
+                27,
+                109,
+                198,
+                15,
+                172,
+                232,
+                250,
+                42,
+                167,
+                1,
+                15,
+                244,
+                235,
+                89,
+                51,
+                130,
+                201,
+                248,
+                70,
+                54,
+                244,
+                204,
+                89,
+                181,
+                224,
+                86,
+                166
+              ]
+            }
+          }
         }
       ],
       "args": []
@@ -676,8 +948,68 @@
           "writable": true
         },
         {
-          "name": "authority",
-          "signer": true
+          "name": "loan_authority",
+          "signer": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  97,
+                  110,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                151,
+                167,
+                101,
+                227,
+                201,
+                255,
+                26,
+                25,
+                13,
+                245,
+                180,
+                1,
+                107,
+                172,
+                230,
+                75,
+                246,
+                70,
+                130,
+                130,
+                3,
+                124,
+                116,
+                34,
+                104,
+                163,
+                156,
+                213,
+                109,
+                125,
+                10,
+                121
+              ]
+            }
+          }
         }
       ],
       "args": []
@@ -708,8 +1040,68 @@
           "writable": true
         },
         {
-          "name": "authority",
-          "signer": true
+          "name": "loan_authority",
+          "signer": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  97,
+                  110,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                151,
+                167,
+                101,
+                227,
+                201,
+                255,
+                26,
+                25,
+                13,
+                245,
+                180,
+                1,
+                107,
+                172,
+                230,
+                75,
+                246,
+                70,
+                130,
+                130,
+                3,
+                124,
+                116,
+                34,
+                104,
+                163,
+                156,
+                213,
+                109,
+                125,
+                10,
+                121
+              ]
+            }
+          }
         }
       ],
       "args": [
@@ -741,8 +1133,68 @@
           "writable": true
         },
         {
-          "name": "authority",
-          "signer": true
+          "name": "loan_authority",
+          "signer": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  97,
+                  110,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                151,
+                167,
+                101,
+                227,
+                201,
+                255,
+                26,
+                25,
+                13,
+                245,
+                180,
+                1,
+                107,
+                172,
+                230,
+                75,
+                246,
+                70,
+                130,
+                130,
+                3,
+                124,
+                116,
+                34,
+                104,
+                163,
+                156,
+                213,
+                109,
+                125,
+                10,
+                121
+              ]
+            }
+          }
         }
       ],
       "args": []

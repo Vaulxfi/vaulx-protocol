@@ -831,6 +831,63 @@
       "args": []
     },
     {
+      "name": "migrate_loan_config_v3",
+      "docs": [
+        "V3 — one-shot migration ix for upgrades coming from a pre-`initialized`",
+        "LoanConfig layout (138 bytes; new layout is 139). Reallocs the account",
+        "to the new size, writes `initialized = true` at the new byte offset,",
+        "pays the rent delta from `admin`. Idempotent: a no-op when the account",
+        "is already at the new size AND `initialized = true`. Admin-gated via",
+        "the admin-pubkey-at-offset-8 constraint (stable across both layouts)."
+      ],
+      "discriminator": [
+        177,
+        62,
+        206,
+        169,
+        112,
+        229,
+        10,
+        8
+      ],
+      "accounts": [
+        {
+          "name": "loan_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  97,
+                  110,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "pay_installment",
       "docs": [
         "Moment 5 (partial) — borrower pays down principal in installments.",
@@ -1660,6 +1717,11 @@
       "code": 6017,
       "name": "AccountTooSmall",
       "msg": "Account data too small for migration"
+    },
+    {
+      "code": 6018,
+      "name": "ConfigNotInitialized",
+      "msg": "Loan config has not been initialized"
     }
   ],
   "types": [
@@ -1991,6 +2053,15 @@
               "enforces a fresh on-chain feed. SR-3 / SR-4."
             ],
             "type": "pubkey"
+          },
+          {
+            "name": "initialized",
+            "docs": [
+              "V3 — explicit initialization flag. Set to `true` by",
+              "`initialize_loan_config`. Checked at the top of every admin-gated",
+              "instruction as defense-in-depth against a future close+reinit attack."
+            ],
+            "type": "bool"
           }
         ]
       }

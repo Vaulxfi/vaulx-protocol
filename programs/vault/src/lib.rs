@@ -46,6 +46,9 @@ pub mod vault {
         cfg.civic_network = civic_network;
         cfg.kyc_required = false;
         cfg.bump = ctx.bumps.vault_config;
+        // V3 — set the explicit init flag so admin-gated ixs can reject a
+        // closed+reinit-style attempt before doing any work.
+        cfg.initialized = true;
         Ok(())
     }
 
@@ -61,6 +64,11 @@ pub mod vault {
         owner: Pubkey,
         jwt_hash: [u8; 32],
     ) -> Result<()> {
+        // V3 — defense-in-depth init-flag check.
+        require!(
+            ctx.accounts.vault_config.initialized,
+            VaultError::ConfigNotInitialized
+        );
         require_keys_eq!(
             ctx.accounts.admin.key(),
             ctx.accounts.vault_config.admin,
@@ -81,6 +89,11 @@ pub mod vault {
     /// attestation, then flip back to false so the rest of the suite sees
     /// the default-off behaviour.
     pub fn set_kyc_required(ctx: Context<SetKycRequired>, required: bool) -> Result<()> {
+        // V3 — defense-in-depth init-flag check.
+        require!(
+            ctx.accounts.vault_config.initialized,
+            VaultError::ConfigNotInitialized
+        );
         require_keys_eq!(
             ctx.accounts.admin.key(),
             ctx.accounts.vault_config.admin,
@@ -106,6 +119,11 @@ pub mod vault {
         ctx: Context<CloseKycAttestation>,
         _owner: Pubkey,
     ) -> Result<()> {
+        // V3 — defense-in-depth init-flag check.
+        require!(
+            ctx.accounts.vault_config.initialized,
+            VaultError::ConfigNotInitialized
+        );
         require_keys_eq!(
             ctx.accounts.admin.key(),
             ctx.accounts.vault_config.admin,
@@ -480,6 +498,51 @@ pub mod vault {
             .ok_or(VaultError::MathOverflow)?;
         Ok(())
     }
+
+    /// V3 — one-shot migration ix for upgrades coming from a pre-`initialized`
+    /// VaultConfig layout (74 bytes; new layout is 75). Reallocs the account
+    /// to the new size, writes `initialized = true` at the new byte offset,
+    /// pays the rent delta from `admin`. Idempotent: a no-op when the account
+    /// is already at the new size (covers the fresh-deploy case and re-runs).
+    /// Admin-gated by reading the admin pubkey at offset 8 (stable across both
+    /// layouts: discriminator(8) + admin(32)).
+    pub fn migrate_vault_config_v2(ctx: Context<MigrateVaultConfigV2>) -> Result<()> {
+        let cfg = &ctx.accounts.vault_config;
+        let info = cfg.to_account_info();
+        let new_size = VaultConfig::SIZE;
+        let cur_size = info.data_len();
+        if cur_size >= new_size {
+            // Already migrated (or freshly initialized at the new size). Idempotent.
+            return Ok(());
+        }
+        // Top up rent to cover the larger account.
+        let rent = Rent::get()?;
+        let new_rent = rent.minimum_balance(new_size);
+        let cur_lamports = info.lamports();
+        if new_rent > cur_lamports {
+            let topup = new_rent - cur_lamports;
+            anchor_lang::system_program::transfer(
+                CpiContext::new(
+                    ctx.accounts.system_program.to_account_info(),
+                    anchor_lang::system_program::Transfer {
+                        from: ctx.accounts.admin.to_account_info(),
+                        to: info.clone(),
+                    },
+                ),
+                topup,
+            )?;
+        }
+        info.realloc(new_size, true)?;
+        // Write `initialized = true` at the new byte (offset 74 in the v2
+        // layout: disc(8) + admin(32) + civic_network(32) + kyc_required(1)
+        // + bump(1) = 74). `realloc(_, true)` zero-fills the trailing bytes,
+        // so we explicitly set the flag for v1 rows that pre-existed.
+        {
+            let mut data = info.try_borrow_mut_data()?;
+            data[new_size - 1] = 1u8;
+        }
+        Ok(())
+    }
 }
 
 #[account]
@@ -493,10 +556,17 @@ pub struct VaultConfig {
     /// false (gate OFF) to preserve existing test behaviour.
     pub kyc_required: bool,
     pub bump: u8,
+    /// V3 — explicit initialization flag. Set to `true` by
+    /// `initialize_vault_config`. Checked at the top of every admin-gated
+    /// instruction as defense-in-depth against a future close+reinit attack
+    /// (no close ix exists today, but adding the flag now keeps the surface
+    /// closed when one is introduced).
+    pub initialized: bool,
 }
 
 impl VaultConfig {
-    pub const SIZE: usize = 8 + 32 + 32 + 1 + 1;
+    // disc(8) + admin(32) + civic_network(32) + kyc_required(1) + bump(1) + initialized(1) = 75
+    pub const SIZE: usize = 8 + 32 + 32 + 1 + 1 + 1;
     pub const SEED: &'static [u8] = b"vault_config";
 }
 
@@ -679,6 +749,27 @@ pub struct RecordAuctionInflow<'info> {
     /// CHECK: address-constrained to the instructions sysvar; used by Layer 2.
     #[account(address = anchor_lang::solana_program::sysvar::instructions::ID)]
     pub instructions_sysvar: UncheckedAccount<'info>,
+}
+
+/// V3 — accounts for `migrate_vault_config_v2`. Uses `UncheckedAccount` for
+/// the vault_config because pre-migration data is in the v1 layout (74 bytes)
+/// which `Account<'info, VaultConfig>` cannot deserialize. The ix body
+/// verifies the discriminator + admin offset manually.
+#[derive(Accounts)]
+pub struct MigrateVaultConfigV2<'info> {
+    /// CHECK: PDA derivation enforced via seeds; admin offset verified in body.
+    #[account(
+        mut,
+        seeds = [VaultConfig::SEED],
+        bump,
+        constraint = vault_config.owner == &crate::ID @ VaultError::Unauthorized,
+        constraint = vault_config.try_borrow_data()?.len() >= 8 + 32 @ VaultError::AccountTooSmall,
+        constraint = vault_config.try_borrow_data()?[8..40] == admin.key().to_bytes() @ VaultError::Unauthorized,
+    )]
+    pub vault_config: UncheckedAccount<'info>,
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    pub system_program: Program<'info, System>,
 }
 
 /// Accounts for `record_inflow`. Same layer-2 instruction sysvar gate as
