@@ -42,10 +42,10 @@ export async function GET(req: Request) {
 
   const { data, error } = await client
     .from("onchain_events")
-    .select("payload, created_at")
+    .select("payload, occurred_at")
     .eq("event_name", "custodyConfirmed")
     .or(`payload->>trdc_state.eq.${trdc},payload->>trdcState.eq.${trdc}`)
-    .order("created_at", { ascending: false })
+    .order("occurred_at", { ascending: false })
     .limit(1);
 
   if (error) {
@@ -59,7 +59,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ confirmed: false }, { status: 200 });
   }
 
-  const row = data[0] as { payload: Record<string, unknown>; created_at: string };
+  const row = data[0] as { payload: Record<string, unknown>; occurred_at: string };
   const payload = row.payload ?? {};
   const docHash =
     (payload.doc_hash as number[] | string | undefined) ??
@@ -77,7 +77,7 @@ export async function GET(req: Request) {
   return NextResponse.json(
     {
       confirmed: true,
-      confirmedAt: new Date(row.created_at).getTime(),
+      confirmedAt: new Date(row.occurred_at).getTime(),
       doc_hash: docHashHex,
     },
     { status: 200 },
