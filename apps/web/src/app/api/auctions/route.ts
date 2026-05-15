@@ -88,9 +88,9 @@ export async function GET() {
 
   const { data, error } = await client
     .from("onchain_events")
-    .select("payload, created_at, slot")
+    .select("payload, occurred_at, slot")
     .eq("event_name", "auctionCreated")
-    .order("created_at", { ascending: false })
+    .order("occurred_at", { ascending: false })
     .limit(100);
 
   if (error || !data) {

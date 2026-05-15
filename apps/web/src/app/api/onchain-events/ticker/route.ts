@@ -84,14 +84,14 @@ export async function GET() {
 
     const { data, error } = await client
       .from("onchain_events")
-      .select("event_name, payload, created_at")
+      .select("event_name, payload, occurred_at")
       .in("event_name", [
         "deposited",
         "ccbTrdcCreated",
         "custodyConfirmed",
         "disbursed"
       ])
-      .order("created_at", { ascending: false })
+      .order("occurred_at", { ascending: false })
       .limit(20);
 
     if (error || !data || data.length === 0) {
@@ -106,7 +106,7 @@ export async function GET() {
       return {
         name: row.event_name as string,
         detail: detailFromPayload(row.event_name as string, payload),
-        t: relSecs(row.created_at as string)
+        t: relSecs(row.occurred_at as string)
       };
     });
 
