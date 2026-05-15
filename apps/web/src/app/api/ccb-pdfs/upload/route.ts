@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { createPublicKey, verify as cryptoVerify } from "node:crypto";
 import { PublicKey, Connection } from "@solana/web3.js";
-import { utils } from "@coral-xyz/anchor";
+import { BorshAccountsCoder, utils, type Idl } from "@coral-xyz/anchor";
+import { vaultIdl } from "@vaulx/idls";
 import { createClient } from "@supabase/supabase-js";
 
 import { derivePda as deriveKycAttestationPda } from "@/lib/sumsub/attestation";
+
+const kycCoder = new BorshAccountsCoder(vaultIdl as unknown as Idl);
 
 // SPKI DER prefix for a raw 32-byte ed25519 public key, per RFC 8410.
 const ED25519_SPKI_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
@@ -172,8 +175,9 @@ export async function POST(req: Request) {
     return bad(401, "bad_signature");
   }
 
-  // 6. Optional KYC gate (on-chain attestation PDA existence check)
+  // 6. Optional KYC gate (on-chain attestation PDA existence + freshness)
   if (isKycGateEnabled()) {
+    let accountData: Buffer | null = null;
     try {
       const rpc =
         process.env.SOLANA_RPC_URL ?? "https://api.devnet.solana.com";
@@ -183,8 +187,47 @@ export async function POST(req: Request) {
       if (!info) {
         return bad(403, "kyc_required");
       }
+      accountData = Buffer.from(info.data);
     } catch {
       return bad(403, "kyc_required");
+    }
+
+    const maxAgeDaysRaw = process.env.KYC_MAX_AGE_DAYS;
+    if (maxAgeDaysRaw !== undefined) {
+      const maxAgeDays = parseInt(maxAgeDaysRaw, 10);
+      if (!Number.isFinite(maxAgeDays) || maxAgeDays <= 0) {
+        return bad(403, "kyc_required");
+      }
+      let attestedAtSec: number;
+      try {
+        const decoded = kycCoder.decode<Record<string, unknown>>(
+          "KycAttestation",
+          accountData,
+        );
+        const raw = (decoded.attested_at ?? decoded.attestedAt) as
+          | { toNumber?: () => number }
+          | bigint
+          | number
+          | undefined;
+        if (typeof raw === "number") {
+          attestedAtSec = raw;
+        } else if (typeof raw === "bigint") {
+          attestedAtSec = Number(raw);
+        } else if (raw && typeof raw.toNumber === "function") {
+          attestedAtSec = raw.toNumber();
+        } else {
+          attestedAtSec = Number(raw);
+        }
+        if (!Number.isFinite(attestedAtSec)) {
+          return bad(403, "kyc_required");
+        }
+      } catch {
+        return bad(403, "kyc_required");
+      }
+      const nowSec = Math.floor(Date.now() / 1000);
+      if (nowSec - attestedAtSec > maxAgeDays * 86_400) {
+        return bad(403, "kyc_stale");
+      }
     }
   }
 
