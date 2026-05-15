@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Fraunces, Instrument_Sans, JetBrains_Mono } from "next/font/google";
+import { JetBrains_Mono, Outfit } from "next/font/google";
 import { Toaster } from "sonner";
 
 import { WalletProvider } from "@/components/providers/wallet-provider";
@@ -9,25 +9,24 @@ import { cn } from "@/lib/utils";
 
 import "./globals.css";
 
-const fraunces = Fraunces({
+const outfit = Outfit({
   subsets: ["latin"],
-  variable: "--font-display",
-  style: ["normal", "italic"],
-  axes: ["opsz"],
+  variable: "--font-body",
+  weight: ["300", "400", "500", "600", "700", "800"],
   display: "swap"
 });
 
-const instrumentSans = Instrument_Sans({
+const outfitDisplay = Outfit({
   subsets: ["latin"],
-  variable: "--font-body",
-  weight: ["400", "500", "600"],
+  variable: "--font-display",
+  weight: ["500", "600", "700", "800"],
   display: "swap"
 });
 
 const jetbrains = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
-  weight: ["400", "500"],
+  weight: ["400", "500", "600", "700"],
   display: "swap"
 });
 
@@ -41,11 +40,11 @@ const themeBoot = `
 (function(){
   try {
     var saved = localStorage.getItem('vx-theme');
-    var cls = saved === 'light' ? 'light' : 'dark';
+    var cls = saved === 'dark' ? 'dark' : 'light';
     document.documentElement.classList.add(cls);
-    if (cls !== 'dark') document.documentElement.classList.remove('dark');
+    if (cls !== 'light') document.documentElement.classList.remove('light');
   } catch (e) {
-    document.documentElement.classList.add('dark');
+    document.documentElement.classList.add('light');
   }
 })();
 `;
@@ -59,9 +58,9 @@ export default function RootLayout({
     <html
       lang="en"
       className={cn(
-        "dark",
-        fraunces.variable,
-        instrumentSans.variable,
+        "light",
+        outfit.variable,
+        outfitDisplay.variable,
         jetbrains.variable
       )}
       suppressHydrationWarning
@@ -78,7 +77,7 @@ export default function RootLayout({
         <Toaster
           richColors
           position="top-right"
-          theme="dark"
+          theme="light"
           toastOptions={{
             style: {
               background: "var(--bg-elev-1)",
