@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_lang::solana_program::sysvar::instructions::load_instruction_at_checked;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
-use trdc::cpi::accounts::TransitionAuth as TrdcTransitionAuth;
+use trdc::cpi::accounts::TransitionByAuction as TrdcTransitionByAuction;
 use trdc::program::Trdc;
 use vault::cpi::accounts::RecordAuctionInflow as VaultRecordAuctionInflow;
 use vault::program::Vault as VaultProgram;
@@ -181,14 +181,28 @@ pub mod auction {
         let winner = a.high_bidder;
         let winning_bid = a.high_bid;
 
+        // V1 — trdc::transition_defaulted_to_liquidated requires the auction
+        // program's `auction_authority` PDA as invoke_signed signer. Derive
+        // seeds once and re-use in both branches below.
+        let (expected_auction_authority, auth_bump) =
+            Pubkey::find_program_address(&[AUCTION_AUTHORITY_SEED], &crate::ID);
+        require_keys_eq!(
+            ctx.accounts.auction_authority.key(),
+            expected_auction_authority,
+            AuctionError::Unauthorized
+        );
+        let auth_seeds: &[&[u8]] = &[AUCTION_AUTHORITY_SEED, &[auth_bump]];
+        let auth_signer_seeds: &[&[&[u8]]] = &[auth_seeds];
+
         if winner == Pubkey::default() || winning_bid == 0 {
             // Flip TRDC defaulted -> liquidated; no capital recovery.
-            trdc::cpi::transition_defaulted_to_liquidated(CpiContext::new(
+            trdc::cpi::transition_defaulted_to_liquidated(CpiContext::new_with_signer(
                 ctx.accounts.trdc_program.to_account_info(),
-                TrdcTransitionAuth {
+                TrdcTransitionByAuction {
                     trdc_state: ctx.accounts.trdc_state.to_account_info(),
-                    authority: ctx.accounts.caller.to_account_info(),
+                    auction_authority: ctx.accounts.auction_authority.to_account_info(),
                 },
+                auth_signer_seeds,
             ))?;
 
             let a = &mut ctx.accounts.auction;
@@ -219,15 +233,7 @@ pub mod auction {
         )?;
 
         // 2) CPI into vault::record_auction_inflow using auction_authority as
-        //    invoke_signed signer. The ctx provides that account.
-        let (expected_authority, auth_bump) =
-            Pubkey::find_program_address(&[AUCTION_AUTHORITY_SEED], &crate::ID);
-        require_keys_eq!(
-            ctx.accounts.auction_authority.key(),
-            expected_authority,
-            AuctionError::Unauthorized
-        );
-        let auth_seeds: &[&[u8]] = &[AUCTION_AUTHORITY_SEED, &[auth_bump]];
+        //    invoke_signed signer. Seeds derived above.
         vault::cpi::record_auction_inflow(
             CpiContext::new_with_signer(
                 ctx.accounts.vault_program.to_account_info(),
@@ -237,18 +243,20 @@ pub mod auction {
                     auction_authority: ctx.accounts.auction_authority.to_account_info(),
                     instructions_sysvar: ctx.accounts.instructions_sysvar.to_account_info(),
                 },
-                &[auth_seeds],
+                auth_signer_seeds,
             ),
             winning_bid,
         )?;
 
-        // 3) TRDC defaulted -> liquidated.
-        trdc::cpi::transition_defaulted_to_liquidated(CpiContext::new(
+        // 3) TRDC defaulted -> liquidated. V1 — invoke_signed under
+        // `auction_authority` PDA bound to AUCTION_PROGRAM_ID in trdc.
+        trdc::cpi::transition_defaulted_to_liquidated(CpiContext::new_with_signer(
             ctx.accounts.trdc_program.to_account_info(),
-            TrdcTransitionAuth {
+            TrdcTransitionByAuction {
                 trdc_state: ctx.accounts.trdc_state.to_account_info(),
-                authority: ctx.accounts.caller.to_account_info(),
+                auction_authority: ctx.accounts.auction_authority.to_account_info(),
             },
+            auth_signer_seeds,
         ))?;
 
         let a = &mut ctx.accounts.auction;

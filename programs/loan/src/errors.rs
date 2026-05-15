@@ -44,4 +44,6 @@ pub enum LoanError {
     /// smaller layout never even had room for `admin`). Bail out instead of
     /// reading garbage.
     #[msg("Account data too small for migration")] AccountTooSmall,
+    /// V3 — admin-gated ix invoked against a LoanConfig with `initialized = false`.
+    #[msg("Loan config has not been initialized")] ConfigNotInitialized,
 }

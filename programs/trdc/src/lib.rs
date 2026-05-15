@@ -15,6 +15,26 @@ use state::{
 
 declare_id!("26rb68SPyjKmFNwSUmfZA7WRFtsKFheXf5xN8eHeeRWk");
 
+/// Hardcoded loan program id — mirrors `loan::declare_id!`. Used by every
+/// state-transition account context to bind the `loan_authority` PDA to the
+/// loan program, so trdc state transitions can only be driven by `invoke_signed`
+/// CPIs originating in the loan program.
+// base58("BCzcP4soWYSVWAt8gWPZmcNxcCiw8LdU8sT5VS3TPuW8") decoded to bytes.
+pub const LOAN_PROGRAM_ID: Pubkey = Pubkey::new_from_array([
+    151, 167, 101, 227, 201, 255, 26, 25, 13, 245, 180, 1, 107, 172, 230, 75, 246, 70, 130, 130,
+    3, 124, 116, 34, 104, 163, 156, 213, 109, 125, 10, 121,
+]);
+/// Hardcoded auction program id — mirrors `auction::declare_id!`. Used by the
+/// `TransitionByAuction` context: `transition_defaulted_to_liquidated` is the
+/// one transition the auction program drives, so it gets a distinct PDA binding.
+// base58("Fth5WyopNBi6JatJtTnxb7eHs2GSFhJU7AqskRBZGU8m") decoded to bytes.
+pub const AUCTION_PROGRAM_ID: Pubkey = Pubkey::new_from_array([
+    221, 65, 141, 239, 68, 27, 109, 198, 15, 172, 232, 250, 42, 167, 1, 15, 244, 235, 89, 51,
+    130, 201, 248, 70, 54, 244, 204, 89, 181, 224, 86, 166,
+]);
+pub const LOAN_AUTHORITY_SEED: &[u8] = b"loan_authority";
+pub const AUCTION_AUTHORITY_SEED: &[u8] = b"auction_authority";
+
 #[program]
 pub mod trdc {
     use super::*;
@@ -57,24 +77,13 @@ pub mod trdc {
         Ok(())
     }
 
-    pub fn test_transition(ctx: Context<TestTransition>, next: Status) -> Result<()> {
-        let from = ctx.accounts.trdc_state.status;
-        ctx.accounts.trdc_state.transition(next)?;
-        let to = ctx.accounts.trdc_state.status;
-        emit!(TrdcTransitioned {
-            trdc_state: ctx.accounts.trdc_state.key(),
-            from,
-            to,
-            ts: Clock::get()?.unix_timestamp,
-        });
-        Ok(())
-    }
-
     pub fn confirm_custody_transition(
         ctx: Context<ConfirmCustodyTransition>,
         doc_hash: [u8; 32],
     ) -> Result<()> {
-        // PHASE_2_TASK_2_2_TODO: tighten to loan-program-only (CPI-only gate).
+        // V1 — gated at the account layer: `loan_authority` PDA bound to
+        // LOAN_PROGRAM_ID, so only an `invoke_signed` CPI from the loan
+        // program can drive this transition.
         let s = &mut ctx.accounts.trdc_state;
         require!(
             s.status == Status::PendingCustody,
@@ -225,7 +234,9 @@ pub mod trdc {
 
     /// Moment 7 (pt 3) — `Defaulted -> Liquidated`. Called from
     /// `auction::close_auction` regardless of whether the auction had bidders.
-    pub fn transition_defaulted_to_liquidated(ctx: Context<TransitionAuth>) -> Result<()> {
+    /// V1 — `TransitionByAuction` binds the `auction_authority` PDA, so only
+    /// the auction program's `invoke_signed` CPI can drive this transition.
+    pub fn transition_defaulted_to_liquidated(ctx: Context<TransitionByAuction>) -> Result<()> {
         let s = &mut ctx.accounts.trdc_state;
         require!(
             s.status == Status::Defaulted,
@@ -462,13 +473,6 @@ pub struct InitializeTrdcState<'info> {
 }
 
 #[derive(Accounts)]
-pub struct TestTransition<'info> {
-    #[account(mut)]
-    pub trdc_state: Account<'info, TRDCState>,
-    pub authority: Signer<'info>,
-}
-
-#[derive(Accounts)]
 pub struct InitTrdcConfig<'info> {
     #[account(
         init,
@@ -546,25 +550,64 @@ pub struct MintTrdcCnft<'info> {
     pub system_program: Program<'info, System>,
 }
 
+/// V1 — CPI-only gate. `loan_authority` is the loan program's PDA
+/// `[b"loan_authority"]` (under `LOAN_PROGRAM_ID`). Anchor's
+/// `seeds::program = LOAN_PROGRAM_ID` + `signer` constraints reject any caller
+/// that isn't an `invoke_signed` CPI from the loan program.
 #[derive(Accounts)]
 pub struct ConfirmCustodyTransition<'info> {
     #[account(mut)]
     pub trdc_state: Account<'info, TRDCState>,
-    pub authority: Signer<'info>,
+    /// CHECK: PDA derivation + signer enforced via Anchor constraints below.
+    #[account(
+        seeds = [LOAN_AUTHORITY_SEED],
+        bump,
+        seeds::program = LOAN_PROGRAM_ID,
+    )]
+    pub loan_authority: Signer<'info>,
 }
 
 #[derive(Accounts)]
 pub struct TransitionToActive<'info> {
     #[account(mut)]
     pub trdc_state: Account<'info, TRDCState>,
-    pub authority: Signer<'info>,
+    /// CHECK: PDA derivation + signer enforced via Anchor constraints below.
+    #[account(
+        seeds = [LOAN_AUTHORITY_SEED],
+        bump,
+        seeds::program = LOAN_PROGRAM_ID,
+    )]
+    pub loan_authority: Signer<'info>,
 }
 
 #[derive(Accounts)]
 pub struct TransitionAuth<'info> {
     #[account(mut)]
     pub trdc_state: Account<'info, TRDCState>,
-    pub authority: Signer<'info>,
+    /// CHECK: PDA derivation + signer enforced via Anchor constraints below.
+    #[account(
+        seeds = [LOAN_AUTHORITY_SEED],
+        bump,
+        seeds::program = LOAN_PROGRAM_ID,
+    )]
+    pub loan_authority: Signer<'info>,
+}
+
+/// V1 — `transition_defaulted_to_liquidated` is the one transition the auction
+/// program drives. Binds the `auction_authority` PDA `[b"auction_authority"]`
+/// under `AUCTION_PROGRAM_ID`, so only an `invoke_signed` CPI from the auction
+/// program can fire this transition.
+#[derive(Accounts)]
+pub struct TransitionByAuction<'info> {
+    #[account(mut)]
+    pub trdc_state: Account<'info, TRDCState>,
+    /// CHECK: PDA derivation + signer enforced via Anchor constraints below.
+    #[account(
+        seeds = [AUCTION_AUTHORITY_SEED],
+        bump,
+        seeds::program = AUCTION_PROGRAM_ID,
+    )]
+    pub auction_authority: Signer<'info>,
 }
 
 #[derive(Accounts)]

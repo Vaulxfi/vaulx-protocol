@@ -502,6 +502,65 @@
       ]
     },
     {
+      "name": "migrate_vault_config_v2",
+      "docs": [
+        "V3 — one-shot migration ix for upgrades coming from a pre-`initialized`",
+        "VaultConfig layout (74 bytes; new layout is 75). Reallocs the account",
+        "to the new size, writes `initialized = true` at the new byte offset,",
+        "pays the rent delta from `admin`. Idempotent: a no-op when the account",
+        "is already at the new size (covers the fresh-deploy case and re-runs).",
+        "Admin-gated by reading the admin pubkey at offset 8 (stable across both",
+        "layouts: discriminator(8) + admin(32))."
+      ],
+      "discriminator": [
+        247,
+        27,
+        232,
+        59,
+        65,
+        165,
+        223,
+        37
+      ],
+      "accounts": [
+        {
+          "name": "vault_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "record_auction_inflow",
       "docs": [
         "Records an auction-recovery inflow: bumps `total_assets` without minting",
@@ -964,6 +1023,16 @@
       "code": 6007,
       "name": "Unauthorized",
       "msg": "Unauthorized"
+    },
+    {
+      "code": 6008,
+      "name": "ConfigNotInitialized",
+      "msg": "Vault config has not been initialized"
+    },
+    {
+      "code": 6009,
+      "name": "AccountTooSmall",
+      "msg": "Account data too small for migration"
     }
   ],
   "types": [
@@ -1171,6 +1240,17 @@
           {
             "name": "bump",
             "type": "u8"
+          },
+          {
+            "name": "initialized",
+            "docs": [
+              "V3 — explicit initialization flag. Set to `true` by",
+              "`initialize_vault_config`. Checked at the top of every admin-gated",
+              "instruction as defense-in-depth against a future close+reinit attack",
+              "(no close ix exists today, but adding the flag now keeps the surface",
+              "closed when one is introduced)."
+            ],
+            "type": "bool"
           }
         ]
       }
