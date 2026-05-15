@@ -148,7 +148,7 @@ function TermsForm({
   onCancel: () => void;
 }) {
   const router = useRouter();
-  const { publicKey } = useWallet();
+  const { publicKey, signMessage } = useWallet();
   const walletStr = publicKey?.toBase58();
   const { verification: govbr } = useGovbrVerification(walletStr);
 
@@ -248,7 +248,15 @@ function TermsForm({
 
       try {
         const { uploadCcbPdf } = await import("@/lib/chain/ccb-storage");
-        await uploadCcbPdf(loanId.toBase58(), pdfBytes);
+        if (!signMessage) {
+          throw new Error("Connected wallet does not support message signing");
+        }
+        await uploadCcbPdf({
+          wallet: publicKey,
+          signMessage,
+          loanId: loanId.toBase58(),
+          pdfBytes,
+        });
       } catch (e) {
         console.warn("CCB storage upload skipped:", e);
       }
