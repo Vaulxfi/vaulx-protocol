@@ -36,6 +36,11 @@ export function useKycGate(actionLabel: string) {
   } | null>(null);
 
   const checkKyc = useCallback(async (): Promise<"verified" | "missing"> => {
+    // Explicit dev/CI bypass — used when Sumsub credentials aren't
+    // configured locally (the init-token route 502s without them, which
+    // would block every money-touching flow even in development).
+    // Production Vercel must leave this unset.
+    if (process.env.NEXT_PUBLIC_KYC_BYPASS === "true") return "verified";
     if (!publicKey) return "missing";
     const res = await fetch(
       `/api/sumsub/applicant-status?walletPubkey=${encodeURIComponent(publicKey.toBase58())}`,
