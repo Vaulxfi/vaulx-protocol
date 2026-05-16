@@ -1,14 +1,29 @@
 "use client";
-// Phase E (Wire 1): when a real wallet is connected, the register form goes
-// straight to /api/demo/provision-loan (operator-signed create_ccb_trdc +
-// confirm_custody) and lands on /demo/borrow/disburse with a real on-chain
-// loan in `ActiveInCustody`. The existing UUID-loan mock flow stays as the
-// fallback for users without a wallet so the demo is always clickable.
+// Phase E (Wire 2): when a real **signing** wallet is connected (Phantom or
+// Solflare via wallet-adapter), the register form drives the FE-signing
+// flow split across two routes:
+//   1) POST /api/demo/build-create-ccb-tx — server returns an UNSIGNED
+//      Transaction (createATA + create_ccb_trdc, payer = borrower).
+//   2) The wallet adapter signs the tx; we submit via RPC ourselves.
+//   3) POST /api/demo/confirm-and-disburse — operator/custodian-signed
+//      atomic confirm_custody (collapses Pending → Active and disburses
+//      principal into the borrower's USDC ATA in one tx).
+// This is the correct architecture post-commit 3163352 (atomic
+// confirm-and-disburse), and replaces the legacy single-shot
+// /api/demo/provision-loan that signed create_ccb_trdc as the operator
+// (which broke the borrower_ata.authority = trdc_state.borrower
+// constraint and silently sent disburse to the operator's ATA).
+//
+// Mock fallback: when no signing wallet is available (no wallet, or
+// Crossmint identity-only), the original UUID-loan mock flow still runs
+// so the demo is always clickable.
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { Transaction } from "@solana/web3.js";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { DemoShell } from "../../_components/demo-shell";
 import { useDemoSession } from "../../_lib/use-demo-session";
 import { useUnifiedWallet } from "@/components/providers/crossmint-wallet-adapter";
@@ -88,6 +103,8 @@ export default function RegisterPage() {
   const router = useRouter();
   const { session, patch } = useDemoSession();
   const wallet = useUnifiedWallet();
+  const solanaWallet = useWallet(); // wallet-adapter — exposes signTransaction
+  const { connection } = useConnection();
   const { guard, modalNode } = useKycGate("Submit asset for evaluation");
   const [photos, setPhotos] = useState<string[]>(["", "", ""]);
   const [submitting, setSubmitting] = useState(false);
@@ -158,89 +175,177 @@ export default function RegisterPage() {
       watch: { ...(prev.watch ?? { photos: [] }), ...watchPatch },
     }));
 
-    // Phase E: when a wallet pubkey is available (real Phantom/Solflare or
-    // a real Crossmint smart wallet), call the operator-signed provision
-    // route directly so we land on a real on-chain loan in ActiveInCustody.
-    const borrowerPubkey =
-      wallet.publicKey?.toBase58() ?? session?.wallet?.pubkey ?? null;
+    // Phase E (Wire 2): on-chain provisioning runs ONLY when wallet-adapter
+    // (Phantom/Solflare) is connected — we need a real `signTransaction`.
+    // Crossmint identity-only (no wallet-adapter) falls through to mock
+    // because Crossmint SDK 1.0.14 has no detached signTransaction (see
+    // crossmint-wallet-adapter.ts header). Mock pubkeys (`MOCK…`) also
+    // fall through.
+    const borrowerPubkey = wallet.publicKey?.toBase58() ?? null;
     const isMockPubkey = !!borrowerPubkey && borrowerPubkey.startsWith("MOCK");
-    const canProvision = !!borrowerPubkey && !isMockPubkey;
+    const canProvision =
+      wallet.canSign &&
+      !!borrowerPubkey &&
+      !isMockPubkey &&
+      !!solanaWallet.signTransaction;
 
     if (canProvision) {
       try {
         await guard(async () => {
-        const median = computeFallbackMedianUsd(values);
-        const watchRef = `${watchPatch.make} ${watchPatch.ref}`.trim();
-        const ltvBps = 5000; // 50% — sane default for the demo
-        const termDays = 60;
-        setProvisionMsg("Provisioning your loan on Devnet…");
-        const res = await fetch("/api/demo/provision-loan", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            borrowerPubkey,
-            watchRef,
-            appraisalUsdCents: Math.round(median * 100),
-            ltvBps,
-            termDays,
-          }),
-        });
-        const json = (await res.json().catch(() => ({}))) as {
-          ok?: boolean;
-          loanId?: string;
-          trdcStatePda?: string;
-          createTx?: string;
-          custodyTx?: string;
-          state?: { loanAmountAtoms?: string; rateBps?: number; dueTs?: string };
-          error?: string;
-          detail?: string;
-        };
-        if (!res.ok || !json.ok || !json.loanId) {
-          throw new Error(
-            json.error ?? json.detail ?? `provision-loan failed (${res.status})`,
-          );
-        }
-        const principalAtoms = json.state?.loanAmountAtoms ?? "0";
-        const rateBps = json.state?.rateBps ?? rateForTermDays(termDays);
-        const dueTs = json.state?.dueTs
-          ? Number(json.state.dueTs)
-          : Math.floor(Date.now() / 1000) + termDays * 86400;
+          const median = computeFallbackMedianUsd(values);
+          const watchRef = `${watchPatch.make} ${watchPatch.ref}`.trim();
+          const ltvBps = 5000; // 50% — sane default for the demo
+          const termDays = 60;
 
-        patch((prev) => ({
-          ...prev,
-          watch: {
-            ...(prev.watch ?? { photos: [] }),
-            ...watchPatch,
-            // Synthesise an appraisal block so downstream pages (dashboard,
-            // loan-offer fallback) don't redirect users back to register.
-            appraisal: prev.watch?.appraisal ?? {
-              chrono24: median,
-              watchcharts: median,
-              internal: median,
-              median,
+          // 1/3 — Server builds the unsigned tx (publish_price + createATA +
+          // create_ccb_trdc with payer = borrower).
+          setProvisionMsg("Preparing your loan on Devnet…");
+          const buildRes = await fetch("/api/demo/build-create-ccb-tx", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              borrowerPubkey,
+              watchRef,
+              appraisalUsdCents: Math.round(median * 100),
+              ltvBps,
+              termDays,
+            }),
+          });
+          const buildJson = (await buildRes.json().catch(() => ({}))) as {
+            ok?: boolean;
+            loanId?: string;
+            trdcStatePda?: string;
+            serializedTx?: string;
+            blockhash?: string;
+            lastValidBlockHeight?: number;
+            state?: { loanAmountAtoms?: string; rateBps?: number; dueTs?: string };
+            error?: string;
+            detail?: string;
+          };
+          if (
+            !buildRes.ok ||
+            !buildJson.ok ||
+            !buildJson.serializedTx ||
+            !buildJson.loanId
+          ) {
+            throw new Error(
+              buildJson.error ??
+                buildJson.detail ??
+                `build-create-ccb-tx failed (${buildRes.status})`,
+            );
+          }
+
+          // 2/3 — Wallet signs and we submit. The wallet popup will show
+          // the user the createATA + create_ccb_trdc instructions; rejecting
+          // surfaces as a thrown error we catch as "user cancelled".
+          setProvisionMsg("Sign the transaction in your wallet…");
+          let signed: Transaction;
+          try {
+            const tx = Transaction.from(
+              Buffer.from(buildJson.serializedTx, "base64"),
+            );
+            signed = await solanaWallet.signTransaction!(tx);
+          } catch (sigErr) {
+            // Phantom / Solflare reject path
+            const msg = sigErr instanceof Error ? sigErr.message : String(sigErr);
+            if (msg.toLowerCase().includes("user rejected") || msg.toLowerCase().includes("declined")) {
+              throw new Error("Signature cancelled in your wallet.");
+            }
+            throw sigErr;
+          }
+
+          setProvisionMsg("Submitting your transaction…");
+          const createSig = await connection.sendRawTransaction(
+            signed.serialize(),
+            { maxRetries: 5 },
+          );
+          if (
+            buildJson.blockhash &&
+            typeof buildJson.lastValidBlockHeight === "number"
+          ) {
+            await connection.confirmTransaction(
+              {
+                signature: createSig,
+                blockhash: buildJson.blockhash,
+                lastValidBlockHeight: buildJson.lastValidBlockHeight,
+              },
+              "confirmed",
+            );
+          } else {
+            await connection.confirmTransaction(createSig, "confirmed");
+          }
+
+          // 3/3 — Operator/custodian-signed atomic confirm_custody (flips
+          // Pending → Active and disburses principal into borrower_ata).
+          setProvisionMsg("Confirming custody and disbursing principal…");
+          const confirmRes = await fetch("/api/demo/confirm-and-disburse", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              loanId: buildJson.loanId,
+              borrowerPubkey,
+            }),
+          });
+          const confirmJson = (await confirmRes.json().catch(() => ({}))) as {
+            ok?: boolean;
+            custodyTx?: string;
+            borrowerBalanceAfter?: string | null;
+            finalStatus?: string;
+            error?: string;
+            detail?: string;
+          };
+          if (!confirmRes.ok || !confirmJson.ok || !confirmJson.custodyTx) {
+            throw new Error(
+              confirmJson.error ??
+                confirmJson.detail ??
+                `confirm-and-disburse failed (${confirmRes.status})`,
+            );
+          }
+
+          const principalAtoms = buildJson.state?.loanAmountAtoms ?? "0";
+          const rateBps = buildJson.state?.rateBps ?? rateForTermDays(termDays);
+          const dueTs = buildJson.state?.dueTs
+            ? Number(buildJson.state.dueTs)
+            : Math.floor(Date.now() / 1000) + termDays * 86400;
+          // The disburse landed in the borrower's USDC ATA; surface it as
+          // the demo's "in-app balance" so the disburse page renders.
+          const inAppBalanceAtoms = confirmJson.borrowerBalanceAfter
+            ? String(Math.round(Number(confirmJson.borrowerBalanceAfter) * 1_000_000))
+            : "0";
+
+          patch((prev) => ({
+            ...prev,
+            watch: {
+              ...(prev.watch ?? { photos: [] }),
+              ...watchPatch,
+              appraisal: prev.watch?.appraisal ?? {
+                chrono24: median,
+                watchcharts: median,
+                internal: median,
+                median,
+              },
             },
-          },
-          loan: {
-            loanId: json.loanId!,
-            principalAtoms,
-            rateBps,
-            termDays,
-            dueTs,
-            ccbHashHex: "",
-            signatureDataUrl: "",
-            custody: {
-              provider: "brinks",
-              confirmedAt: Date.now(),
+            loan: {
+              loanId: buildJson.loanId!,
+              principalAtoms,
+              rateBps,
+              termDays,
+              dueTs,
+              ccbHashHex: "",
+              signatureDataUrl: "",
+              custody: {
+                provider: "brinks",
+                confirmedAt: Date.now(),
+              },
+              inAppBalanceAtoms,
+              trdcStatePda: buildJson.trdcStatePda,
+              createTx: createSig,
+              custodyTx: confirmJson.custodyTx,
+              provisionedOnChain: true,
             },
-            inAppBalanceAtoms: "0",
-            trdcStatePda: json.trdcStatePda,
-            createTx: json.createTx,
-            custodyTx: json.custodyTx,
-            provisionedOnChain: true,
-          },
-          tour: { ...prev.tour, step: 8 },
-        }));
-        router.push("/demo/borrow/disburse");
+            tour: { ...prev.tour, step: 8 },
+          }));
+          router.push("/demo/borrow/disburse");
         });
         return;
       } catch (err) {
@@ -256,7 +361,7 @@ export default function RegisterPage() {
       }
     }
 
-    // Mock fallback: no usable wallet — keep the original demo flow alive.
+    // Mock fallback: no signing wallet — keep the original demo flow alive.
     router.push("/demo/borrow/appraisal/" + crypto.randomUUID());
   }
 
