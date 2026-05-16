@@ -337,15 +337,23 @@ export default function RegisterPage() {
                 provider: "brinks",
                 confirmedAt: Date.now(),
               },
+              // The atomic confirm_custody already disbursed, so the loan
+              // is already "delivered" by the time we redirect. Stamp
+              // `disbursedAt` so /funds renders the post-disburse state
+              // without bouncing through /disburse's pre-atomic narrative.
+              disbursedAt: Date.now(),
               inAppBalanceAtoms,
               trdcStatePda: buildJson.trdcStatePda,
               createTx: createSig,
               custodyTx: confirmJson.custodyTx,
               provisionedOnChain: true,
             },
-            tour: { ...prev.tour, step: 8 },
+            // Skip step 10 (the /disburse "AHA moment" — pre-atomic
+            // narrative where the user manually triggers disburse_from_vault;
+            // no longer reachable on the on-chain happy path).
+            tour: { ...prev.tour, step: 10 },
           }));
-          router.push("/demo/borrow/disburse");
+          router.push("/demo/borrow/funds");
         });
         return;
       } catch (err) {

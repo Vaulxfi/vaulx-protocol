@@ -84,6 +84,19 @@ export default function DisbursePage() {
     }
   }, [session, router]);
 
+  // Redirect away when the loan was provisioned via the atomic
+  // confirm_custody flow (post-3163352). On that path the disburse already
+  // landed during register submit, and this page's pre-atomic AHA narrative
+  // (refused → wake custodian → release) no longer applies — every CTA here
+  // calls loan.disburse_from_vault which reverts because trdc_state is at
+  // Active, not PendingCustody. Send them straight to /funds. The mock
+  // wizard path (no wallet) still flows through here for the storytelling.
+  useEffect(() => {
+    if (session?.loan?.provisionedOnChain) {
+      router.replace("/demo/borrow/funds");
+    }
+  }, [session?.loan?.provisionedOnChain, router]);
+
   const principalAtoms = session?.loan?.principalAtoms ?? "0";
   const amountLabel = useMemo(() => fmtUsdcWhole(principalAtoms), [principalAtoms]);
 
