@@ -33,9 +33,56 @@ export function SumsubVerify({ walletPubkey, onVerified, onCancel }: SumsubVerif
   useEffect(() => {
     let cancelled = false;
 
+    // Webhook-independent fallback: when the user finishes Sumsub the
+    // production webhook should mint the on-chain attestation, but in
+    // practice that pipeline has been unreliable (see
+    // project_sumsub_webhook_not_minting.md). Fire one POST to
+    // /api/sumsub/force-mint-attestation as soon as the WebSDK reports
+    // completion — the route queries Sumsub's REST API and mints the
+    // PDA if status is GREEN. The mint is idempotent on PDA existence
+    // so a webhook minting in parallel is harmless.
+    //
+    // We fire-and-forget here (logging only) because the existing
+    // /applicant-status poller below will detect the resulting PDA
+    // either way; surfacing a force-mint error to the user is just
+    // noise when the polling path is still working.
+    const triggerForceMint = () => {
+      void fetch("/api/sumsub/force-mint-attestation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ walletPubkey }),
+      })
+        .then(async (r) => {
+          const j = (await r.json().catch(() => ({}))) as {
+            ok?: boolean;
+            action?: string;
+            detail?: string;
+          };
+          if (j.ok) {
+            // eslint-disable-next-line no-console
+            console.log(
+              `[sumsub-verify] force-mint ${j.action ?? "?"}`,
+            );
+          } else {
+            // eslint-disable-next-line no-console
+            console.warn(
+              `[sumsub-verify] force-mint not yet eligible: ${j.detail ?? "?"}`,
+            );
+          }
+        })
+        .catch((err) => {
+          // eslint-disable-next-line no-console
+          console.warn(`[sumsub-verify] force-mint network error: ${String(err)}`);
+        });
+    };
+
     const startPolling = () => {
       if (pollTimerRef.current) return;
+      // Kick off the force-mint as soon as polling starts — covers the
+      // case where the webhook is misconfigured / not registered.
+      triggerForceMint();
       const startTs = Date.now();
+      let pollCount = 0;
       pollTimerRef.current = setInterval(async () => {
         if (Date.now() - startTs > POLL_TIMEOUT_MS) {
           if (pollTimerRef.current) clearInterval(pollTimerRef.current);
@@ -53,9 +100,18 @@ export function SumsubVerify({ walletPubkey, onVerified, onCancel }: SumsubVerif
             if (pollTimerRef.current) clearInterval(pollTimerRef.current);
             pollTimerRef.current = null;
             onVerifiedRef.current();
+            return;
           }
         } catch {
           // continue polling on transient errors
+        }
+        // Sumsub may take a few seconds to mark the applicant GREEN in
+        // their REST API after firing the WebSDK callback. Retry the
+        // force-mint every ~10s while the polling loop is running so
+        // we don't depend on a single shot landing in the window.
+        pollCount += 1;
+        if (pollCount % Math.max(1, Math.floor(10_000 / POLL_INTERVAL_MS)) === 0) {
+          triggerForceMint();
         }
       }, POLL_INTERVAL_MS);
     };
