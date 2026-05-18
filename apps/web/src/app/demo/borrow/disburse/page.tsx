@@ -1,41 +1,31 @@
 "use client";
-// THE AHA MOMENT: Vaulx refuses to release funds until the on-chain custody
-// confirmation lands. The page runs a local state machine — it ignores
-// `session.loan.custody.confirmedAt` until the user explicitly walks through
-// the refusal → custodian-sign → retry → release choreography. Session is
-// patched in parallel for downstream pages (dashboard, funds).
+// /demo/borrow/disburse renders two distinct flows depending on how
+// the loan was provisioned:
 //
-// Wave-D wiring: when a wallet is connected we additionally render an
-// "On-chain disburse" panel that calls the real `loan.disburse_from_vault`
-// via `useDisburse`. Before the call we hit `/api/demo/publish-price` so
-// the SR-2 oracle gate has a fresh PriceFeed for `trdc_state.ref_bytes`.
+//  - **provisionedOnChain = true** (atomic confirm-and-disburse via the
+//    FE-signing wizard from #31/#32). The disburse already landed on-
+//    chain during the register-submit round-trip, so there is no
+//    "release" action left for the user to perform. We show a
+//    success screen that links the two transaction signatures
+//    (createTx = create_ccb_trdc, custodyTx = atomic confirm_custody)
+//    to Solscan and routes the user onward to /funds.
 //
-// Prereqs (the on-chain call will fail without them, by design):
-//   - session.loan.loanId is set
-//   - on-chain TRDCState exists at deriveTrdcStatePda(loanId)
-//   - TRDCState.status == ActiveInCustody (custody already confirmed)
-//   - the borrower wallet matches the TRDC borrower (it's the signer)
-// When prereqs are missing the panel still renders but surfaces a useful
-// error from the program (e.g. AccountNotFound, InvalidStateTransition).
+//  - **provisionedOnChain = false** (mock wizard path: no wallet
+//    connected, register fell through to the synthetic UUID-loan
+//    flow). We keep the original AHA moment narrative — the on-chain
+//    contract "refuses" → custodian signs → "release funds" — because
+//    that storytelling is what the demo was built around for users
+//    walking through without a wallet.
+//
+// Previous iteration (PR #33) redirected provisionedOnChain users to
+// /funds because the AHA storyline didn't match their state. This
+// version removes that redirect — the page now self-adapts so /disburse
+// stays a meaningful stop in the wizard for everyone.
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { PublicKey } from "@solana/web3.js";
-import { useWallet } from "@solana/wallet-adapter-react";
 import { DemoShell } from "../../_components/demo-shell";
 import { useDemoSession } from "../../_lib/use-demo-session";
-import { deriveTrdcStatePda } from "@/lib/chain/loan-accounts";
-import { useTrdcState } from "@/lib/chain/custody";
-import { useDisburse } from "@/lib/chain/loan";
-import { requireUsdcMint } from "@/lib/usdc";
-import { useKycGate, KycCancelledError } from "@/lib/use-kyc-gate";
-
-type DisburseState =
-  | "ready"
-  | "refused"
-  | "custodian-signing"
-  | "custodian-signed"
-  | "disbursing"
-  | "done";
 
 const USD = new Intl.NumberFormat("en-US", {
   minimumFractionDigits: 0,
@@ -43,7 +33,7 @@ const USD = new Intl.NumberFormat("en-US", {
 });
 
 function fmtUsdcWhole(atoms: string): string {
-  // atoms are 6-decimal USDC; we display whole units only on this screen.
+  // atoms are 6-decimal USDC; this screen renders whole units only.
   try {
     const n = Number(BigInt(atoms) / 1_000_000n);
     return USD.format(n);
@@ -52,112 +42,196 @@ function fmtUsdcWhole(atoms: string): string {
   }
 }
 
-export default function DisbursePage() {
-  const router = useRouter();
-  const { session, patch } = useDemoSession();
-  const [state, setState] = useState<DisburseState>("ready");
-  const { publicKey: connectedWallet } = useWallet();
+function shortSig(sig: string | undefined): string {
+  if (!sig) return "";
+  return sig.length > 12 ? `${sig.slice(0, 6)}…${sig.slice(-4)}` : sig;
+}
 
-  // Derive TRDCState PDA when session has a loanId; surface real on-chain
-  // status so the disburse panel can show meaningful prereq errors before
-  // the user clicks.
-  const trdcPda = useMemo(() => {
-    const lid = session?.loan?.loanId;
-    if (!lid) return undefined;
-    try {
-      return deriveTrdcStatePda(new PublicKey(lid));
-    } catch {
-      return undefined;
-    }
-  }, [session?.loan?.loanId]);
-  const onchainTrdc = useTrdcState(trdcPda);
-  const disburse = useDisburse();
-  const { guard, modalNode } = useKycGate("Disburse");
-  const [chainSig, setChainSig] = useState<string | null>(null);
-  const [chainErr, setChainErr] = useState<string | null>(null);
-  const [chainPending, setChainPending] = useState(false);
+// ---------------------------------------------------------------------------
+// On-chain success view
+// ---------------------------------------------------------------------------
 
-  // Redirect if the user landed here without a loan.
-  useEffect(() => {
-    if (session && !session.loan) {
-      router.replace("/demo/borrow/onboard");
-    }
-  }, [session, router]);
+type OnChainSuccessProps = {
+  amountLabel: string;
+  loanId: string;
+  trdcStatePda?: string;
+  createTx?: string;
+  custodyTx?: string;
+};
 
-  // Redirect away when the loan was provisioned via the atomic
-  // confirm_custody flow (post-3163352). On that path the disburse already
-  // landed during register submit, and this page's pre-atomic AHA narrative
-  // (refused → wake custodian → release) no longer applies — every CTA here
-  // calls loan.disburse_from_vault which reverts because trdc_state is at
-  // Active, not PendingCustody. Send them straight to /funds. The mock
-  // wizard path (no wallet) still flows through here for the storytelling.
-  useEffect(() => {
-    if (session?.loan?.provisionedOnChain) {
-      router.replace("/demo/borrow/funds");
-    }
-  }, [session?.loan?.provisionedOnChain, router]);
+function OnChainSuccess({
+  amountLabel,
+  loanId,
+  trdcStatePda,
+  createTx,
+  custodyTx,
+}: OnChainSuccessProps) {
+  return (
+    <DemoShell formFactor="phone">
+      <div className="px-6 py-8">
+        <p className="eyebrow" style={{ color: "var(--brand)" }}>
+          Step 10 / 14 · The aha moment
+        </p>
+        <h1 className="display-md mt-3">Funds delivered.</h1>
+        <p className="mt-3 text-sm text-[var(--ink-dim)]">
+          Custody confirmation and principal disburse landed in a single
+          atomic transaction. Vaulx never holds funds between the two —
+          either both steps land or neither does.
+        </p>
 
-  const principalAtoms = session?.loan?.principalAtoms ?? "0";
-  const amountLabel = useMemo(() => fmtUsdcWhole(principalAtoms), [principalAtoms]);
+        {/* Amount card */}
+        <div
+          className="mt-6 rounded-md border border-emerald-500/40 bg-emerald-500/5 p-5"
+          style={{ animation: "vxReveal 600ms cubic-bezier(.22,1,.36,1)" }}
+        >
+          <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-emerald-400">
+            Principal disbursed
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span
+              className="font-display text-4xl text-[var(--ink)]"
+              style={{ fontVariantNumeric: "tabular-nums" }}
+            >
+              {amountLabel}
+            </span>
+            <span className="font-mono text-xs uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+              USDC
+            </span>
+          </div>
+          <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--ink-muted)]">
+            loan_id={loanId.slice(0, 8)}…
+          </p>
+        </div>
 
-  if (!session) {
-    return (
-      <DemoShell formFactor="phone">
-        <div className="px-6 py-12 text-[var(--ink-muted)]">Loading…</div>
-      </DemoShell>
-    );
-  }
+        {/* On-chain signature receipt */}
+        <div className="mt-6 rounded-md border border-[var(--rule)] bg-[var(--bg-elev-1)] p-5">
+          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--brand)]">
+            On-chain receipt · Devnet
+          </p>
 
-  if (!session.loan) {
-    return (
-      <DemoShell formFactor="phone">
-        <div className="px-6 py-12 text-[var(--ink-muted)]">Redirecting…</div>
-      </DemoShell>
-    );
-  }
+          {createTx && (
+            <div className="mt-3">
+              <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+                create_ccb_trdc
+              </p>
+              <a
+                href={`https://solscan.io/tx/${createTx}?cluster=devnet`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-[11px] text-emerald-400 underline decoration-dotted hover:text-emerald-300"
+              >
+                {shortSig(createTx)} ↗
+              </a>
+            </div>
+          )}
+
+          {custodyTx && (
+            <div className="mt-3">
+              <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+                confirm_custody (atomic + disburse)
+              </p>
+              <a
+                href={`https://solscan.io/tx/${custodyTx}?cluster=devnet`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-[11px] text-emerald-400 underline decoration-dotted hover:text-emerald-300"
+              >
+                {shortSig(custodyTx)} ↗
+              </a>
+            </div>
+          )}
+
+          {trdcStatePda && (
+            <div className="mt-3">
+              <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+                trdc_state
+              </p>
+              <a
+                href={`https://solscan.io/account/${trdcStatePda}?cluster=devnet`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-[11px] text-[var(--brand)] underline decoration-dotted hover:opacity-90"
+              >
+                {trdcStatePda.slice(0, 6)}…{trdcStatePda.slice(-4)} ↗
+              </a>
+            </div>
+          )}
+        </div>
+
+        <Link
+          href="/demo/borrow/funds"
+          className="mt-8 block w-full rounded-md border border-[var(--brand)] bg-[var(--brand)] px-4 py-4 text-center font-mono text-sm uppercase tracking-[0.16em] text-[var(--bg)]"
+        >
+          Continue to your funds →
+        </Link>
+
+        <style jsx>{`
+          @keyframes vxReveal {
+            from {
+              opacity: 0;
+              transform: translateY(4px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+        `}</style>
+      </div>
+    </DemoShell>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Mock-flow AHA moment (unchanged from pre-atomic narrative)
+// ---------------------------------------------------------------------------
+
+type MockState =
+  | "ready"
+  | "refused"
+  | "custodian-signing"
+  | "custodian-signed"
+  | "disbursing"
+  | "done";
+
+type MockAhaProps = {
+  amountLabel: string;
+  loanIdSlice: string;
+  onSignedCustody: () => void;
+  onDisburseDone: () => void;
+  onContinue: () => void;
+};
+
+function MockAha({
+  amountLabel,
+  loanIdSlice,
+  onSignedCustody,
+  onDisburseDone,
+  onContinue,
+}: MockAhaProps) {
+  const [state, setState] = useState<MockState>("ready");
 
   const handlePrimary = () => {
     if (state === "ready") {
-      // First tap — internal state machine ignores the existing
-      // session.loan.custody.confirmedAt to make the refusal land.
       setState("refused");
       return;
     }
     if (state === "custodian-signed") {
       setState("disbursing");
       window.setTimeout(() => {
-        patch((s) => ({
-          ...s,
-          loan: s.loan
-            ? {
-                ...s.loan,
-                disbursedAt: Date.now(),
-                inAppBalanceAtoms: s.loan.principalAtoms,
-              }
-            : s.loan,
-          tour: { ...s.tour, step: 10 },
-        }));
+        onDisburseDone();
         setState("done");
       }, 1200);
       return;
     }
     if (state === "done") {
-      router.push("/demo/borrow/funds");
+      onContinue();
     }
   };
 
   const handleWakeCustodian = () => setState("custodian-signing");
-
   const handleCustodianSign = () => {
-    patch((s) => ({
-      ...s,
-      loan: s.loan
-        ? {
-            ...s.loan,
-            custody: { ...s.loan.custody, confirmedAt: Date.now() },
-          }
-        : s.loan,
-    }));
+    onSignedCustody();
     setState("custodian-signed");
   };
 
@@ -175,7 +249,6 @@ export default function DisbursePage() {
 
   return (
     <DemoShell formFactor="phone">
-      {modalNode}
       <div className="px-6 py-8">
         <p className="eyebrow" style={{ color: "var(--brand)" }}>
           Step 10 / 14 · The aha moment
@@ -185,7 +258,6 @@ export default function DisbursePage() {
           Vaulx will refuse until custody is confirmed. Then it will let go.
         </p>
 
-        {/* Amount card */}
         <div className="mt-6 rounded-md border border-[var(--rule)] bg-[var(--bg-elev-1)] p-5">
           <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--ink-muted)]">
             Principal
@@ -202,11 +274,10 @@ export default function DisbursePage() {
             </span>
           </div>
           <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--ink-muted)]">
-            vault.disburse(loan_id={session.loan.loanId.slice(0, 8)})
+            vault.disburse(loan_id={loanIdSlice})
           </p>
         </div>
 
-        {/* Refused panel */}
         {state === "refused" && (
           <div
             key="refused"
@@ -219,8 +290,8 @@ export default function DisbursePage() {
               Error: CustodyNotConfirmed
             </p>
             <p className="mt-2 text-xs text-[var(--ink-dim)]">
-              vault.disburse() reverted. Custody must be confirmed on-chain by
-              the licensed custodian before funds release.
+              vault.disburse() reverted. Custody must be confirmed on-chain
+              by the licensed custodian before funds release.
             </p>
             <button
               type="button"
@@ -232,7 +303,6 @@ export default function DisbursePage() {
           </div>
         )}
 
-        {/* Custodian terminal panel */}
         {state === "custodian-signing" && (
           <div className="mt-6 rounded-md border border-[var(--brand)]/50 bg-[var(--brand-wash)] p-4">
             <div className="flex items-center justify-between">
@@ -258,7 +328,6 @@ export default function DisbursePage() {
           </div>
         )}
 
-        {/* Custody confirmed panel */}
         {state === "custodian-signed" && (
           <div className="mt-6 rounded-md border border-emerald-500/50 bg-emerald-500/10 p-4">
             <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-emerald-400">
@@ -270,7 +339,6 @@ export default function DisbursePage() {
           </div>
         )}
 
-        {/* Disbursing panel */}
         {state === "disbursing" && (
           <div className="mt-6 flex items-center gap-3 rounded-md border border-[var(--rule)] bg-[var(--bg-elev-1)] p-4">
             <span
@@ -283,7 +351,6 @@ export default function DisbursePage() {
           </div>
         )}
 
-        {/* Done panel */}
         {state === "done" && (
           <div
             key="done"
@@ -310,74 +377,6 @@ export default function DisbursePage() {
           </div>
         )}
 
-        {/* On-chain disburse panel (real Anchor ix) */}
-        <OnchainDisburseSection
-          loanId={session.loan.loanId}
-          principalAtoms={session.loan.principalAtoms}
-          trdcPda={trdcPda}
-          trdcStatus={
-            onchainTrdc.data?.status as Record<string, unknown> | undefined
-          }
-          trdcRefBytes={
-            (onchainTrdc.data as unknown as { refBytes?: number[] })?.refBytes
-          }
-          walletConnected={!!connectedWallet}
-          isPending={chainPending || disburse.isPending}
-          chainSig={chainSig}
-          chainErr={chainErr}
-          onClick={async () => {
-            setChainErr(null);
-            setChainSig(null);
-            setChainPending(true);
-            try {
-              const txSig = await guard(async () => {
-                if (!trdcPda) throw new Error("Loan id missing in session");
-                const usdcMint = requireUsdcMint();
-                const refBytes = (onchainTrdc.data as unknown as {
-                  refBytes?: number[];
-                })?.refBytes;
-                // Best-effort: if we have ref_bytes, refresh the price feed
-                // server-side. We don't fail the whole disburse on this — the
-                // operator may have configured oracle_admin = default, in
-                // which case publish-price returns an OracleNotInitialized
-                // error and disburse skips the oracle gate anyway.
-                if (Array.isArray(refBytes) && refBytes.length === 32) {
-                  try {
-                    await fetch("/api/demo/publish-price", {
-                      method: "POST",
-                      headers: { "content-type": "application/json" },
-                      body: JSON.stringify({ refBytes }),
-                    });
-                  } catch {
-                    // ignore — disburse will surface the real error
-                  }
-                }
-                const principal = BigInt(session.loan!.principalAtoms);
-                const refBytesU8 =
-                  Array.isArray(refBytes) && refBytes.length === 32
-                    ? Uint8Array.from(refBytes)
-                    : undefined;
-                const result = await disburse.mutateAsync({
-                  trdcPda,
-                  assetMint: usdcMint,
-                  amount: principal,
-                  refBytes: refBytesU8,
-                });
-                return result.txSig;
-              });
-              setChainSig(txSig);
-            } catch (err) {
-              if (err instanceof KycCancelledError) return;
-              setChainErr(
-                err instanceof Error ? err.message : String(err),
-              );
-            } finally {
-              setChainPending(false);
-            }
-          }}
-        />
-
-        {/* Primary CTA */}
         <button
           type="button"
           disabled={primaryDisabled}
@@ -397,151 +396,95 @@ export default function DisbursePage() {
               opacity: 0.35;
             }
           }
+          @keyframes vxReveal {
+            from {
+              opacity: 0;
+              transform: translateY(4px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
         `}</style>
       </div>
     </DemoShell>
   );
 }
 
-function OnchainDisburseSection({
-  loanId,
-  principalAtoms,
-  trdcPda,
-  trdcStatus,
-  trdcRefBytes,
-  walletConnected,
-  isPending,
-  chainSig,
-  chainErr,
-  onClick,
-}: {
-  loanId: string;
-  principalAtoms: string;
-  trdcPda: PublicKey | undefined;
-  trdcStatus: Record<string, unknown> | undefined;
-  trdcRefBytes: number[] | undefined;
-  walletConnected: boolean;
-  isPending: boolean;
-  chainSig: string | null;
-  chainErr: string | null;
-  onClick: () => void | Promise<void>;
-}) {
-  const statusKey = trdcStatus ? Object.keys(trdcStatus)[0] : undefined;
-  const inCustody = statusKey === "activeInCustody";
-  const onchainExists = !!trdcPda && !!statusKey;
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
+
+export default function DisbursePage() {
+  const router = useRouter();
+  const { session, patch } = useDemoSession();
+
+  useEffect(() => {
+    if (session && !session.loan) {
+      router.replace("/demo/borrow/onboard");
+    }
+  }, [session, router]);
+
+  const principalAtoms = session?.loan?.principalAtoms ?? "0";
+  const amountLabel = useMemo(() => fmtUsdcWhole(principalAtoms), [principalAtoms]);
+
+  if (!session) {
+    return (
+      <DemoShell formFactor="phone">
+        <div className="px-6 py-12 text-[var(--ink-muted)]">Loading…</div>
+      </DemoShell>
+    );
+  }
+  if (!session.loan) {
+    return (
+      <DemoShell formFactor="phone">
+        <div className="px-6 py-12 text-[var(--ink-muted)]">Redirecting…</div>
+      </DemoShell>
+    );
+  }
+
+  if (session.loan.provisionedOnChain) {
+    return (
+      <OnChainSuccess
+        amountLabel={amountLabel}
+        loanId={session.loan.loanId}
+        trdcStatePda={session.loan.trdcStatePda}
+        createTx={session.loan.createTx}
+        custodyTx={session.loan.custodyTx}
+      />
+    );
+  }
 
   return (
-    <div className="mt-8 rounded-md border border-[var(--rule)] bg-[var(--bg-elev-1)] p-5">
-      <div className="flex items-center justify-between">
-        <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--brand)]">
-          On-chain disburse · Devnet
-        </div>
-        {trdcPda && (
-          <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-[var(--ink-muted)]">
-            {trdcPda.toBase58().slice(0, 6)}…{trdcPda.toBase58().slice(-4)}
-          </span>
-        )}
-      </div>
-
-      <p className="mt-2 text-xs text-[var(--ink-dim)]">
-        Calls{" "}
-        <code className="font-mono text-[var(--brand)]">
-          loan.disburse_from_vault({(BigInt(principalAtoms) / 1_000_000n).toString()} USDC)
-        </code>{" "}
-        from your wallet. Publishes a fresh price feed beforehand to satisfy
-        the SR-2 oracle gate.
-      </p>
-
-      {/* Prereq summary */}
-      <ul className="mt-3 flex flex-col gap-1 font-mono text-[10px] uppercase tracking-[0.14em]">
-        <li
-          className={
-            walletConnected ? "text-emerald-400" : "text-[var(--ink-muted)]"
-          }
-        >
-          {walletConnected ? "✓" : "·"} Wallet connected
-        </li>
-        <li
-          className={
-            !!loanId ? "text-emerald-400" : "text-[var(--ink-muted)]"
-          }
-        >
-          {loanId ? "✓" : "·"} Loan id present
-        </li>
-        <li
-          className={
-            onchainExists ? "text-emerald-400" : "text-[var(--ink-muted)]"
-          }
-        >
-          {onchainExists ? "✓" : "·"} On-chain TRDC found
-          {statusKey && (
-            <span className="ml-2 text-[var(--ink-muted)] normal-case">
-              ({statusKey})
-            </span>
-          )}
-        </li>
-        <li
-          className={
-            inCustody ? "text-emerald-400" : "text-[var(--ink-muted)]"
-          }
-        >
-          {inCustody ? "✓" : "·"} Status = ActiveInCustody
-        </li>
-        <li
-          className={
-            Array.isArray(trdcRefBytes) && trdcRefBytes.length === 32
-              ? "text-emerald-400"
-              : "text-[var(--ink-muted)]"
-          }
-        >
-          {Array.isArray(trdcRefBytes) && trdcRefBytes.length === 32 ? "✓" : "·"} ref_bytes
-          available
-        </li>
-      </ul>
-
-      <button
-        type="button"
-        disabled={!walletConnected || isPending}
-        onClick={onClick}
-        className="mt-4 w-full rounded-md border border-[var(--brand)]/60 bg-[var(--brand)]/10 px-4 py-3 font-mono text-xs uppercase tracking-[0.16em] text-[var(--brand)] disabled:cursor-not-allowed disabled:opacity-40 hover:bg-[var(--brand)]/20"
-      >
-        {isPending
-          ? "Submitting on-chain disburse…"
-          : walletConnected
-            ? "Run disburse on Devnet"
-            : "Connect wallet to disburse"}
-      </button>
-
-      {chainErr && (
-        <p className="mt-3 break-words font-mono text-[11px] text-rose-400">
-          {chainErr}
-        </p>
-      )}
-      {chainSig && (
-        <p className="mt-3 font-mono text-[11px] text-emerald-400">
-          ✓ Disbursed.{" "}
-          <a
-            href={`https://solscan.io/tx/${chainSig}?cluster=devnet`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline decoration-dotted hover:text-emerald-300"
-          >
-            {chainSig.slice(0, 8)}…{chainSig.slice(-4)} ↗
-          </a>
-        </p>
-      )}
-
-      {!onchainExists && walletConnected && (
-        <p className="mt-3 text-[11px] text-[var(--ink-muted)]">
-          No active loan in CustodyConfirmed status. Create a loan first via{" "}
-          <code className="font-mono text-[var(--brand)]">
-            /demo/borrow/onboard
-          </code>{" "}
-          or use the admin cockpit at{" "}
-          <code className="font-mono text-[var(--brand)]">/admin/demo</code>{" "}
-          (local-only).
-        </p>
-      )}
-    </div>
+    <MockAha
+      amountLabel={amountLabel}
+      loanIdSlice={session.loan.loanId.slice(0, 8)}
+      onSignedCustody={() => {
+        patch((s) => ({
+          ...s,
+          loan: s.loan
+            ? {
+                ...s.loan,
+                custody: { ...s.loan.custody, confirmedAt: Date.now() },
+              }
+            : s.loan,
+        }));
+      }}
+      onDisburseDone={() => {
+        patch((s) => ({
+          ...s,
+          loan: s.loan
+            ? {
+                ...s.loan,
+                disbursedAt: Date.now(),
+                inAppBalanceAtoms: s.loan.principalAtoms,
+              }
+            : s.loan,
+          tour: { ...s.tour, step: 10 },
+        }));
+      }}
+      onContinue={() => router.push("/demo/borrow/funds")}
+    />
   );
 }
